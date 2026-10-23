@@ -1,0 +1,404 @@
+{
+  "id": "crm-customer",
+  "pluginKey": "@official-plugins/feishu-bitable",
+  "pluginVersion": "1.0.22",
+  "name": "CRM customer",
+  "description": "连接现有 CRM 数据表；仅由受保护的业务服务调用",
+  "paramsSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "formValue": {
+    "appToken": "BASE_DOCUMENT_EXAMPLE000001",
+    "tableID": "tblExample000001",
+    "fields": [
+      {
+        "id": "fldExample000111",
+        "name": "联系人",
+        "type": 21,
+        "bizType": "DuplexLink",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000113",
+        "name": "长期未跟进",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000162",
+        "name": "行动执行人",
+        "type": 11,
+        "bizType": "User",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000037",
+        "name": "行业",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "制造业",
+          "信息技术",
+          "服务业",
+          "其他"
+        ]
+      },
+      {
+        "id": "fldExample000126",
+        "name": "下次跟进日期",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000143",
+        "name": "客户负责人",
+        "type": 11,
+        "bizType": "User",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000170",
+        "name": "客户备注",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000168",
+        "name": "归档时间",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000072",
+        "name": "修改时间",
+        "type": 1002,
+        "bizType": "ModifiedTime",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000032",
+        "name": "管理记录",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000154",
+        "name": "企业全称",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000046",
+        "name": "数据检查",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000049",
+        "name": "当前下一步行动",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000125",
+        "name": "协同人员",
+        "type": 11,
+        "bizType": "User",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000093",
+        "name": "核查标记",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "正常",
+          "待核查"
+        ]
+      },
+      {
+        "id": "fldExample000116",
+        "name": "已归档",
+        "type": 7,
+        "bizType": "Checkbox",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000174",
+        "name": "核查说明",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000124",
+        "name": "简称",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000083",
+        "name": "最近整体互动",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000104",
+        "name": "逾期",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000031",
+        "name": "有效执行人",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000070",
+        "name": "非终局项目数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000025",
+        "name": "客户编号",
+        "type": 1005,
+        "bizType": "AutoNumber",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000114",
+        "name": "创建人",
+        "type": 1003,
+        "bizType": "CreatedUser",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000141",
+        "name": "未跟进天数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000165",
+        "name": "归档阻塞项目数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000140",
+        "name": "最近成功提醒时间",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000054",
+        "name": "创建时间",
+        "type": 1001,
+        "bizType": "CreatedTime",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000106",
+        "name": "质量正常",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000152",
+        "name": "逾期天数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000107",
+        "name": "最近成功提醒键",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000144",
+        "name": "存在当前计划",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000133",
+        "name": "客户直接跟进",
+        "type": 21,
+        "bizType": "DuplexLink",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000035",
+        "name": "归档原因",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000088",
+        "name": "修改人",
+        "type": 1004,
+        "bizType": "ModifiedUser",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000040",
+        "name": "项目",
+        "type": 21,
+        "bizType": "DuplexLink",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000028",
+        "name": "网站",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000186",
+        "name": "地区",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000175",
+        "name": "客户关系状态",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "待建立",
+          "接洽中",
+          "合作中",
+          "暂停合作",
+          "结束合作"
+        ]
+      },
+      {
+        "id": "fldExample000117",
+        "name": "允许员工维护",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000115",
+        "name": "统一社会信用代码",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000073",
+        "name": "最近直接跟进",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000099",
+        "name": "今日到期",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000127",
+        "name": "整体有效次数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000058",
+        "name": "缺计划",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000050",
+        "name": "直接有效次数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      }
+    ]
+  },
+  "createdAt": 1792795161504,
+  "updatedAt": 1792795161504
+}

@@ -1,0 +1,321 @@
+{
+  "id": "crm-followup",
+  "pluginKey": "@official-plugins/feishu-bitable",
+  "pluginVersion": "1.0.22",
+  "name": "CRM followup",
+  "description": "连接现有 CRM 数据表；仅由受保护的业务服务调用",
+  "paramsSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "formValue": {
+    "appToken": "BASE_DOCUMENT_EXAMPLE000001",
+    "tableID": "tblExample000005",
+    "fields": [
+      {
+        "id": "fldExample000060",
+        "name": "沟通 / 推进方式",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "电话",
+          "线上会议",
+          "现场",
+          "即时消息",
+          "邮件",
+          "其他",
+          "内部讨论",
+          "资料处理"
+        ]
+      },
+      {
+        "id": "fldExample000176",
+        "name": "直接客户",
+        "type": 21,
+        "bizType": "DuplexLink",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000067",
+        "name": "核查说明",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000121",
+        "name": "作废原因",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000150",
+        "name": "关联项目",
+        "type": 21,
+        "bizType": "DuplexLink",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000146",
+        "name": "有效客户名称",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000076",
+        "name": "跟进主题",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000044",
+        "name": "跟进归属",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "客户直接跟进",
+          "项目跟进"
+        ]
+      },
+      {
+        "id": "fldExample000118",
+        "name": "客户联系人",
+        "type": 21,
+        "bizType": "DuplexLink",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000053",
+        "name": "无后续动作结论",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000188",
+        "name": "核查标记",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "正常",
+          "待核查"
+        ]
+      },
+      {
+        "id": "fldExample000052",
+        "name": "创建人",
+        "type": 1003,
+        "bizType": "CreatedUser",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000155",
+        "name": "修改人",
+        "type": 1004,
+        "bizType": "ModifiedUser",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000173",
+        "name": "有效计数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000056",
+        "name": "附件",
+        "type": 17,
+        "bizType": "Attachment",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000153",
+        "name": "后续安排",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "有下一步行动",
+          "无后续动作"
+        ]
+      },
+      {
+        "id": "fldExample000160",
+        "name": "建议日期",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000086",
+        "name": "记录状态",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "正常",
+          "已作废"
+        ]
+      },
+      {
+        "id": "fldExample000018",
+        "name": "实际发生时间",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000166",
+        "name": "数据检查",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000119",
+        "name": "实际跟进人",
+        "type": 11,
+        "bizType": "User",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000004",
+        "name": "有效时间",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000105",
+        "name": "归属正确",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000158",
+        "name": "创建时间",
+        "type": 1001,
+        "bizType": "CreatedTime",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000006",
+        "name": "质量正常",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000147",
+        "name": "建议下一步行动",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000178",
+        "name": "有效",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000057",
+        "name": "修改时间",
+        "type": 1002,
+        "bizType": "ModifiedTime",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000055",
+        "name": "有效客户标识",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000047",
+        "name": "记录类型",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "外部沟通",
+          "内部推进"
+        ]
+      },
+      {
+        "id": "fldExample000109",
+        "name": "建议处理人",
+        "type": 11,
+        "bizType": "User",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000081",
+        "name": "跟进编号",
+        "type": 1005,
+        "bizType": "AutoNumber",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000064",
+        "name": "联系人异常数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000084",
+        "name": "内容 / 推进结论",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      }
+    ]
+  },
+  "createdAt": 1792795161508,
+  "updatedAt": 1792795161508
+}

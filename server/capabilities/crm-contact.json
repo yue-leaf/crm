@@ -1,0 +1,244 @@
+{
+  "id": "crm-contact",
+  "pluginKey": "@official-plugins/feishu-bitable",
+  "pluginVersion": "1.0.22",
+  "name": "CRM contact",
+  "description": "连接现有 CRM 数据表；仅由受保护的业务服务调用",
+  "paramsSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "formValue": {
+    "appToken": "BASE_DOCUMENT_EXAMPLE000001",
+    "tableID": "tblExample000002",
+    "fields": [
+      {
+        "id": "fldExample000185",
+        "name": "邮箱",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000080",
+        "name": "所属企业",
+        "type": 21,
+        "bizType": "DuplexLink",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000180",
+        "name": "部门",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000123",
+        "name": "数据检查",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000016",
+        "name": "技术领域",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000043",
+        "name": "姓名",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000068",
+        "name": "修改时间",
+        "type": 1002,
+        "bizType": "ModifiedTime",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000007",
+        "name": "关联跟进",
+        "type": 21,
+        "bizType": "DuplexLink",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000131",
+        "name": "身份检查",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000001",
+        "name": "核查标记",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "正常",
+          "待核查"
+        ]
+      },
+      {
+        "id": "fldExample000074",
+        "name": "创建人",
+        "type": 1003,
+        "bizType": "CreatedUser",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000163",
+        "name": "联系人状态",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "有效",
+          "停用"
+        ]
+      },
+      {
+        "id": "fldExample000062",
+        "name": "备注",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000142",
+        "name": "停用原因",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000012",
+        "name": "修改人",
+        "type": 1004,
+        "bizType": "ModifiedUser",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000098",
+        "name": "电话",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000159",
+        "name": "联系人管理记录",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000138",
+        "name": "创建时间",
+        "type": 1001,
+        "bizType": "CreatedTime",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000169",
+        "name": "客户侧业务角色",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "业务对接",
+          "技术对接",
+          "项目协调",
+          "采购",
+          "决策者",
+          "使用者",
+          "其他"
+        ]
+      },
+      {
+        "id": "fldExample000122",
+        "name": "维护人",
+        "type": 11,
+        "bizType": "User",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000041",
+        "name": "停用时间",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000077",
+        "name": "所属客户标识",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000134",
+        "name": "质量正常",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000091",
+        "name": "核查说明",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldExample000112",
+        "name": "联系人编号",
+        "type": 1005,
+        "bizType": "AutoNumber",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldExample000151",
+        "name": "职务",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      }
+    ]
+  },
+  "createdAt": 1792795161505,
+  "updatedAt": 1792795161505
+}
