@@ -25,6 +25,8 @@ import {
 } from '@shared/crm';
 import type { Draft, FieldSpec } from '@shared/crm';
 import { parseDraft, reject } from './crm-validation';
+import { prepareEdit } from './crm-edit';
+import { recordDraft, changedFields } from '@shared/crm-edit';
 
 @Injectable()
 export class CrmService {
@@ -348,7 +350,16 @@ export class CrmService {
     )
       throw new ConflictException('记录已变化，请刷新后重新操作');
     let fields: Record<string, unknown>;
-    if (operation === 'plan' && (key === 'customer' || key === 'project')) {
+    if (operation === 'edit' && key !== 'access') {
+      const edited = prepareEdit(key, row, input, this.enums(key), actor);
+      this.validateFacts(key, edited.draft);
+      await this.people(edited.validationFields, forms[key]);
+      await this.relationChecks(key, edited.draft, edited.validationFields);
+      fields = edited.writes;
+    } else if (
+      operation === 'plan' &&
+      (key === 'customer' || key === 'project')
+    ) {
       this.assertActive(row);
       const parsed = parseDraft(input, planFields, this.enums(key));
       fields = parsed.fields;
@@ -369,42 +380,64 @@ export class CrmService {
       if (textValue(row.record['核查标记']) !== '待核查')
         reject('核查', '此记录不处于待核查状态');
       // Revalidate original data and cross-record relations before admitting it into aggregates.
-      const original: Draft = {};
-      for (const f of forms[key]) {
-        const v = row.record[f.key];
-        if (v == null) continue;
-        if (f.type === 'person')
-          original[f.key] = Array.isArray(v) ? v.map(String) : null;
-        else if (f.type === 'relation') original[f.key] = linkIds(v);
-        else if (f.type === 'date' || f.type === 'datetime') {
-          if (typeof v === 'number')
-            original[f.key] = new Date(v + 8 * 3600000)
-              .toISOString()
-              .slice(0, f.type === 'date' ? 10 : 16);
-        } else if (f.type === 'number')
-          original[f.key] = typeof v === 'number' ? v : null;
-        else original[f.key] = textValue(v);
-      }
+      const original = recordDraft(row.record, forms[key]);
       const checked = parseDraft(original, forms[key], this.enums(key));
       this.validateFacts(key, checked.draft);
       await this.people(checked.fields, forms[key]);
       await this.relationChecks(key, checked.draft, checked.fields);
       fields['核查标记'] = '正常';
-      fields['核查说明'] =
-        `${textValue(fields['核查说明'])}\n核查人 ${actor} · ${new Date().toISOString()}`;
+      fields['核查说明'] = [
+        textValue(row.record['核查说明']),
+        `${textValue(fields['核查说明'])}\n核查人 ${actor} · ${new Date().toISOString()}`,
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+      if (String(fields['核查说明']).length > 20000)
+        reject('核查说明', '历史说明已达上限，请先整理留存');
     } else reject('操作', '不支持的操作');
     this.writtenId(
       await this.call(key, 'batchUpdateRecords', {
         records: [{ id, record: fields }],
       }),
     );
-    await this.get(key, id);
+    const saved = await this.get(key, id);
+    if (operation === 'edit') {
+      const spec = [
+        ...forms[key],
+        { key: '核查标记', type: 'text' as const },
+        { key: '核查说明', type: 'long' as const },
+      ];
+      const actual = recordDraft(saved.record, spec);
+      const expected = recordDraft(
+        Object.fromEntries(
+          Object.entries(fields).map(([k, v]) => [
+            k,
+            spec.find((f) => f.key === k)?.type === 'relation'
+              ? { link_record_ids: v }
+              : v,
+          ]),
+        ),
+        spec,
+      );
+      if (
+        Object.keys(
+          changedFields(
+            expected,
+            actual,
+            spec.filter((f) => f.key in fields),
+          ),
+        ).length
+      )
+        throw new BadGatewayException('保存回读不一致，请刷新核对后再操作');
+    }
     return {
       id,
       message:
         key === 'access'
           ? '已保存授权意向；未改变飞书或妙搭实际角色'
-          : '已保存并回读飞书记录',
+          : operation === 'edit'
+            ? '修改已保存并回读，记录进入待核查'
+            : '已保存并回读飞书记录',
     };
   }
 }

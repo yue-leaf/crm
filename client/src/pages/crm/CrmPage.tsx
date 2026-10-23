@@ -14,6 +14,7 @@ import {
   ChevronRight,
   CheckCircle2,
   LoaderCircle,
+  Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrentUserProfile } from '@lark-apaas/client-toolkit/hooks/useCurrentUserProfile';
@@ -43,6 +44,12 @@ import {
   textValue,
 } from '@shared/crm';
 import type { Draft, FieldSpec } from '@shared/crm';
+import {
+  editFields,
+  recordDraft,
+  changedFields,
+  editBlockedReason,
+} from '@shared/crm-edit';
 import { Cell, FieldInput, message } from './Fields';
 import './crm.css';
 
@@ -88,13 +95,15 @@ interface Editor {
   row?: CrmRecord;
 }
 const specs = (editor: Editor): FieldSpec[] =>
-  editor.operation === 'plan'
-    ? planFields
-    : editor.operation === 'suggest-end'
-      ? endFields
-      : editor.operation === 'review'
-        ? [{ key: '核查说明', type: 'long', required: true }]
-        : forms[editor.kind];
+  editor.operation === 'edit'
+    ? editFields(editor.kind)
+    : editor.operation === 'plan'
+      ? planFields
+      : editor.operation === 'suggest-end'
+        ? endFields
+        : editor.operation === 'review'
+          ? [{ key: '核查说明', type: 'long', required: true }]
+          : forms[editor.kind];
 const CrmPage: React.FC = () => {
   const navigate = useNavigate();
   const { section } = useParams();
@@ -114,6 +123,8 @@ const CrmPage: React.FC = () => {
   const [draft, setDraft] = useState<Draft>({});
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editReason, setEditReason] = useState('');
+  const [openingId, setOpeningId] = useState<string | null>(null);
   const requestVersion = useRef(0);
   const authorized = !!session?.roles.includes('crm_admin');
   useEffect(() => {
@@ -172,9 +183,8 @@ const CrmPage: React.FC = () => {
     row?: CrmRecord,
   ) => {
     const ed = { kind, operation, row };
-    const initial: Draft = {};
-    if (row && operation === 'access')
-      for (const f of specs(ed)) initial[f.key] = textValue(row.record[f.key]);
+    const initial: Draft =
+      row && operation !== 'review' ? recordDraft(row.record, specs(ed)) : {};
     if (operation === 'create')
       for (const f of specs(ed)) {
         if (f.type === 'person' && f.required)
@@ -190,7 +200,27 @@ const CrmPage: React.FC = () => {
     }
     setDraft(initial);
     setSaveError('');
+    setEditReason('');
     setEditor(ed);
+  };
+  const edit = async (row: CrmRecord) => {
+    if (active === 'home' || active === 'access' || openingId) return;
+    const version = requestVersion.current;
+    setOpeningId(row.id);
+    try {
+      const fresh = await api.get(active, row.id);
+      if (version !== requestVersion.current) return;
+      const blocked = editBlockedReason(active, fresh);
+      if (blocked) {
+        toast.error(blocked);
+        return;
+      }
+      openEditor(active, 'edit', fresh);
+    } catch (e: unknown) {
+      toast.error(message(e));
+    } finally {
+      setOpeningId(null);
+    }
   };
   const detail = async (row: CrmRecord) => {
     if (active === 'home') return;
@@ -207,15 +237,26 @@ const CrmPage: React.FC = () => {
     setSaving(true);
     setSaveError('');
     try {
-      const r = editor.row
-        ? await api.update(
-            editor.kind,
-            editor.row.id,
-            editor.operation,
-            draft,
-            Number(editor.row.record['修改时间']),
-          )
-        : await api.create(editor.kind, draft);
+      const r =
+        editor.operation === 'edit' && editor.row
+          ? await api.edit(editor.kind, editor.row.id, {
+              changes: changedFields(
+                recordDraft(editor.row.record, specs(editor)),
+                draft,
+                specs(editor),
+              ),
+              reason: editReason,
+              expectedModifiedAt: Number(editor.row.record['修改时间']),
+            })
+          : editor.row
+            ? await api.update(
+                editor.kind,
+                editor.row.id,
+                editor.operation,
+                draft,
+                Number(editor.row.record['修改时间']),
+              )
+            : await api.create(editor.kind, draft);
       toast.success(r.message);
       setEditor(null);
       setSelection(null);
@@ -529,6 +570,23 @@ const CrmPage: React.FC = () => {
                                 {active === 'access' ? '维护意向' : '查看'}
                                 <ChevronRight size={14} />
                               </Button>
+                              {active !== 'access' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={
+                                    !!openingId ||
+                                    !!editBlockedReason(active, row)
+                                  }
+                                  title={
+                                    editBlockedReason(active, row) || '编辑资料'
+                                  }
+                                  onClick={() => void edit(row)}
+                                >
+                                  <Pencil size={14} />
+                                  {openingId === row.id ? '读取中' : '编辑'}
+                                </Button>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -600,6 +658,19 @@ const CrmPage: React.FC = () => {
           {selection && (
             <>
               <div className="detail-actions">
+                {active !== 'home' && active !== 'access' && (
+                  <Button
+                    variant="outline"
+                    disabled={
+                      !!openingId || !!editBlockedReason(active, selection)
+                    }
+                    title={editBlockedReason(active, selection) || '编辑资料'}
+                    onClick={() => void edit(selection)}
+                  >
+                    <Pencil size={15} />
+                    编辑资料
+                  </Button>
+                )}
                 {(active === 'customer' || active === 'project') && (
                   <Button onClick={() => openEditor(active, 'plan', selection)}>
                     调整当前计划
@@ -654,21 +725,25 @@ const CrmPage: React.FC = () => {
             {editor
               ? editor.operation === 'create'
                 ? `新建${labels[editor.kind]}`
-                : editor.operation === 'plan'
-                  ? '调整当前计划'
-                  : editor.operation === 'review'
-                    ? '核查通过'
-                    : editor.operation === 'access'
-                      ? '维护授权意向'
-                      : '提出结束建议'
+                : editor.operation === 'edit'
+                  ? `编辑${labels[editor.kind]}`
+                  : editor.operation === 'plan'
+                    ? '调整当前计划'
+                    : editor.operation === 'review'
+                      ? '核查通过'
+                      : editor.operation === 'access'
+                        ? '维护授权意向'
+                        : '提出结束建议'
               : ''}
           </DialogTitle>
           <DialogDescription>
             {editor?.operation === 'create'
               ? '保存后写入飞书多维表格，并进入待核查。'
-              : editor?.operation === 'access'
-                ? '保存意向不会自动修改实际角色。'
-                : '请核对信息后保存，保留历史跟进中的原始建议。'}
+              : editor?.operation === 'edit'
+                ? '修改已有资料，保存后重新核查；只更新本次改动，不覆盖历史建议或当前计划。'
+                : editor?.operation === 'access'
+                  ? '保存意向不会自动修改实际角色。'
+                  : '请核对信息后保存，保留历史跟进中的原始建议。'}
           </DialogDescription>
           <form
             onSubmit={(e) => {
@@ -676,6 +751,12 @@ const CrmPage: React.FC = () => {
               void save();
             }}
           >
+            {editor?.operation === 'edit' && editor.row && (
+              <div className="panel-note">
+                正在编辑：{textValue(editor.row.record[titles[editor.kind]])}。
+                客户或项目归属保持不变，当前计划请使用“调整当前计划”。
+              </div>
+            )}
             <div className="form-grid">
               {editor &&
                 specs(editor)
@@ -688,6 +769,13 @@ const CrmPage: React.FC = () => {
                       onChange={set}
                     />
                   ))}
+              {editor?.operation === 'edit' && (
+                <FieldInput
+                  field={{ key: '修改说明', type: 'long', required: true }}
+                  draft={{ 修改说明: editReason }}
+                  onChange={(_, value) => setEditReason(String(value ?? ''))}
+                />
+              )}
             </div>
             {saveError && (
               <div className="error-banner" role="alert">
