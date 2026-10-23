@@ -26,7 +26,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { api } from '@/api/crm';
+import { api, SaveOutcomeUnknown } from '@/api/crm';
 import type {
   CrmPage as PageData,
   CrmRecord,
@@ -42,6 +42,7 @@ import {
   planFields,
   endFields,
   textValue,
+  crmSection,
 } from '@shared/crm';
 import type { Draft, FieldSpec } from '@shared/crm';
 import {
@@ -107,9 +108,7 @@ const specs = (editor: Editor): FieldSpec[] =>
 const CrmPage: React.FC = () => {
   const navigate = useNavigate();
   const { section } = useParams();
-  const active = (section && section in labels ? section : 'home') as
-    | EntityKind
-    | 'home';
+  const active = crmSection(section);
   const profile = useCurrentUserProfile();
   const [session, setSession] = useState<CrmSession | null>(null);
   const [summary, setSummary] = useState<CrmSummary | null>(null);
@@ -123,6 +122,9 @@ const CrmPage: React.FC = () => {
   const [draft, setDraft] = useState<Draft>({});
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
+  const savingRef = useRef(false);
+  const detailVersion = useRef(0);
   const [editReason, setEditReason] = useState('');
   const [openingId, setOpeningId] = useState<string | null>(null);
   const requestVersion = useRef(0);
@@ -201,6 +203,7 @@ const CrmPage: React.FC = () => {
     setDraft(initial);
     setSaveError('');
     setEditReason('');
+    setUncertain(false);
     setEditor(ed);
   };
   const edit = async (row: CrmRecord) => {
@@ -225,15 +228,17 @@ const CrmPage: React.FC = () => {
   const detail = async (row: CrmRecord) => {
     if (active === 'home') return;
     const version = requestVersion.current;
+    const detailRequest = ++detailVersion.current;
     try {
       const next = await api.get(active, row.id);
-      if (version === requestVersion.current) setSelection(next);
+      if (version === requestVersion.current && detailRequest === detailVersion.current) setSelection(next);
     } catch (e: unknown) {
       toast.error(message(e));
     }
   };
   const save = async () => {
-    if (!editor || saving) return;
+    if (!editor || savingRef.current || uncertain) return;
+    savingRef.current = true;
     setSaving(true);
     setSaveError('');
     try {
@@ -262,13 +267,16 @@ const CrmPage: React.FC = () => {
       setSelection(null);
       await reload();
     } catch (e: unknown) {
+      if (e instanceof SaveOutcomeUnknown) setUncertain(true);
       setSaveError(message(e));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
   const set = (key: string, value: Draft[string]) =>
     setDraft((prev) => {
+      if (savingRef.current) return prev;
       const next = { ...prev, [key]: value };
       if (key === '跟进归属') {
         next['直接客户'] = [];
@@ -757,7 +765,7 @@ const CrmPage: React.FC = () => {
                 客户或项目归属保持不变，当前计划请使用“调整当前计划”。
               </div>
             )}
-            <div className="form-grid">
+            <fieldset className="form-grid" disabled={saving || uncertain}>
               {editor &&
                 specs(editor)
                   .filter(showField)
@@ -776,7 +784,7 @@ const CrmPage: React.FC = () => {
                   onChange={(_, value) => setEditReason(String(value ?? ''))}
                 />
               )}
-            </div>
+            </fieldset>
             {saveError && (
               <div className="error-banner" role="alert">
                 {saveError}
@@ -791,7 +799,7 @@ const CrmPage: React.FC = () => {
               >
                 取消
               </Button>
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving || uncertain}>
                 {saving ? (
                   <>
                     <LoaderCircle size={16} className="spin" />

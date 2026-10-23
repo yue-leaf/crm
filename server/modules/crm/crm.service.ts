@@ -8,6 +8,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { CapabilityService } from '@lark-apaas/fullstack-nestjs-core';
+import { isDeepStrictEqual } from 'node:util';
 import type {
   CrmPage,
   EntityKind,
@@ -26,11 +27,12 @@ import {
 import type { Draft, FieldSpec } from '@shared/crm';
 import { parseDraft, reject } from './crm-validation';
 import { prepareEdit } from './crm-edit';
-import { recordDraft, changedFields } from '@shared/crm-edit';
+import { recordDraft } from '@shared/crm-edit';
 
 @Injectable()
 export class CrmService {
   private readonly logger = new Logger(CrmService.name);
+  private readonly updating = new Set<string>();
   constructor(
     @Inject(CapabilityService) private readonly capability: CapabilityService,
   ) {}
@@ -50,10 +52,9 @@ export class CrmService {
   ): Promise<unknown> {
     try {
       return await this.capability.load(`crm-${kind}`).call(action, input);
-    } catch (error: unknown) {
-      this.logger.warn(
-        `Base ${kind} ${action} failed: ${error instanceof Error ? error.message : 'unknown error'}`,
-      );
+    } catch {
+      // Plugin errors can contain request data or credentials. Log operation only.
+      this.logger.warn(`Base ${kind} ${action} failed`);
       throw new BadGatewayException(
         action.startsWith('batch')
           ? '保存结果尚未确认，请先刷新列表核对，避免重复提交'
@@ -73,9 +74,9 @@ export class CrmService {
   }
   async list(kind: string, cursor?: string, search?: string): Promise<CrmPage> {
     const key = this.kind(kind);
-    if (cursor && cursor.length > 2048)
+    if (cursor !== undefined && (typeof cursor !== 'string' || cursor.length > 2048))
       throw new BadRequestException('分页标记无效');
-    if (search && search.length > 200)
+    if (search !== undefined && (typeof search !== 'string' || search.length > 200))
       throw new BadRequestException('搜索内容过长');
     const result = await this.call(key, 'searchRecords', {
       pageSize: 50,
@@ -109,7 +110,7 @@ export class CrmService {
 
   async get(kind: string, id: string): Promise<CrmRecord> {
     const key = this.kind(kind);
-    if (!/^rec[A-Za-z0-9]+$/.test(id))
+    if (typeof id !== 'string' || id.length > 100 || !/^rec[A-Za-z0-9]+$/.test(id))
       throw new BadRequestException('记录标识无效');
     const result = await this.call(key, 'getRecord', { recordID: id });
     if (
@@ -215,7 +216,9 @@ export class CrmService {
       this.assertActive(p);
       if (textValue(p.record['核查标记']) !== '正常')
         reject('关联项目', '项目需先核查通过');
-      customerId = linkIds(p.record['所属企业'])[0];
+      const parents = linkIds(p.record['所属企业']);
+      if (parents.length !== 1) reject('关联项目', '项目必须且只能关联一个企业，请先核对');
+      customerId = parents[0];
     }
     if (!customerId) reject('跟进归属', '无法确定所属企业');
     await this.activeCustomer(customerId);
@@ -232,14 +235,17 @@ export class CrmService {
         reject('客户联系人', '外部沟通必须选择联系人');
       for (const id of arr('客户联系人')) {
         const c = await this.get('contact', id);
-        if (!linkIds(c.record['所属企业']).includes(customerId))
+        const parents = linkIds(c.record['所属企业']);
+        if (parents.length !== 1 || parents[0] !== customerId)
           reject('客户联系人', '联系人不属于当前企业');
         if (textValue(c.record['核查标记']) !== '正常')
           reject('客户联系人', '联系人需先核查通过');
         if (
           textValue(c.record['联系人状态']) !== '有效' &&
           !(
+            textValue(c.record['联系人状态']) === '停用' &&
             typeof c.record['停用时间'] === 'number' &&
+            Number.isFinite(c.record['停用时间']) &&
             occurred < c.record['停用时间']
           )
         )
@@ -313,7 +319,7 @@ export class CrmService {
       records: [{ record: fields }],
     });
     const id = this.writtenId(result);
-    await this.get(key, id);
+    await this.verifySaved(key, id, fields);
     return {
       id,
       message: '已保存到飞书，待管理员核查；当前计划不会被跟进建议覆盖',
@@ -331,6 +337,26 @@ export class CrmService {
       throw new BadGatewayException('保存结果未确认，请先刷新核对');
     return result.records[0].id;
   }
+  private async verifySaved(key: EntityKind, id: string, fields: Record<string, unknown>): Promise<void> {
+    let saved: CrmRecord;
+    try {
+      saved = await this.get(key, id);
+    } catch {
+      throw new BadGatewayException(`保存后的回读未完成，请刷新核对记录 ${id}，避免重复提交`);
+    }
+    const specs = [...forms[key], ...planFields, ...endFields];
+    const mismatch = Object.entries(fields).some(([name, expected]) => {
+      const actual = saved.record[name];
+      if (Array.isArray(expected)) {
+        const values = specs.find((f) => f.key === name)?.type === 'relation'
+          ? linkIds(actual) : actual == null ? [] : actual;
+        return !Array.isArray(values) || !isDeepStrictEqual([...expected].sort(), [...values].sort());
+      }
+      if (typeof expected === 'string') return textValue(actual) !== expected;
+      return actual !== expected;
+    });
+    if (mismatch) throw new BadGatewayException(`保存回读不一致，请刷新核对记录 ${id} 后再操作`);
+  }
   async update(
     kind: string,
     id: string,
@@ -339,6 +365,22 @@ export class CrmService {
     actor: string,
   ): Promise<WriteResult> {
     const key = this.kind(kind);
+    const lock = `${key}:${id}`;
+    if (this.updating.has(lock)) throw new ConflictException('此记录正在保存，请稍后刷新再操作');
+    this.updating.add(lock);
+    try {
+      return await this.updateRecord(key, id, operation, body, actor);
+    } finally {
+      this.updating.delete(lock);
+    }
+  }
+  private async updateRecord(
+    key: EntityKind,
+    id: string,
+    operation: string,
+    body: unknown,
+    actor: string,
+  ): Promise<WriteResult> {
     const row = await this.get(key, id);
     if (!body || typeof body !== 'object' || Array.isArray(body))
       reject('表单', '格式无效');
@@ -370,6 +412,10 @@ export class CrmService {
       fields = parseDraft(input, endFields, this.enums(key)).fields;
     } else if (operation === 'access' && key === 'access') {
       fields = parseDraft(input, forms.access, this.enums(key)).fields;
+      for (const f of forms.access) {
+        if ((f.type === 'text' || f.type === 'long') && Object.hasOwn(input, f.key) && fields[f.key] === undefined)
+          fields[f.key] = '';
+      }
     } else if (operation === 'review' && key !== 'access') {
       const parsed = parseDraft(
         input,
@@ -382,6 +428,10 @@ export class CrmService {
       // Revalidate original data and cross-record relations before admitting it into aggregates.
       const original = recordDraft(row.record, forms[key]);
       const checked = parseDraft(original, forms[key], this.enums(key));
+      // Revalidation must not round historical timestamps down to a whole second.
+      for (const f of forms[key])
+        if ((f.type === 'date' || f.type === 'datetime') && typeof row.record[f.key] === 'number')
+          checked.fields[f.key] = row.record[f.key];
       this.validateFacts(key, checked.draft);
       await this.people(checked.fields, forms[key]);
       await this.relationChecks(key, checked.draft, checked.fields);
@@ -395,41 +445,18 @@ export class CrmService {
       if (String(fields['核查说明']).length > 20000)
         reject('核查说明', '历史说明已达上限，请先整理留存');
     } else reject('操作', '不支持的操作');
-    this.writtenId(
+    // Base has no atomic compare-and-set. Recheck after slow relation/person reads;
+    // a process-local lock also excludes overlapping updates in this instance.
+    const latest = await this.get(key, id);
+    if (!isDeepStrictEqual(row.record, latest.record))
+      throw new ConflictException('记录在校验期间已变化，请刷新后重新操作');
+    const written = this.writtenId(
       await this.call(key, 'batchUpdateRecords', {
         records: [{ id, record: fields }],
       }),
     );
-    const saved = await this.get(key, id);
-    if (operation === 'edit') {
-      const spec = [
-        ...forms[key],
-        { key: '核查标记', type: 'text' as const },
-        { key: '核查说明', type: 'long' as const },
-      ];
-      const actual = recordDraft(saved.record, spec);
-      const expected = recordDraft(
-        Object.fromEntries(
-          Object.entries(fields).map(([k, v]) => [
-            k,
-            spec.find((f) => f.key === k)?.type === 'relation'
-              ? { link_record_ids: v }
-              : v,
-          ]),
-        ),
-        spec,
-      );
-      if (
-        Object.keys(
-          changedFields(
-            expected,
-            actual,
-            spec.filter((f) => f.key in fields),
-          ),
-        ).length
-      )
-        throw new BadGatewayException('保存回读不一致，请刷新核对后再操作');
-    }
+    if (written !== id) throw new BadGatewayException('保存响应记录不一致，请刷新核对');
+    await this.verifySaved(key, id, fields);
     return {
       id,
       message:

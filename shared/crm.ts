@@ -26,6 +26,9 @@ export const labels: Record<EntityKind, string> = {
   followup: '跟进记录',
   access: '权限配置',
 };
+export function crmSection(section: string | undefined): EntityKind | 'home' {
+  return section && Object.prototype.hasOwnProperty.call(labels, section) ? section as EntityKind : 'home';
+}
 export const titles: Record<EntityKind, string> = {
   customer: '企业全称',
   contact: '姓名',

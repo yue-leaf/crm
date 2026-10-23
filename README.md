@@ -32,12 +32,14 @@ node scripts/dev-windows.cjs client
 ```powershell
 npm run lint
 node node_modules/@nestjs/cli/bin/nest.js build
-node --test scripts/tests/crm.test.cjs
+node --test scripts/tests/crm.test.cjs scripts/tests/adversarial.test.cjs
 $env:NODE_ENV='production'
 node node_modules/vite/bin/vite.js build --config vite.config.ts
 ```
 
 离线测试验证输入、越权、核查边界，不代表真实账号端到端验收。真实 SDK 联调证据在父目录 `verification/miaoda-preflight/`，不会推送含业务内容的快照。
+
+对抗性审查补强：所有新建及更新均逐字段回读；同一服务实例拒绝同记录重叠更新，人员/关系校验完成后重新比较原记录。权限说明可显式清空，异常关联、参数类型和角色上下文失败关闭。页面防止同次重复点击保存，保存结果未知时禁用重提并提示刷新核对。跨实例/原表并发仍受 Base 无原子 CAS 限制，新增请求尚无持久幂等键，不能保证跨标签页恰好写入一次。
 
 官方完整 `npm run build` 依赖平台提供的 `@lark-apaas/fullstack-cli`，该 CLI 当前在 Windows 有 ESM 路径兼容问题。云端 Linux 发布使用原始构建脚本；不要运行同名无 scope 的公共 npm 包 `fullstack-cli` 代替。
 
