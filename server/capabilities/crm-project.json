@@ -1,0 +1,538 @@
+{
+  "id": "crm-project",
+  "pluginKey": "@official-plugins/feishu-bitable",
+  "pluginVersion": "1.0.22",
+  "name": "CRM project",
+  "description": "连接现有 CRM 数据表；仅由受保护的业务服务调用",
+  "paramsSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "formValue": {
+    "appToken": "CJLFbJHZ7al3zisi9e1cLAxjncd",
+    "tableID": "tbllhR7s2mp6NI4w",
+    "fields": [
+      {
+        "id": "fld86FDJm1",
+        "name": "目标完成日期",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldAgAvUmm",
+        "name": "协同人员",
+        "type": 11,
+        "bizType": "User",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldSL73Wlj",
+        "name": "币种",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "CNY",
+          "USD",
+          "EUR",
+          "其他"
+        ]
+      },
+      {
+        "id": "fldUroSlga",
+        "name": "项目负责人",
+        "type": 11,
+        "bizType": "User",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldBdpNF8B",
+        "name": "工作状态",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "待启动",
+          "进行中",
+          "暂停"
+        ]
+      },
+      {
+        "id": "fldp1nQykE",
+        "name": "商机阶段",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "线索确认",
+          "需求沟通",
+          "方案验证",
+          "报价商务"
+        ]
+      },
+      {
+        "id": "fldChuLcGU",
+        "name": "最近成功提醒时间",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldgxM6Eda",
+        "name": "已归档",
+        "type": 7,
+        "bizType": "Checkbox",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fld7Y5as6m",
+        "name": "目标 / 需求摘要",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "flduOuIp2m",
+        "name": "允许员工维护",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldSwRmGO9",
+        "name": "创建时间",
+        "type": 1001,
+        "bizType": "CreatedTime",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldHQyoPXG",
+        "name": "长期未跟进",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldy5KUb7Y",
+        "name": "成交结果",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "未定",
+          "赢单",
+          "输单"
+        ]
+      },
+      {
+        "id": "fldV7ZJwG4",
+        "name": "创建人",
+        "type": 1003,
+        "bizType": "CreatedUser",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldfyRYqqo",
+        "name": "未跟进天数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "flduVDuSlL",
+        "name": "缺计划",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldRuvGq1w",
+        "name": "暂停原因",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldV6nN34N",
+        "name": "取消原因",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldm42SWvz",
+        "name": "今日到期",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldCM2c7Rr",
+        "name": "核查说明",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldZYIow56",
+        "name": "行动执行人",
+        "type": 11,
+        "bizType": "User",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldFlJvCWD",
+        "name": "所属企业",
+        "type": 21,
+        "bizType": "DuplexLink",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldzhKq3YM",
+        "name": "逾期天数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fld5Vmz2r0",
+        "name": "归档时间",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fld4cHbz9g",
+        "name": "终局确认",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "未确认",
+          "已完成",
+          "已取消"
+        ]
+      },
+      {
+        "id": "fldASIynIe",
+        "name": "质量正常",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldpZY84sG",
+        "name": "有效执行人",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldajC2mQs",
+        "name": "最近重开原因",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldWiaTj2i",
+        "name": "相关业务项目",
+        "type": 18,
+        "bizType": "SingleLink",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fld6CqaAup",
+        "name": "归档就绪",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldV4Oztaw",
+        "name": "修改时间",
+        "type": 1002,
+        "bizType": "ModifiedTime",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldyC53uNg",
+        "name": "最近成功提醒键",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldfs7FkVD",
+        "name": "逾期",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldtJWTbI1",
+        "name": "有效次数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldj00Z4yq",
+        "name": "下次跟进日期",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldino6sza",
+        "name": "本月完成计数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldLq1MMJ7",
+        "name": "结果说明",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldshO9kPs",
+        "name": "预计金额",
+        "type": 2,
+        "bizType": "Number",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldm6NhRQ9",
+        "name": "数据检查",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldWYzD7bW",
+        "name": "项目编号",
+        "type": 1005,
+        "bizType": "AutoNumber",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldWaFweke",
+        "name": "结束建议",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "申请完成",
+          "申请取消"
+        ]
+      },
+      {
+        "id": "fldz44Jg6h",
+        "name": "最近有效跟进",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldRDRf0c8",
+        "name": "归档原因",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fld1KRTNhT",
+        "name": "结束日期",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldTHJGB7n",
+        "name": "项目名称",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldrmAv8xL",
+        "name": "项目跟进",
+        "type": 21,
+        "bizType": "DuplexLink",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldiM6poWP",
+        "name": "建议说明",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldNLfPLGd",
+        "name": "当前需推进",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldTIvawsn",
+        "name": "本月取消计数",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldiLMkFfC",
+        "name": "预计成交日期",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldDsK03m1",
+        "name": "核查标记",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "正常",
+          "待核查"
+        ]
+      },
+      {
+        "id": "fld4NdKK9y",
+        "name": "当前下一步行动",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldyvoMqwV",
+        "name": "修改人",
+        "type": 1004,
+        "bizType": "ModifiedUser",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fld6ckt0Q0",
+        "name": "项目类型",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "销售机会",
+          "技术验证",
+          "合作推进",
+          "服务支持",
+          "其他"
+        ]
+      },
+      {
+        "id": "fldWszWzbo",
+        "name": "通用状态",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fldeJZT8jq",
+        "name": "已沟通联系人",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
+      },
+      {
+        "id": "fld6u9BRxM",
+        "name": "当前进展",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldw96HIFE",
+        "name": "金额含税口径",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "含税",
+          "未税",
+          "待确认"
+        ]
+      },
+      {
+        "id": "fldknZ3uxp",
+        "name": "管理记录",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
+      }
+    ]
+  },
+  "createdAt": 1792795161506,
+  "updatedAt": 1792795161506
+}
