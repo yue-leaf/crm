@@ -10,6 +10,7 @@ import type {
   CrmEditRequest,
 } from '@shared/api.interface';
 import type { Draft } from '@shared/crm';
+export class SaveOutcomeUnknown extends Error {}
 async function request<T>(
   url: string,
   method: 'GET' | 'POST' | 'PATCH' = 'GET',
@@ -24,11 +25,15 @@ async function request<T>(
     });
     if (r.status === 403)
       throw new Error('当前账号尚未获得 CRM 管理员权限，请联系管理员');
+    if (r.status >= 500 && method !== 'GET')
+      throw new SaveOutcomeUnknown(r.data?.error?.message || '保存结果未确认，请关闭窗口并刷新核对，避免重复提交');
     if (r.status >= 400)
       throw new Error(r.data?.error?.message || '操作未完成');
     return r.data as T;
   } catch (e: unknown) {
-    if (isAxiosError(e))
+    if (isAxiosError(e)) {
+      if (method !== 'GET' && (!e.response || e.response.status >= 500))
+        throw new SaveOutcomeUnknown(e.response?.data?.error?.message || '保存结果未确认，请关闭窗口并刷新核对，避免重复提交');
       throw new Error(
         e.response?.status === 403
           ? '当前账号尚未获得 CRM 管理员权限，请联系管理员'
@@ -37,6 +42,7 @@ async function request<T>(
               ? '数据加载失败，请稍后重试'
               : '保存结果未确认，请刷新核对后再操作'),
       );
+    }
     throw e;
   }
 }

@@ -20,16 +20,16 @@ export class CrmController {
   constructor(private readonly crm: CrmService) {}
 
   private session(req: Request): CrmSession {
-    const { userId, userName, roles } = req.userContext;
-    if (!userId || roles === undefined || !roles.includes('crm_admin'))
+    const { userId, userName, roles } = req.userContext ?? {};
+    if (!userId || !Array.isArray(roles) || !roles.every((role) => typeof role === 'string') || !roles.includes('crm_admin'))
       throw new ForbiddenException('当前账号尚未获得 CRM 管理员权限');
     return { userId, name: userName || '当前员工', roles };
   }
 
   @Get('session')
   current(@Req() req: Request): CrmSession {
-    const { userId, userName, roles } = req.userContext;
-    if (roles === undefined)
+    const { userId, userName, roles } = req.userContext ?? {};
+    if (!userId || !Array.isArray(roles) || !roles.every((role) => typeof role === 'string'))
       throw new ForbiddenException('登录上下文缺少角色信息，请重新进入应用');
     return { userId, name: userName || '当前员工', roles };
   }

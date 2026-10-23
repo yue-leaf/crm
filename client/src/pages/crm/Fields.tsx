@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -99,6 +99,9 @@ const RelationField: React.FC<{
   const [cursor, setCursor] = useState<string | undefined>();
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<CrmRecord[]>([]);
+  const generation = useRef(0);
+  const paging = useRef(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const selectedIds = value.join('|');
   useEffect(() => {
     let canceled = false;
@@ -119,6 +122,11 @@ const RelationField: React.FC<{
     };
   }, [field.target, selectedIds]);
   useEffect(() => {
+    const version = ++generation.current;
+    paging.current = false;
+    setLoadingMore(false);
+    setCursor(undefined);
+    setItems([]);
     let canceled = false;
     const timer = setTimeout(() => {
       setError('');
@@ -126,7 +134,7 @@ const RelationField: React.FC<{
         api
           .list(field.target, '', query)
           .then((r) => {
-            if (!canceled) {
+            if (!canceled && version === generation.current) {
               setItems(r.records);
               setCursor(r.hasMore ? r.pageToken : undefined);
             }
@@ -137,6 +145,7 @@ const RelationField: React.FC<{
     }, 250);
     return () => {
       canceled = true;
+      generation.current++;
       clearTimeout(timer);
     };
   }, [field.target, query]);
@@ -146,7 +155,11 @@ const RelationField: React.FC<{
         aria-label={`搜索${field.key}`}
         placeholder={`搜索${field.key}`}
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          generation.current++;
+          setCursor(undefined);
+          setQuery(e.target.value);
+        }}
       />
       <div className="relation-options">
         {[
@@ -182,13 +195,24 @@ const RelationField: React.FC<{
           type="button"
           size="sm"
           variant="ghost"
+          disabled={loadingMore}
           onClick={async () => {
+            if (paging.current) return;
+            paging.current = true;
+            setLoadingMore(true);
+            const version = generation.current;
             try {
               const r = await api.list(field.target!, cursor, query);
-              setItems((prev) => [...prev, ...r.records]);
+              if (version !== generation.current) return;
+              setItems((prev) => [...new Map([...prev, ...r.records].map((row) => [row.id, row])).values()]);
               setCursor(r.hasMore ? r.pageToken : undefined);
             } catch (e: unknown) {
-              setError(message(e));
+              if (version === generation.current) setError(message(e));
+            } finally {
+              if (version === generation.current) {
+                paging.current = false;
+                setLoadingMore(false);
+              }
             }
           }}
         >
