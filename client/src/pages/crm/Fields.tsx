@@ -98,6 +98,26 @@ const RelationField: React.FC<{
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState<string | undefined>();
   const [error, setError] = useState('');
+  const [selected, setSelected] = useState<CrmRecord[]>([]);
+  const selectedIds = value.join('|');
+  useEffect(() => {
+    let canceled = false;
+    if (!field.target || !selectedIds) {
+      setSelected([]);
+      return;
+    }
+    const target = field.target;
+    void Promise.all(selectedIds.split('|').map((id) => api.get(target, id)))
+      .then((rows) => {
+        if (!canceled) setSelected(rows);
+      })
+      .catch((e) => {
+        if (!canceled) setError(message(e));
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [field.target, selectedIds]);
   useEffect(() => {
     let canceled = false;
     const timer = setTimeout(() => {
@@ -129,7 +149,13 @@ const RelationField: React.FC<{
         onChange={(e) => setQuery(e.target.value)}
       />
       <div className="relation-options">
-        {items.map((item) => (
+        {[
+          ...selected.filter((item) => value.includes(item.id)),
+          ...items.filter(
+            (item) =>
+              !selected.some((s) => s.id === item.id && value.includes(s.id)),
+          ),
+        ].map((item) => (
           <Button
             type="button"
             size="sm"

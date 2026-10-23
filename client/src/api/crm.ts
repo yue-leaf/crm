@@ -7,6 +7,7 @@ import type {
   CrmSummary,
   EntityKind,
   WriteResult,
+  CrmEditRequest,
 } from '@shared/api.interface';
 import type { Draft } from '@shared/crm';
 async function request<T>(
@@ -50,6 +51,12 @@ export const api = {
     request<CrmRecord>(`records/${kind}/${encodeURIComponent(id)}`),
   create: (kind: EntityKind, draft: Draft) =>
     request<WriteResult>(`records/${kind}`, 'POST', draft),
+  edit: (kind: EntityKind, id: string, input: CrmEditRequest) =>
+    request<WriteResult>(
+      `records/${kind}/${encodeURIComponent(id)}/edit`,
+      'PATCH',
+      input,
+    ),
   update: (
     kind: EntityKind,
     id: string,
