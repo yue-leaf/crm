@@ -52,7 +52,9 @@ import {
   editBlockedReason,
 } from '@shared/crm-edit';
 import { Cell, FieldInput, message } from './Fields';
-import { advancementBlocked, followupTarget, progressFields, relatedDraft } from '@shared/crm-workflow';
+import {
+  advancementBlocked, commerceKeys, followupTarget, progressFields, projectReviewProblem, relatedDraft,
+} from '@shared/crm-workflow';
 import './crm.css';
 
 const icons = {
@@ -337,7 +339,8 @@ const CrmPage: React.FC = () => {
         ])
           next[k] = null;
       if (key === '项目类型' && value !== '销售机会')
-        for (const k of ['预计金额', '币种', '金额含税口径']) next[k] = null;
+        for (const k of commerceKeys)
+          next[k] = editor?.operation === 'edit' ? initialDraft.current[k] ?? null : null;
       return next;
     });
   const showField = (f: FieldSpec) => {
@@ -756,6 +759,8 @@ const CrmPage: React.FC = () => {
                   textValue(selection.record['核查标记']) === '待核查' && (
                     <Button
                       variant="outline"
+                      disabled={selectionKind === 'project' && !!projectReviewProblem(selection.record)}
+                      title={selectionKind === 'project' ? projectReviewProblem(selection.record) : undefined}
                       onClick={() => openEditor(selectionKind, 'review', selection)}
                     >
                       核查通过
@@ -790,6 +795,9 @@ const CrmPage: React.FC = () => {
               </div>
               {selectionKind !== 'access' && textValue(selection.record['核查标记']) === '待核查' && (
                 <p className="panel-note" role="status">保存成功，当前待核查。请先核对资料并点击“核查通过”，再继续关联业务。</p>
+              )}
+              {selectionKind === 'project' && projectReviewProblem(selection.record) && (
+                <p className="panel-note" role="status">{projectReviewProblem(selection.record)}</p>
               )}
               {selectionKind === 'project' && textValue(selection.record['结束建议']) && (
                 <p className="panel-note">已有结束建议，请在飞书原表核对并完成处理；提出建议不会自动改变终局。</p>
@@ -850,6 +858,9 @@ const CrmPage: React.FC = () => {
             </p>
           )}
           {editor?.operation === 'progress' && <p className="panel-note">暂停需填写原因，原计划保留；启动或恢复需确认当前行动与日期。更新后进入待核查。</p>}
+          {editor?.operation === 'edit' && editor.kind === 'project' && draft['项目类型'] !== '销售机会' && (
+            <p className="panel-note">切换为非销售类型时保留原有商务信息供核查，不新增商务金额；详情仍可查看历史值。</p>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();

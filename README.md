@@ -12,6 +12,8 @@
 
 历史补录遵循实际发生时间：终局项目可补录北京时间结束日期当天及之前的记录，客户/项目归档和联系人停用按严格早于对应时刻校验，边界缺失须先在原表核对。历史入口不预填发生时间为当前时刻。历史人员核查要求存在于同步目录，不因当前停用否定历史；新增或变更人员仍要求激活。多次归档/重开完整历史区间仍需人工核查。
 
+交叉规则：暂停项目的编辑与核查统一允许没有当前计划；终局项目核查不强制活动计划，但必须补齐结束信息。非法状态、非终局归档、未来归档时间及缺归档原因不能核查通过。销售项目改为非销售类型时保留已有商务信息供核查，不能新增或修改商务金额；新增非销售项目仍不填商务金额。
+
 企业/项目归属迁移、已归档/已结束/停用/作废记录仍需专门流程。当前插件不支持清空日期、数值、单选字段，尝试此操作会在写入前明确拒绝；文本和人员/联系人关联可以清空，必填约束仍有效。
 
 Base 权限表维护的是授权意向，修改它不会自动授予 Base 或妙搭权限。插件使用应用所有者的 Base 权限，因此所有业务接口均校验实际平台角色，直接 capability HTTP 入口被禁用。
@@ -36,7 +38,7 @@ node scripts/dev-windows.cjs client
 ```powershell
 npm run lint
 node node_modules/@nestjs/cli/bin/nest.js build
-node --test scripts/tests/crm.test.cjs scripts/tests/adversarial.test.cjs scripts/tests/workflow.test.cjs
+node --test scripts/tests/*.test.cjs
 $env:NODE_ENV='production'
 node node_modules/vite/bin/vite.js build --config vite.config.ts
 ```

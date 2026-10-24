@@ -8,6 +8,7 @@ import {
   editBlockedReason,
 } from '@shared/crm-edit';
 import { parseDraft, reject } from './crm-validation';
+import { existingProjectFields } from '@shared/crm-workflow';
 
 export function prepareEdit(
   kind: EntityKind,
@@ -40,7 +41,7 @@ export function prepareEdit(
   const before = recordDraft(row.record, forms[kind]);
   const merged = { ...before };
   for (const key of Object.keys(raw)) merged[key] = patch.draft[key];
-  const checked = parseDraft(merged, forms[kind], enums);
+  const checked = parseDraft(merged, kind === 'project' ? existingProjectFields(row.record) : forms[kind], enums);
   const changes = changedFields(before, checked.draft, spec);
   if (!Object.keys(changes).length) reject('编辑', '没有需要保存的修改');
   const writes: Record<string, unknown> = {};

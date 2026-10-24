@@ -22,6 +22,7 @@ export function historicalContext(kind: 'customer' | 'project', row: CrmRecord, 
   if (row.record['已归档'] === true) {
     const archived = row.record['归档时间'];
     if (typeof archived !== 'number' || !Number.isFinite(archived)) reject(label, '归档时间缺失，无法确认历史补录范围');
+    if (archived > Date.now()) reject(label, '归档时间晚于当前时间，请先在原表核对');
     if (occurred >= archived) reject(label, '仅能补录归档时间之前的历史工作；新工作请先恢复');
   }
 }
