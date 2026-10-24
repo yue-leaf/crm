@@ -53,8 +53,9 @@ import {
 } from '@shared/crm-edit';
 import { Cell, FieldInput, message } from './Fields';
 import {
-  advancementBlocked, commerceKeys, followupTarget, progressFields, projectReviewProblem, relatedDraft,
+  advancementBlocked, commerceKeys, followupTarget, progressFields, relatedDraft,
 } from '@shared/crm-workflow';
+import { recordReviewProblem } from '@shared/crm-review';
 import './crm.css';
 
 const icons = {
@@ -541,7 +542,7 @@ const CrmPage: React.FC = () => {
                       <CheckCircle2 size={27} />
                       <h2>从记录，到推进</h2>
                       <p>
-                        新建资料先进入待核查。核查通过后，纳入有效记录和客户项目统计。
+                        新建资料先进入待核查。核查通过且数据检查无异常后，才符合正常统计条件；作废跟进仍不计为有效记录。
                       </p>
                       <Button
                         variant="outline"
@@ -759,8 +760,8 @@ const CrmPage: React.FC = () => {
                   textValue(selection.record['核查标记']) === '待核查' && (
                     <Button
                       variant="outline"
-                      disabled={selectionKind === 'project' && !!projectReviewProblem(selection.record)}
-                      title={selectionKind === 'project' ? projectReviewProblem(selection.record) : undefined}
+                      disabled={!!recordReviewProblem(selectionKind, selection.record)}
+                      title={recordReviewProblem(selectionKind, selection.record) || undefined}
                       onClick={() => openEditor(selectionKind, 'review', selection)}
                     >
                       核查通过
@@ -796,8 +797,8 @@ const CrmPage: React.FC = () => {
               {selectionKind !== 'access' && textValue(selection.record['核查标记']) === '待核查' && (
                 <p className="panel-note" role="status">保存成功，当前待核查。请先核对资料并点击“核查通过”，再继续关联业务。</p>
               )}
-              {selectionKind === 'project' && projectReviewProblem(selection.record) && (
-                <p className="panel-note" role="status">{projectReviewProblem(selection.record)}</p>
+              {selectionKind !== 'access' && recordReviewProblem(selectionKind, selection.record) && (
+                <p className="panel-note" role="status">{recordReviewProblem(selectionKind, selection.record)}</p>
               )}
               {selectionKind === 'project' && textValue(selection.record['结束建议']) && (
                 <p className="panel-note">已有结束建议，请在飞书原表核对并完成处理；提出建议不会自动改变终局。</p>

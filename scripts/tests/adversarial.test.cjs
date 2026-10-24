@@ -106,7 +106,7 @@ test('actual SDK controllers are blocked independently of URL spelling', () => {
 test('valid historical contact remains usable only strictly before deactivation', async () => {
   const draft = { 跟进归属: '客户直接跟进', 直接客户: ['recCompany'], 记录类型: '外部沟通', '沟通 / 推进方式': '电话', 客户联系人: ['recContact'], 后续安排: '无后续动作', 无后续动作结论: 'Done' };
   const f = fixture(customer(), (kind, action) => kind === 'crm-contact' && action === 'getRecord'
-    ? { record: { 核查标记: '正常', 联系人状态: '停用', 停用时间: 1000, 所属企业: { link_record_ids: ['recCompany'] } } } : undefined);
+    ? { record: { 核查标记: '正常', 联系人状态: '停用', 停用时间: 1000, 停用原因: 'Left company', 所属企业: { link_record_ids: ['recCompany'] } } } : undefined);
   await f.service.relationChecks('followup', draft, { 实际发生时间: 999 });
   await assert.rejects(() => f.service.relationChecks('followup', draft, { 实际发生时间: 1000 }), /有效期/);
 });

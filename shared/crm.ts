@@ -157,6 +157,8 @@ export const endFields: FieldSpec[] = [
 ];
 export function textValue(v: unknown): string {
   if (v == null) return '';
+  // Base formula/lookup results wrap scalar values in arrays.
+  if (Array.isArray(v)) return v.map(textValue).filter(Boolean).join('、');
   if (typeof v === 'string' || typeof v === 'number') return String(v);
   if (typeof v === 'boolean') return v ? '是' : '否';
   if (typeof v === 'object' && 'text' in v) return String(v.text ?? '');

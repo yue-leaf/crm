@@ -169,6 +169,7 @@ test('unsupported date clearing fails before writing and leaves unchanged dates 
       下次跟进日期: Date.parse('2026-10-25T00:00:00+08:00'),
       目标完成日期: Date.parse('2026-10-26T00:00:00+08:00'),
       终局确认: '未确认',
+      工作状态: '待启动',
     },
   };
   assert.throws(
@@ -279,6 +280,7 @@ test('review revalidates existing contact facts before issuing any write', async
       修改时间: 1,
       核查标记: '待核查',
       邮箱: { text: 'invalid' },
+      联系人状态: '有效',
     },
   };
   let calls = 0;
