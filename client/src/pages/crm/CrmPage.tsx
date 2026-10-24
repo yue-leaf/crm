@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   LoaderCircle,
   Pencil,
+  Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrentUserProfile } from '@lark-apaas/client-toolkit/hooks/useCurrentUserProfile';
@@ -652,6 +653,7 @@ const CrmPage: React.FC = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="gap-1.5"
                                 disabled={detailLoadingId === row.id}
                                 onClick={() =>
                                   active === 'access'
@@ -659,13 +661,14 @@ const CrmPage: React.FC = () => {
                                     : void detail(row)
                                 }
                               >
+                                {active === 'access' ? <ShieldCheck size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
                                 {detailLoadingId === row.id ? '读取中…' : active === 'access' ? '维护意向' : '查看'}
-                                <ChevronRight size={14} />
                               </Button>
                               {active !== 'access' && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  className="gap-1.5"
                                   disabled={
                                     !!openingId ||
                                     !!editBlockedReason(active, row)
@@ -675,7 +678,7 @@ const CrmPage: React.FC = () => {
                                   }
                                   onClick={() => void edit(row)}
                                 >
-                                  <Pencil size={14} />
+                                  <Pencil size={14} aria-hidden="true" />
                                   {openingId === row.id ? '读取中' : '编辑'}
                                 </Button>
                               )}
