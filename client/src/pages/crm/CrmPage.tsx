@@ -58,6 +58,9 @@ import {
 } from '@shared/crm-workflow';
 import { recordReviewProblem } from '@shared/crm-review';
 import { appendPage, changeDraft, missingFields, requiredField } from '@shared/crm-interaction';
+import { crmAdmin, crmEmployee } from '@shared/crm-access';
+import { isLifecycle, lifecycleBlocked, lifecycleFields, lifecycleTitles } from '@shared/crm-lifecycle';
+import type { CrmLifecycleOperation } from '@shared/api.interface';
 import './crm.css';
 
 const icons = {
@@ -102,7 +105,9 @@ interface Editor {
   row?: CrmRecord;
 }
 const specs = (editor: Editor): FieldSpec[] =>
-  editor.operation === 'progress'
+  isLifecycle(editor.operation)
+    ? lifecycleFields(editor.kind, editor.operation)
+    : editor.operation === 'progress'
     ? progressFields
     : editor.operation === 'edit'
     ? editFields(editor.kind)
@@ -142,7 +147,8 @@ const CrmPage: React.FC = () => {
   const [editReason, setEditReason] = useState('');
   const [openingId, setOpeningId] = useState<string | null>(null);
   const requestVersion = useRef(0);
-  const authorized = !!session?.roles.includes('crm_admin');
+  const admin = !!session && crmAdmin(session.roles);
+  const authorized = !!session && crmEmployee(session.roles) && (active !== 'access' || admin);
   useEffect(() => {
     let canceled = false;
     api
@@ -220,6 +226,21 @@ const CrmPage: React.FC = () => {
         .toISOString()
         .slice(0, 16);
       initial['后续安排'] = '有下一步行动';
+    }
+    if (isLifecycle(operation)) {
+      initial['操作原因'] = '';
+      if (operation === 'confirm-end') {
+        initial['终局确认'] = textValue(row?.record['结束建议']) === '申请取消' ? '已取消' : '已完成';
+        initial['结束日期'] = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+        initial['结果说明'] = textValue(row?.record['建议说明']);
+        initial['取消原因'] = '';
+      }
+      if (operation === 'reopen') initial['工作状态'] = '进行中';
+      if (operation === 'reopen' || (operation === 'restore' && kind === 'customer')) {
+        initial['当前下一步行动'] = '';
+        initial['下次跟进日期'] = '';
+        initial['行动执行人'] = [];
+      }
     }
     Object.assign(initial, preset);
     initialDraft.current = structuredClone(initial);
@@ -354,6 +375,7 @@ const CrmPage: React.FC = () => {
     setDraft((previous) => changeDraft(previous, key, value, initialDraft.current, editor?.operation === 'edit'));
   };
   const showField = (f: FieldSpec) => {
+    if (editor?.operation === 'confirm-end' && f.key === '取消原因') return draft['终局确认'] === '已取消';
     if (editor?.operation === 'progress') {
       if (f.key === '暂停原因') return draft['工作状态'] === '暂停';
       if (planFields.some((field) => field.key === f.key)) return draft['工作状态'] !== '暂停';
@@ -394,7 +416,7 @@ const CrmPage: React.FC = () => {
             <LayoutDashboard size={18} />
             工作台
           </Button>
-          {(Object.keys(labels) as EntityKind[]).map((key) => {
+          {(Object.keys(labels) as EntityKind[]).filter(key => key !== 'access' || admin).map((key) => {
             const Icon = icons[key];
             return (
               <Button
@@ -433,7 +455,7 @@ const CrmPage: React.FC = () => {
               <ShieldCheck size={36} />
               <h1>{loading ? '正在核验登录身份' : '尚未获得应用权限'}</h1>
               <p>
-                {error || '当前账号尚未获授 CRM 管理员角色，请联系管理员核对。'}
+                {error || (active === 'access' && !admin ? '权限配置仅限管理员管理。' : '当前账号尚未获授 CRM 员工或管理员角色，请联系管理员核对。')}
               </p>
               <p>授权名单中的角色意向，不等同于妙搭实际角色。</p>
               <Button
@@ -777,6 +799,21 @@ const CrmPage: React.FC = () => {
                     提出结束建议
                   </Button>
                 )}
+                {(selectionKind === 'customer' || selectionKind === 'project') &&
+                  (['confirm-end', 'archive', 'restore', 'reopen'] as CrmLifecycleOperation[])
+                    .filter(operation => !(selectionKind === 'customer' && ['confirm-end', 'reopen'].includes(operation)))
+                    .filter(operation => operation === 'restore' ? selection.record['已归档'] === true
+                      : operation === 'archive' ? selection.record['已归档'] !== true
+                      : operation === 'confirm-end' ? textValue(selection.record['终局确认']) === '未确认'
+                      : ['已完成', '已取消'].includes(textValue(selection.record['终局确认'])))
+                    .map(operation => (
+                      <Button key={operation} variant="outline"
+                        disabled={!!lifecycleBlocked(selectionKind, operation, selection)}
+                        title={lifecycleBlocked(selectionKind, operation, selection) || undefined}
+                        onClick={() => openEditor(selectionKind, operation, selection)}>
+                        {lifecycleTitles[operation]}
+                      </Button>
+                    ))}
                 {selectionKind !== 'access' &&
                   textValue(selection.record['核查标记']) === '待核查' && (
                     <Button
@@ -822,12 +859,12 @@ const CrmPage: React.FC = () => {
                 <p className="panel-note" role="status">{recordReviewProblem(selectionKind, selection.record)}</p>
               )}
               {selectionKind === 'project' && textValue(selection.record['结束建议']) && (
-                <p className="panel-note">已有结束建议，请在飞书原表核对并完成处理；提出建议不会自动改变终局。</p>
+                <p className="panel-note">已有结束建议，可通过“确认项目结束”处理；提出建议不会自动改变终局。</p>
               )}
               <RecordDetails key={`${selectionKind}:${selection.id}`} record={selection.record} />
-              <p className="panel-note">
-                结束确认、归档与重开请在飞书原表管理，完成前请核对当前计划和历史记录。
-              </p>
+              {(selectionKind === 'customer' || selectionKind === 'project') && <p className="panel-note">
+                生命周期操作会保留历史与原因。项目取消归档后仍保持结束状态，继续新工作请使用“重开项目”。
+              </p>}
             </>
           )}
           </div>
@@ -846,7 +883,9 @@ const CrmPage: React.FC = () => {
           <header className="crm-dialog-header">
           <DialogTitle>
             {editor
-              ? editor.operation === 'create'
+              ? isLifecycle(editor.operation)
+                ? lifecycleTitles[editor.operation]
+                : editor.operation === 'create'
                 ? `新建${labels[editor.kind]}`
                 : editor.operation === 'edit'
                   ? `编辑${labels[editor.kind]}`
@@ -879,6 +918,12 @@ const CrmPage: React.FC = () => {
             </p>
           )}
           {editor?.operation === 'progress' && <p className="panel-note">暂停需填写原因，原计划保留；启动或恢复需确认当前行动与日期。更新后进入待核查。</p>}
+          {editor && isLifecycle(editor.operation) && <p className="panel-note">
+            {editor.operation === 'confirm-end' ? '确认后项目停止活动推进，需核查通过后再归档。取消项目必须说明原因。'
+              : editor.operation === 'archive' ? '归档保留全部业务和历史，停止新增活动。客户的关联项目必须已结束且核查通过。'
+              : editor.operation === 'restore' ? '取消归档保留历史归档时间；项目仍保持原结束状态。客户恢复时请填写新计划。'
+              : '重开会解除项目归档和终局，必须填写新进展与计划。上次结束日期保留为历史时间，不再参与当前终局统计。'}
+          </p>}
           {editor?.operation === 'edit' && editor.kind === 'project' && draft['项目类型'] !== '销售机会' && (
             <p className="panel-note">切换为非销售类型时保留原有商务信息供核查，不新增商务金额；详情仍可查看历史值。</p>
           )}

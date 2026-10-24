@@ -24,7 +24,7 @@ async function request<T>(
       timeout: 45000,
     });
     if (r.status === 403)
-      throw new Error('当前账号尚未获得 CRM 管理员权限，请联系管理员');
+      throw new Error(r.data?.error?.message || '当前账号尚未获得所需权限，请联系管理员');
     if (r.status >= 500 && method !== 'GET')
       throw new SaveOutcomeUnknown(r.data?.error?.message || '保存结果未确认，请关闭窗口并刷新核对，避免重复提交');
     if (r.status >= 400)
@@ -36,7 +36,7 @@ async function request<T>(
         throw new SaveOutcomeUnknown(e.response?.data?.error?.message || '保存结果未确认，请关闭窗口并刷新核对，避免重复提交');
       throw new Error(
         e.response?.status === 403
-          ? '当前账号尚未获得 CRM 管理员权限，请联系管理员'
+          ? e.response?.data?.error?.message || '当前账号尚未获得所需权限，请联系管理员'
           : e.response?.data?.error?.message ||
             (method === 'GET'
               ? '数据加载失败，请稍后重试'

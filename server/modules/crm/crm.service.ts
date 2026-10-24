@@ -32,6 +32,9 @@ import {
   advancementBlocked, commerceKeys, existingProjectFields, progressFields,
 } from '@shared/crm-workflow';
 import { contactLifecycleProblem, recordReviewProblem } from '@shared/crm-review';
+import { isLifecycle } from '@shared/crm-lifecycle';
+import { prepareLifecycle } from './crm-lifecycle';
+import type { RelatedSnapshot } from './crm-lifecycle';
 import { historicalContext } from './crm-workflow';
 
 @Injectable()
@@ -420,7 +423,15 @@ export class CrmService {
     )
       throw new ConflictException('记录已变化，请刷新后重新操作');
     let fields: Record<string, unknown>;
-    if (operation === 'edit' && key !== 'access') {
+    let related: RelatedSnapshot[] = [];
+    if (isLifecycle(operation)) {
+      const prepared = await prepareLifecycle(key, row, operation, input, actor, {
+        get: (kind, recordId) => this.get(kind, recordId),
+        people: (values) => this.people(values, planFields),
+      });
+      fields = prepared.fields;
+      related = prepared.related;
+    } else if (operation === 'edit' && key !== 'access') {
       const edited = prepareEdit(key, row, input, this.enums(key), actor);
       this.validateFacts(key, edited.draft, row);
       const peopleFields = { ...edited.validationFields };
@@ -515,6 +526,10 @@ export class CrmService {
     } else reject('操作', '不支持的操作');
     // Base has no atomic compare-and-set. Recheck after slow relation/person reads;
     // a process-local lock also excludes overlapping updates in this instance.
+    for (const check of related) {
+      if (!isDeepStrictEqual(check.row.record, (await this.get(check.kind, check.row.id)).record))
+        throw new ConflictException('关联记录在操作期间已变化，请刷新后重新操作');
+    }
     const latest = await this.get(key, id);
     if (!isDeepStrictEqual(row.record, latest.record))
       throw new ConflictException('记录在校验期间已变化，请刷新后重新操作');

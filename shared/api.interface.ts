@@ -38,6 +38,20 @@ export interface CrmProgressRequest {
   变更说明: string;
   expectedModifiedAt: number;
 }
+export type CrmLifecycleOperation = 'confirm-end' | 'archive' | 'restore' | 'reopen';
+export interface CrmLifecycleRequest {
+  expectedModifiedAt: number;
+  操作原因: string;
+  终局确认?: '已完成' | '已取消';
+  结束日期?: string;
+  结果说明?: string;
+  取消原因?: string;
+  工作状态?: '待启动' | '进行中';
+  当前进展?: string;
+  当前下一步行动?: string;
+  行动执行人?: string[];
+  下次跟进日期?: string;
+}
 export interface CrmSummary {
   customer: number;
   contact: number;

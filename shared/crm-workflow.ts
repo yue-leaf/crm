@@ -47,9 +47,9 @@ export const progressFields: FieldSpec[] = [
 ];
 
 export function advancementBlocked(kind: EntityKind, row: CrmRecord): string {
-  if (row.record['已归档'] === true) return '已归档，请先在飞书原表恢复';
+  if (row.record['已归档'] === true) return '已归档，请先取消归档或重开项目';
   if (kind === 'project' && textValue(row.record['终局确认']) !== '未确认')
-    return '项目已结束或终局状态异常，请先在飞书原表处理';
+    return '项目已结束或终局状态异常，请先重开或核对状态';
   return '';
 }
 
