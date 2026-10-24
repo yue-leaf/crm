@@ -29,8 +29,9 @@ import { parseDraft, reject } from './crm-validation';
 import { prepareEdit } from './crm-edit';
 import { changedFields, recordDraft } from '@shared/crm-edit';
 import {
-  advancementBlocked, commerceKeys, existingProjectFields, progressFields, projectReviewProblem,
+  advancementBlocked, commerceKeys, existingProjectFields, progressFields,
 } from '@shared/crm-workflow';
+import { contactLifecycleProblem, recordReviewProblem } from '@shared/crm-review';
 import { historicalContext } from './crm-workflow';
 
 @Injectable()
@@ -201,10 +202,22 @@ export class CrmService {
     key: EntityKind,
     d: Draft,
     fields: Record<string, unknown>,
+    reviewing?: CrmRecord,
   ): Promise<void> {
     const arr = (k: string): string[] =>
       Array.isArray(d[k]) ? (d[k] as string[]) : [];
-    if (key === 'contact' || key === 'project')
+    if (key === 'project' && reviewing && ['已完成', '已取消'].includes(textValue(reviewing.record['终局确认']))) {
+      // Terminal review must not depend on customer quality (which aggregates these projects).
+      const customer = await this.get('customer', arr('所属企业')[0]);
+      if (customer.record['已归档'] === true) {
+        const archived = customer.record['归档时间'];
+        const closed = reviewing.record['结束日期'];
+        const day = (ms: number) => Math.floor((ms + 8 * 3600000) / 86400000);
+        if (typeof archived !== 'number' || !Number.isFinite(archived) || archived > Date.now() ||
+            typeof closed !== 'number' || !Number.isFinite(closed) || day(closed) > day(archived))
+          reject('所属企业', '归档边界异常或项目结束晚于客户归档，请在原表核对');
+      }
+    } else if (key === 'contact' || key === 'project')
       await this.activeCustomer(arr('所属企业')[0]);
     if (key !== 'followup') return;
     const customer = arr('直接客户'),
@@ -242,6 +255,8 @@ export class CrmService {
           reject('客户联系人', '联系人不属于当前企业');
         if (textValue(c.record['核查标记']) !== '正常')
           reject('客户联系人', '联系人需先核查通过');
+        const issue = contactLifecycleProblem(c.record);
+        if (issue) reject('客户联系人', issue);
         if (
           textValue(c.record['联系人状态']) !== '有效' &&
           !(
@@ -410,11 +425,15 @@ export class CrmService {
       this.validateFacts(key, edited.draft, row);
       const peopleFields = { ...edited.validationFields };
       if (key === 'followup') {
-        // Existing participation is historical fact; only newly selected people
-        // need current activation. Unchanged people are not current assignees.
-        for (const f of forms[key])
-          if (f.type === 'person' && isDeepStrictEqual(peopleFields[f.key], row.record[f.key]))
-            delete peopleFields[f.key];
+        // Validate the added IDs, not the whole changed array: departed historical
+        // participants must not prevent adding a currently active colleague.
+        for (const f of forms[key]) {
+          const selected = peopleFields[f.key];
+          if (f.type === 'person' && Array.isArray(selected)) {
+            const before = row.record[f.key];
+            peopleFields[f.key] = selected.filter((id: unknown) => !Array.isArray(before) || !before.includes(id));
+          }
+        }
       }
       await this.people(peopleFields, forms[key]);
       await this.relationChecks(key, edited.draft, edited.validationFields);
@@ -471,10 +490,8 @@ export class CrmService {
         reject('核查', '此记录不处于待核查状态');
       // Revalidate original data and cross-record relations before admitting it into aggregates.
       const original = recordDraft(row.record, forms[key]);
-      if (key === 'project') {
-        const issue = projectReviewProblem(row.record);
-        if (issue) reject('项目核查', issue);
-      }
+      const issue = recordReviewProblem(key, row.record);
+      if (issue) reject('核查', issue);
       const reviewSpec = key === 'project' ? existingProjectFields(row.record) : forms[key];
       const checked = parseDraft(original, reviewSpec, this.enums(key));
       // Revalidation must not round historical timestamps down to a whole second.
@@ -485,7 +502,7 @@ export class CrmService {
       // The administrator confirms historical participation. Directory existence
       // is still required, but subsequent deactivation must not erase history.
       await this.people(checked.fields, forms[key], key === 'followup');
-      await this.relationChecks(key, checked.draft, checked.fields);
+      await this.relationChecks(key, checked.draft, checked.fields, row);
       fields['核查标记'] = '正常';
       fields['核查说明'] = [
         textValue(row.record['核查说明']),
