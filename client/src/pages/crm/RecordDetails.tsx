@@ -1,6 +1,6 @@
 import React from 'react';
 import type { CrmRecord } from '@shared/api.interface';
-import { detailGroups } from '@shared/crm-presentation';
+import { detailGroups, managementLogText } from '@shared/crm-presentation';
 import { textValue } from '@shared/crm';
 import { Cell } from './Fields';
 
@@ -13,7 +13,7 @@ export const RecordDetails: React.FC<{ record: CrmRecord['record'] }> = ({ recor
             <dt>{key === '结束日期' && textValue(record['终局确认']) === '未确认' ? '上次结束日期（历史）'
               : key === '归档时间' && record['已归档'] !== true ? '上次归档时间（历史）'
               : key === '下次跟进日期' && (record['已归档'] === true || ['已完成', '已取消'].includes(textValue(record['终局确认']))) ? '上次计划日期（已停用）' : key}</dt>
-            <dd><Cell name={key} value={value} /></dd>
+            <dd><Cell name={key} value={key === '管理记录' ? managementLogText(value) : value} /></dd>
           </div>
         ))}
       </dl>;

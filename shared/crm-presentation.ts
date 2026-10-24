@@ -1,4 +1,26 @@
 import type { CrmRecord } from './api.interface';
+import { textValue } from './crm';
+import { EVENT_PREFIX, lifecycleEvents, lifecycleTitles } from './crm-lifecycle';
+
+/** Keep business history readable without exposing the machine event encoding. */
+export function managementLogText(value: unknown): string {
+  return textValue(value).split('\n').map(line => {
+    if (!line.startsWith(EVENT_PREFIX)) return line.replace(/^(confirm-end|archive|restore|reopen) ·/,
+      operation => `${lifecycleTitles[operation.split(' ')[0] as keyof typeof lifecycleTitles]} ·`);
+    const event = lifecycleEvents({ 管理记录: line })[0];
+    if (!event) return line;
+    const previous = event.previous;
+    const fields: [string, unknown][] = [
+      ['终局状态', previous.terminal], ['归档状态', previous.archived ? '已归档' : '未归档'],
+      ['结束日期', previous.endDate == null ? '' : displayDate('结束日期', previous.endDate)],
+      ['归档时间', previous.archiveTime == null ? '' : displayDate('归档时间', previous.archiveTime)],
+      ['行动', previous.action], ['计划日期', previous.dueDate == null ? '' : displayDate('下次跟进日期', previous.dueDate)],
+      ['结果', previous.result], ['结束建议', previous.suggestion], ['建议说明', previous.suggestionNote],
+      ['取消原因', previous.cancelReason], ['归档原因', previous.archiveReason],
+    ];
+    return `操作前信息\n${fields.filter(([, item]) => textValue(item)).map(([name, item]) => `  ${name}：${textValue(item)}`).join('\n')}`;
+  }).join('\n');
+}
 
 const dateFields = new Set(['下次跟进日期', '目标完成日期', '结束日期', '预计成交日期', '建议日期']);
 const timeFields = new Set(['最近整体互动', '最近直接跟进', '最近有效跟进', '最后目录同步']);

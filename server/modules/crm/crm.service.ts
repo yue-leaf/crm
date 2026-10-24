@@ -32,7 +32,7 @@ import {
   advancementBlocked, commerceKeys, existingProjectFields, progressFields,
 } from '@shared/crm-workflow';
 import { contactLifecycleProblem, recordReviewProblem } from '@shared/crm-review';
-import { isLifecycle } from '@shared/crm-lifecycle';
+import { auditNote, isLifecycle } from '@shared/crm-lifecycle';
 import { prepareLifecycle } from './crm-lifecycle';
 import type { RelatedSnapshot } from './crm-lifecycle';
 import { historicalContext } from './crm-workflow';
@@ -478,7 +478,7 @@ export class CrmService {
         fields['行动执行人'] = [];
       await this.people(fields, progressFields);
       const note = [textValue(row.record['管理记录']),
-        `进展更新 · ${new Date().toISOString()} · ${actor}\n${textValue(row.record['工作状态'])} → ${String(parsed.draft['工作状态'])}\n${String(parsed.draft['变更说明'])}`,
+        `进展更新 · ${new Date().toISOString()} · ${actor}\n${textValue(row.record['工作状态'])} → ${String(parsed.draft['工作状态'])}\n${auditNote(String(parsed.draft['变更说明']))}`,
       ].filter(Boolean).join('\n\n');
       if (note.length > 20000) reject('管理记录', '历史说明已达上限，请先整理留存');
       delete fields['变更说明'];

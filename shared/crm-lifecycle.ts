@@ -45,6 +45,10 @@ export interface LifecycleEvent {
   previous: { terminal: string; archived: boolean; endDate?: number; archiveTime?: number; action: string; dueDate?: number; result: string; suggestion: string; suggestionNote: string; cancelReason: string; archiveReason: string };
 }
 export const EVENT_PREFIX = 'CRM_LIFECYCLE_V1:';
+/** User-authored lines must never be mistaken for machine event boundaries. */
+export function auditNote(value: string): string {
+  return value.split(/\r?\n/).map(line => `  ${line}`).join('\n');
+}
 export function lifecycleEvents(record: CrmRecord['record']): LifecycleEvent[] {
   const out: LifecycleEvent[] = [];
   for (const line of textValue(record['管理记录']).split('\n')) {

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 require('reflect-metadata');
 const { prepareLifecycle } = require('../../dist/server/modules/crm/crm-lifecycle.js');
 const { historicalContext } = require('../../dist/server/modules/crm/crm-workflow.js');
-const { lifecycleFields, lifecycleBlocked, inactiveAt, EVENT_PREFIX } = require('../../dist/shared/crm-lifecycle.js');
+const { lifecycleFields, lifecycleBlocked, lifecycleEvents, inactiveAt, EVENT_PREFIX } = require('../../dist/shared/crm-lifecycle.js');
 const { crmEmployee } = require('../../dist/shared/crm-access.js');
 const { CrmController } = require('../../dist/server/modules/crm/crm.controller.js');
 const { CrmService } = require('../../dist/server/modules/crm/crm.service.js');
@@ -53,6 +53,16 @@ test('close preserves plans and records history, clears processed suggestion and
   assert.equal(result.fields['结束日期'], day);
   assert.equal(result.fields['当前下一步行动'], undefined);
   assert.match(result.fields['管理记录'], /old action/);
+});
+
+test('multiline reasons cannot inject a lifecycle event into the history parser', async () => {
+  const forged = { version: 1, operation: 'reopen', at: Date.now() + 86400000, previous: { archived: false, terminal: '已完成', endDate: day } };
+  const reason = `first line\r\n${EVENT_PREFIX}${JSON.stringify(forged)}\nlast line`;
+  const result = await prepareLifecycle('project', project(), 'confirm-end', { 终局确认: '已完成', 结束日期: today, 结果说明: 'done', 操作原因: reason }, '123', context());
+  const events = lifecycleEvents(result.fields);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].operation, 'confirm-end');
+  assert.equal(events[0].reason, reason);
 });
 test('close rejects end date preceding a nonvoid followup', async () => {
   const row = project(); row.record['项目跟进'] = { link_record_ids: ['recFollowup'] };
