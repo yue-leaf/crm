@@ -27,8 +27,10 @@ import {
 import type { Draft, FieldSpec } from '@shared/crm';
 import { parseDraft, reject } from './crm-validation';
 import { prepareEdit } from './crm-edit';
-import { recordDraft } from '@shared/crm-edit';
-import { advancementBlocked, progressFields } from '@shared/crm-workflow';
+import { changedFields, recordDraft } from '@shared/crm-edit';
+import {
+  advancementBlocked, commerceKeys, existingProjectFields, progressFields, projectReviewProblem,
+} from '@shared/crm-workflow';
 import { historicalContext } from './crm-workflow';
 
 @Injectable()
@@ -281,7 +283,7 @@ export class CrmService {
     if (parents.length !== 1) reject('所属企业', '项目必须关联一个企业');
     await this.activeCustomer(parents[0]);
   }
-  private validateFacts(key: EntityKind, draft: Draft): void {
+  private validateFacts(key: EntityKind, draft: Draft, existing?: CrmRecord): void {
     if (key === 'contact') {
       if (!draft['电话'] && !draft['邮箱'])
         reject('联系方式', '电话或邮箱至少填写一项');
@@ -294,9 +296,13 @@ export class CrmService {
     if (key === 'project') {
       if (
         draft['项目类型'] !== '销售机会' &&
-        ['预计金额', '币种', '金额含税口径'].some((k) => draft[k] != null)
-      )
-        reject('项目类型', '非销售项目不填写商务金额');
+        commerceKeys.some((k) => draft[k] != null)
+      ) {
+        const before = existing ? recordDraft(existing.record, forms.project) : {};
+        const spec = forms.project.filter((f) => commerceKeys.includes(f.key));
+        if (!existing || Object.keys(changedFields(before, draft, spec)).length)
+          reject('项目类型', '非销售项目只能保留已有商务信息供核查，不能新增或修改商务金额');
+      }
       if (
         draft['预计金额'] != null &&
         (!draft['币种'] || !draft['金额含税口径'])
@@ -401,7 +407,7 @@ export class CrmService {
     let fields: Record<string, unknown>;
     if (operation === 'edit' && key !== 'access') {
       const edited = prepareEdit(key, row, input, this.enums(key), actor);
-      this.validateFacts(key, edited.draft);
+      this.validateFacts(key, edited.draft, row);
       const peopleFields = { ...edited.validationFields };
       if (key === 'followup') {
         // Existing participation is historical fact; only newly selected people
@@ -465,19 +471,17 @@ export class CrmService {
         reject('核查', '此记录不处于待核查状态');
       // Revalidate original data and cross-record relations before admitting it into aggregates.
       const original = recordDraft(row.record, forms[key]);
-      const reviewSpec = key === 'project' && textValue(row.record['工作状态']) === '暂停'
-        ? forms[key].map((f) => planFields.some((p) => p.key === f.key) ? { ...f, required: false } : f)
-        : forms[key];
+      if (key === 'project') {
+        const issue = projectReviewProblem(row.record);
+        if (issue) reject('项目核查', issue);
+      }
+      const reviewSpec = key === 'project' ? existingProjectFields(row.record) : forms[key];
       const checked = parseDraft(original, reviewSpec, this.enums(key));
-      if (key === 'project' && textValue(row.record['工作状态']) === '暂停' && !textValue(row.record['暂停原因']))
-        reject('暂停原因', '请先补齐暂停原因');
-      if (key === 'project' && textValue(row.record['工作状态']) === '进行中' && !textValue(row.record['当前进展']))
-        reject('当前进展', '请先补齐当前进展');
       // Revalidation must not round historical timestamps down to a whole second.
       for (const f of forms[key])
         if ((f.type === 'date' || f.type === 'datetime') && typeof row.record[f.key] === 'number')
           checked.fields[f.key] = row.record[f.key];
-      this.validateFacts(key, checked.draft);
+      this.validateFacts(key, checked.draft, row);
       // The administrator confirms historical participation. Directory existence
       // is still required, but subsequent deactivation must not erase history.
       await this.people(checked.fields, forms[key], key === 'followup');
