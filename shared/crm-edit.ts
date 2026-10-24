@@ -60,12 +60,12 @@ export function changedFields(
   );
 }
 export function editBlockedReason(kind: EntityKind, row: CrmRecord): string {
-  if (row.record['已归档'] === true) return '已归档，请先在飞书恢复后编辑';
+  if (row.record['已归档'] === true) return '已归档，请先取消归档或重开后编辑';
   if (
     kind === 'project' &&
     textValue(row.record['终局确认']) !== '未确认'
   )
-    return '项目已结束或终局状态异常，请先在飞书原表处理';
+    return '项目已结束或终局状态异常，请先重开或核对状态';
   if (kind === 'project' && !['待启动', '进行中', '暂停'].includes(textValue(row.record['工作状态'])))
     return '项目工作状态异常，请先更新项目进展';
   if (kind === 'contact' && textValue(row.record['联系人状态']) !== '有效')
