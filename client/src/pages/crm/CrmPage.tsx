@@ -52,6 +52,7 @@ import {
   editBlockedReason,
 } from '@shared/crm-edit';
 import { Cell, FieldInput, message } from './Fields';
+import { advancementBlocked, followupTarget, progressFields, relatedDraft } from '@shared/crm-workflow';
 import './crm.css';
 
 const icons = {
@@ -96,7 +97,9 @@ interface Editor {
   row?: CrmRecord;
 }
 const specs = (editor: Editor): FieldSpec[] =>
-  editor.operation === 'edit'
+  editor.operation === 'progress'
+    ? progressFields
+    : editor.operation === 'edit'
     ? editFields(editor.kind)
     : editor.operation === 'plan'
       ? planFields
@@ -118,6 +121,7 @@ const CrmPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [selection, setSelection] = useState<CrmRecord | null>(null);
+  const [selectionKind, setSelectionKind] = useState<EntityKind>('customer');
   const [editor, setEditor] = useState<Editor | null>(null);
   const [draft, setDraft] = useState<Draft>({});
   const [saveError, setSaveError] = useState('');
@@ -125,6 +129,8 @@ const CrmPage: React.FC = () => {
   const [uncertain, setUncertain] = useState(false);
   const savingRef = useRef(false);
   const detailVersion = useRef(0);
+  const initialDraft = useRef<Draft>({});
+  const [discardOpen, setDiscardOpen] = useState(false);
   const [editReason, setEditReason] = useState('');
   const [openingId, setOpeningId] = useState<string | null>(null);
   const requestVersion = useRef(0);
@@ -183,7 +189,9 @@ const CrmPage: React.FC = () => {
     kind: EntityKind,
     operation = 'create',
     row?: CrmRecord,
+    preset: Draft = {},
   ) => {
+    if (savingRef.current) return;
     const ed = { kind, operation, row };
     const initial: Draft =
       row && operation !== 'review' ? recordDraft(row.record, specs(ed)) : {};
@@ -200,40 +208,59 @@ const CrmPage: React.FC = () => {
         .slice(0, 16);
       initial['后续安排'] = '有下一步行动';
     }
+    Object.assign(initial, preset);
+    initialDraft.current = structuredClone(initial);
     setDraft(initial);
     setSaveError('');
     setEditReason('');
     setUncertain(false);
     setEditor(ed);
   };
-  const edit = async (row: CrmRecord) => {
-    if (active === 'home' || active === 'access' || openingId) return;
+  const edit = async (row: CrmRecord, kind = active) => {
+    if (kind === 'home' || kind === 'access' || openingId) return;
     const version = requestVersion.current;
     setOpeningId(row.id);
     try {
-      const fresh = await api.get(active, row.id);
+      const fresh = await api.get(kind, row.id);
       if (version !== requestVersion.current) return;
-      const blocked = editBlockedReason(active, fresh);
+      const blocked = editBlockedReason(kind, fresh);
       if (blocked) {
         toast.error(blocked);
         return;
       }
-      openEditor(active, 'edit', fresh);
+      openEditor(kind, 'edit', fresh);
     } catch (e: unknown) {
       toast.error(message(e));
     } finally {
       setOpeningId(null);
     }
   };
-  const detail = async (row: CrmRecord) => {
-    if (active === 'home') return;
+  const detail = async (row: CrmRecord, kind = active) => {
+    if (kind === 'home') return;
     const version = requestVersion.current;
     const detailRequest = ++detailVersion.current;
     try {
-      const next = await api.get(active, row.id);
-      if (version === requestVersion.current && detailRequest === detailVersion.current) setSelection(next);
+      const next = await api.get(kind, row.id);
+      if (version === requestVersion.current && detailRequest === detailVersion.current) {
+        setSelectionKind(kind);
+        setSelection(next);
+      }
     } catch (e: unknown) {
       toast.error(message(e));
+    }
+  };
+  const closeEditor = () => {
+    if (savingRef.current) return;
+    if (!uncertain && editor && (
+      editReason.trim() || Object.keys(changedFields(initialDraft.current, draft, specs(editor))).length
+    )) {
+      setDiscardOpen(true);
+      return;
+    }
+    setEditor(null);
+    if (uncertain) {
+      setSelection(null);
+      void reload();
     }
   };
   const save = async () => {
@@ -265,7 +292,20 @@ const CrmPage: React.FC = () => {
       toast.success(r.message);
       setEditor(null);
       setSelection(null);
-      await reload();
+      const refresh = reload();
+      const version = requestVersion.current;
+      const detailRequest = ++detailVersion.current;
+      await refresh;
+      if (version !== requestVersion.current) return;
+      try {
+        const fresh = await api.get(editor.kind, r.id);
+        if (version === requestVersion.current && detailRequest === detailVersion.current) {
+          setSelectionKind(editor.kind);
+          setSelection(fresh);
+        }
+      } catch {
+        toast.info('保存已完成，详情暂时加载失败，请从列表重新打开');
+      }
     } catch (e: unknown) {
       if (e instanceof SaveOutcomeUnknown) setUncertain(true);
       setSaveError(message(e));
@@ -301,6 +341,10 @@ const CrmPage: React.FC = () => {
       return next;
     });
   const showField = (f: FieldSpec) => {
+    if (editor?.operation === 'progress') {
+      if (f.key === '暂停原因') return draft['工作状态'] === '暂停';
+      if (planFields.some((field) => field.key === f.key)) return draft['工作状态'] !== '暂停';
+    }
     if (
       editor?.kind === 'project' &&
       ['预计金额', '币种', '金额含税口径'].includes(f.key)
@@ -447,7 +491,7 @@ const CrmPage: React.FC = () => {
                           </div>
                           <strong>{summary ? summary[k] : '—'}</strong>
                           <small>
-                            全部记录，含待核查 <ArrowUpRight size={14} />
+                            全部记录，含待核查及历史 <ArrowUpRight size={14} />
                           </small>
                         </button>
                       );
@@ -653,40 +697,54 @@ const CrmPage: React.FC = () => {
       <Dialog
         open={!!selection && !editor}
         onOpenChange={(open) => {
-          if (!open) setSelection(null);
+          if (!open) {
+            detailVersion.current++;
+            setSelection(null);
+          }
         }}
       >
         <DialogContent className="crm-dialog">
           <DialogTitle>
-            {active !== 'home' && selection
-              ? textValue(selection.record[titles[active]])
+            {selection
+              ? textValue(selection.record[titles[selectionKind]])
               : '记录详情'}
           </DialogTitle>
-          <DialogDescription>飞书当前记录 · {selection?.id}</DialogDescription>
+          <DialogDescription>{labels[selectionKind]} · 飞书当前记录 · {selection?.id}</DialogDescription>
           {selection && (
             <>
               <div className="detail-actions">
-                {active !== 'home' && active !== 'access' && (
+                {selectionKind !== 'access' && (
                   <Button
                     variant="outline"
                     disabled={
-                      !!openingId || !!editBlockedReason(active, selection)
+                      !!openingId || !!editBlockedReason(selectionKind, selection)
                     }
-                    title={editBlockedReason(active, selection) || '编辑资料'}
-                    onClick={() => void edit(selection)}
+                    title={editBlockedReason(selectionKind, selection) || '编辑资料'}
+                    onClick={() => void edit(selection, selectionKind)}
                   >
                     <Pencil size={15} />
                     编辑资料
                   </Button>
                 )}
-                {(active === 'customer' || active === 'project') && (
-                  <Button onClick={() => openEditor(active, 'plan', selection)}>
+                {(selectionKind === 'customer' || selectionKind === 'project') && (
+                  <Button disabled={!!advancementBlocked(selectionKind, selection)}
+                    title={advancementBlocked(selectionKind, selection)}
+                    onClick={() => openEditor(selectionKind, 'plan', selection)}>
                     调整当前计划
                   </Button>
                 )}
-                {active === 'project' && (
+                {selectionKind === 'project' && (
+                  <Button variant="outline" disabled={!!advancementBlocked('project', selection)}
+                    title={advancementBlocked('project', selection)}
+                    onClick={() => openEditor('project', 'progress', selection)}>
+                    更新项目进展
+                  </Button>
+                )}
+                {selectionKind === 'project' && (
                   <Button
                     variant="outline"
+                    disabled={!!advancementBlocked('project', selection)}
+                    title={advancementBlocked('project', selection)}
                     onClick={() =>
                       openEditor('project', 'suggest-end', selection)
                     }
@@ -694,17 +752,48 @@ const CrmPage: React.FC = () => {
                     提出结束建议
                   </Button>
                 )}
-                {active !== 'home' &&
-                  active !== 'access' &&
+                {selectionKind !== 'access' &&
                   textValue(selection.record['核查标记']) === '待核查' && (
                     <Button
                       variant="outline"
-                      onClick={() => openEditor(active, 'review', selection)}
+                      onClick={() => openEditor(selectionKind, 'review', selection)}
                     >
                       核查通过
                     </Button>
                   )}
+                {(selectionKind === 'customer' || selectionKind === 'project') && (
+                  <>
+                    {selectionKind === 'customer' && (['contact', 'project'] as const).map((kind) => (
+                      <Button key={kind} variant="outline"
+                        disabled={selection.record['已归档'] === true || textValue(selection.record['核查标记']) !== '正常'}
+                        title="先核查客户，通过后可创建联系人和项目"
+                        onClick={() => openEditor(
+                          kind, 'create', undefined, relatedDraft('customer', selection, kind),
+                        )}>
+                        新建{labels[kind]}
+                      </Button>
+                    ))}
+                    <Button variant="outline" disabled={textValue(selection.record['核查标记']) !== '正常'}
+                      onClick={() => openEditor(
+                        'followup', 'create', undefined, relatedDraft(selectionKind, selection, 'followup'),
+                      )}>
+                      {advancementBlocked(selectionKind, selection) ? '补录历史跟进' : '记录跟进'}
+                    </Button>
+                  </>
+                )}
+                {selectionKind === 'followup' && followupTarget(selection) && (
+                  <Button variant="outline" onClick={() => {
+                    const target = followupTarget(selection)!;
+                    void detail({ id: target.id, record: {} }, target.kind);
+                  }}>查看所属对象与当前计划</Button>
+                )}
               </div>
+              {selectionKind !== 'access' && textValue(selection.record['核查标记']) === '待核查' && (
+                <p className="panel-note" role="status">保存成功，当前待核查。请先核对资料并点击“核查通过”，再继续关联业务。</p>
+              )}
+              {selectionKind === 'project' && textValue(selection.record['结束建议']) && (
+                <p className="panel-note">已有结束建议，请在飞书原表核对并完成处理；提出建议不会自动改变终局。</p>
+              )}
               <dl className="detail-grid">
                 {Object.entries(selection.record).map(([key, value]) => (
                   <div key={key}>
@@ -725,7 +814,7 @@ const CrmPage: React.FC = () => {
       <Dialog
         open={!!editor}
         onOpenChange={(open) => {
-          if (!open && !saving) setEditor(null);
+          if (!open) closeEditor();
         }}
       >
         <DialogContent className="crm-dialog">
@@ -735,6 +824,8 @@ const CrmPage: React.FC = () => {
                 ? `新建${labels[editor.kind]}`
                 : editor.operation === 'edit'
                   ? `编辑${labels[editor.kind]}`
+                  : editor.operation === 'progress'
+                    ? '更新项目进展'
                   : editor.operation === 'plan'
                     ? '调整当前计划'
                     : editor.operation === 'review'
@@ -753,6 +844,12 @@ const CrmPage: React.FC = () => {
                   ? '保存意向不会自动修改实际角色。'
                   : '请核对信息后保存，保留历史跟进中的原始建议。'}
           </DialogDescription>
+          {editor?.kind === 'followup' && (
+            <p className="panel-note">
+              历史补录按实际发生时间填写：结项当天可补录，归档及联系人停用须严格早于对应时刻；新工作请先恢复或重开。
+            </p>
+          )}
+          {editor?.operation === 'progress' && <p className="panel-note">暂停需填写原因，原计划保留；启动或恢复需确认当前行动与日期。更新后进入待核查。</p>}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -772,7 +869,8 @@ const CrmPage: React.FC = () => {
                   .map((f) => (
                     <FieldInput
                       key={f.key}
-                      field={f}
+                      field={editor.operation === 'progress' && draft['工作状态'] !== '暂停' &&
+                        ['当前下一步行动', '下次跟进日期'].includes(f.key) ? { ...f, required: true } : f}
                       draft={draft}
                       onChange={set}
                     />
@@ -795,7 +893,7 @@ const CrmPage: React.FC = () => {
                 type="button"
                 variant="outline"
                 disabled={saving}
-                onClick={() => setEditor(null)}
+                onClick={closeEditor}
               >
                 取消
               </Button>
@@ -811,6 +909,16 @@ const CrmPage: React.FC = () => {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <DialogContent>
+          <DialogTitle>放弃未保存的修改？</DialogTitle>
+          <DialogDescription>刚才填写的内容尚未保存，关闭后将丢失。</DialogDescription>
+          <div className="form-actions">
+            <Button variant="outline" onClick={() => setDiscardOpen(false)}>继续填写</Button>
+            <Button variant="destructive" onClick={() => { setDiscardOpen(false); setEditor(null); }}>放弃修改</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -28,6 +28,8 @@ import type { Draft, FieldSpec } from '@shared/crm';
 import { parseDraft, reject } from './crm-validation';
 import { prepareEdit } from './crm-edit';
 import { recordDraft } from '@shared/crm-edit';
+import { advancementBlocked, progressFields } from '@shared/crm-workflow';
+import { historicalContext } from './crm-workflow';
 
 @Injectable()
 export class CrmService {
@@ -156,6 +158,7 @@ export class CrmService {
   private async people(
     fields: Record<string, unknown>,
     spec: FieldSpec[],
+    includeInactive = false,
   ): Promise<void> {
     const ids = spec
       .filter((f) => f.type === 'person')
@@ -170,7 +173,7 @@ export class CrmService {
       const page = await this.list('access', cursor);
       for (const r of page.records) {
         if (
-          textValue(r.record['目录状态']) === '已激活' &&
+          (includeInactive || textValue(r.record['目录状态']) === '已激活') &&
           Array.isArray(r.record['飞书成员'])
         )
           for (const id of r.record['飞书成员'])
@@ -211,19 +214,16 @@ export class CrmService {
     )
       reject('跟进归属', '客户和项目必须二选一');
     let customerId = customer[0];
+    const occurred = fields['实际发生时间'] as number;
     if (project.length) {
       const p = await this.get('project', project[0]);
-      this.assertActive(p);
-      if (textValue(p.record['核查标记']) !== '正常')
-        reject('关联项目', '项目需先核查通过');
+      historicalContext('project', p, occurred);
       const parents = linkIds(p.record['所属企业']);
       if (parents.length !== 1) reject('关联项目', '项目必须且只能关联一个企业，请先核对');
       customerId = parents[0];
     }
     if (!customerId) reject('跟进归属', '无法确定所属企业');
-    await this.activeCustomer(customerId);
-    const occurred = fields['实际发生时间'] as number;
-    if (occurred > Date.now()) reject('实际发生时间', '不能晚于当前时间');
+    historicalContext('customer', await this.get('customer', customerId), occurred);
     if (d['记录类型'] === '外部沟通') {
       if (
         !['电话', '线上会议', '现场', '即时消息', '邮件', '其他'].includes(
@@ -273,6 +273,13 @@ export class CrmService {
     if (row.record['已归档'] === true) reject('记录', '已归档，不能继续推进');
     if (['已完成', '已取消'].includes(textValue(row.record['终局确认'])))
       reject('记录', '项目已经结束，不能继续推进');
+  }
+  private async projectAdvancement(row: CrmRecord): Promise<void> {
+    const blocked = advancementBlocked('project', row);
+    if (blocked) reject('项目', blocked);
+    const parents = linkIds(row.record['所属企业']);
+    if (parents.length !== 1) reject('所属企业', '项目必须关联一个企业');
+    await this.activeCustomer(parents[0]);
   }
   private validateFacts(key: EntityKind, draft: Draft): void {
     if (key === 'contact') {
@@ -344,7 +351,7 @@ export class CrmService {
     } catch {
       throw new BadGatewayException(`保存后的回读未完成，请刷新核对记录 ${id}，避免重复提交`);
     }
-    const specs = [...forms[key], ...planFields, ...endFields];
+    const specs = [...forms[key], ...planFields, ...endFields, ...progressFields];
     const mismatch = Object.entries(fields).some(([name, expected]) => {
       const actual = saved.record[name];
       if (Array.isArray(expected)) {
@@ -395,7 +402,15 @@ export class CrmService {
     if (operation === 'edit' && key !== 'access') {
       const edited = prepareEdit(key, row, input, this.enums(key), actor);
       this.validateFacts(key, edited.draft);
-      await this.people(edited.validationFields, forms[key]);
+      const peopleFields = { ...edited.validationFields };
+      if (key === 'followup') {
+        // Existing participation is historical fact; only newly selected people
+        // need current activation. Unchanged people are not current assignees.
+        for (const f of forms[key])
+          if (f.type === 'person' && isDeepStrictEqual(peopleFields[f.key], row.record[f.key]))
+            delete peopleFields[f.key];
+      }
+      await this.people(peopleFields, forms[key]);
       await this.relationChecks(key, edited.draft, edited.validationFields);
       fields = edited.writes;
     } else if (
@@ -403,13 +418,36 @@ export class CrmService {
       (key === 'customer' || key === 'project')
     ) {
       this.assertActive(row);
+      if (key === 'project') await this.projectAdvancement(row);
       const parsed = parseDraft(input, planFields, this.enums(key));
       fields = parsed.fields;
       if (!fields['行动执行人']) fields['行动执行人'] = [];
       await this.people(fields, planFields);
     } else if (operation === 'suggest-end' && key === 'project') {
-      this.assertActive(row);
+      await this.projectAdvancement(row);
       fields = parseDraft(input, endFields, this.enums(key)).fields;
+    } else if (operation === 'progress' && key === 'project') {
+      await this.projectAdvancement(row);
+      const parsed = parseDraft(input, progressFields, this.enums(key));
+      fields = parsed.fields;
+      if (parsed.draft['工作状态'] === '暂停') {
+        if (!parsed.draft['暂停原因']) reject('暂停原因', '暂停时必填');
+        for (const f of planFields) delete fields[f.key];
+      } else {
+        if (!parsed.draft['当前下一步行动'] || !parsed.draft['下次跟进日期'])
+          reject('当前计划', '启动或恢复项目时请确认下一步行动和日期');
+        fields['暂停原因'] = '';
+      }
+      if (parsed.draft['工作状态'] !== '暂停' && Object.hasOwn(input, '行动执行人') && !fields['行动执行人'])
+        fields['行动执行人'] = [];
+      await this.people(fields, progressFields);
+      const note = [textValue(row.record['管理记录']),
+        `进展更新 · ${new Date().toISOString()} · ${actor}\n${textValue(row.record['工作状态'])} → ${String(parsed.draft['工作状态'])}\n${String(parsed.draft['变更说明'])}`,
+      ].filter(Boolean).join('\n\n');
+      if (note.length > 20000) reject('管理记录', '历史说明已达上限，请先整理留存');
+      delete fields['变更说明'];
+      fields['管理记录'] = note;
+      fields['核查标记'] = '待核查';
     } else if (operation === 'access' && key === 'access') {
       fields = parseDraft(input, forms.access, this.enums(key)).fields;
       for (const f of forms.access) {
@@ -427,13 +465,22 @@ export class CrmService {
         reject('核查', '此记录不处于待核查状态');
       // Revalidate original data and cross-record relations before admitting it into aggregates.
       const original = recordDraft(row.record, forms[key]);
-      const checked = parseDraft(original, forms[key], this.enums(key));
+      const reviewSpec = key === 'project' && textValue(row.record['工作状态']) === '暂停'
+        ? forms[key].map((f) => planFields.some((p) => p.key === f.key) ? { ...f, required: false } : f)
+        : forms[key];
+      const checked = parseDraft(original, reviewSpec, this.enums(key));
+      if (key === 'project' && textValue(row.record['工作状态']) === '暂停' && !textValue(row.record['暂停原因']))
+        reject('暂停原因', '请先补齐暂停原因');
+      if (key === 'project' && textValue(row.record['工作状态']) === '进行中' && !textValue(row.record['当前进展']))
+        reject('当前进展', '请先补齐当前进展');
       // Revalidation must not round historical timestamps down to a whole second.
       for (const f of forms[key])
         if ((f.type === 'date' || f.type === 'datetime') && typeof row.record[f.key] === 'number')
           checked.fields[f.key] = row.record[f.key];
       this.validateFacts(key, checked.draft);
-      await this.people(checked.fields, forms[key]);
+      // The administrator confirms historical participation. Directory existence
+      // is still required, but subsequent deactivation must not erase history.
+      await this.people(checked.fields, forms[key], key === 'followup');
       await this.relationChecks(key, checked.draft, checked.fields);
       fields['核查标记'] = '正常';
       fields['核查说明'] = [
