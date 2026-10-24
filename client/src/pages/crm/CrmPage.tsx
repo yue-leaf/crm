@@ -881,6 +881,7 @@ const CrmPage: React.FC = () => {
                         ['当前下一步行动', '下次跟进日期'].includes(f.key) ? { ...f, required: true } : f}
                       draft={draft}
                       onChange={set}
+                      disabled={saving || uncertain}
                     />
                   ))}
               {editor?.operation === 'edit' && (

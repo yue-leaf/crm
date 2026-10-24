@@ -519,17 +519,105 @@
 .date-field input {
   width: 90px;
 }
-.relation-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin: 8px 0;
-  max-height: 130px;
-  overflow: auto;
-}
-.relation-field small {
+.relation-field small,
+.field-hint {
+  display: block;
+  margin-top: 8px;
+  line-height: 1.6;
   color: #68717d;
   font-size: 12px;
+}
+.record-picker-trigger {
+  width: 100%;
+  min-height: 40px;
+  height: auto;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  font-weight: 400;
+  text-align: left;
+}
+.record-picker-trigger > span {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.record-picker-trigger > svg {
+  flex-shrink: 0;
+  color: #68717d;
+}
+.crm-person-trigger {
+  min-height: 40px;
+  width: 100%;
+}
+.crm-record-popover,
+.crm-person-popover {
+  width: var(--radix-popover-trigger-width);
+  max-width: calc(100vw - 24px);
+  max-height: var(--radix-popover-content-available-height);
+  overflow-y: auto;
+  background: #fff;
+  color: #1f2329;
+}
+.crm-record-popover {
+  padding: 0;
+}
+.crm-record-popover [data-slot='command-list'] {
+  max-height: min(260px, 35dvh);
+  padding: 4px;
+}
+.crm-record-popover [data-slot='command-item'] {
+  min-height: 40px;
+  align-items: flex-start;
+  padding: 10px 8px;
+}
+.crm-record-popover [data-slot='command-item'] > span {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.picker-unchecked {
+  opacity: 0;
+}
+.picker-heading {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #68717d;
+}
+.picker-message,
+.picker-error {
+  padding: 16px 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.picker-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #68717d;
+}
+.picker-error {
+  color: #b42318;
+}
+.picker-error button {
+  margin-left: 8px;
+}
+.picker-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid #edf0f5;
+}
+.picker-footer > span {
+  flex: 1;
+  font-size: 12px;
+  color: #68717d;
+}
+.picker-load-more {
+  width: 100%;
 }
 .field-error {
   color: #bd4f40;

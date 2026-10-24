@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,10 +18,9 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { UserSelect } from '@/components/business-ui/user-select';
 import { UserDisplay } from '@/components/business-ui/user-display';
-import { api } from '@/api/crm';
-import type { CrmRecord } from '@shared/api.interface';
 import type { Draft, FieldSpec } from '@shared/crm';
-import { titles, textValue, linkIds } from '@shared/crm';
+import { textValue, linkIds } from '@shared/crm';
+import { RelationField } from './RelationField';
 import { displayDate, statusTone } from '@shared/crm-presentation';
 
 export const message = (e: unknown) =>
@@ -62,141 +61,6 @@ export const Cell: React.FC<{ name: string; value: unknown }> = ({
   const tone = statusTone(name, s);
   if (tone) return <span className={`tag ${tone}`}>{s}</span>;
   return <span>{s}</span>;
-};
-const RelationField: React.FC<{
-  field: FieldSpec;
-  value: string[];
-  onChange: (v: string[]) => void;
-}> = ({ field, value, onChange }) => {
-  const [items, setItems] = useState<CrmRecord[]>([]);
-  const [query, setQuery] = useState('');
-  const [cursor, setCursor] = useState<string | undefined>();
-  const [error, setError] = useState('');
-  const [selected, setSelected] = useState<CrmRecord[]>([]);
-  const generation = useRef(0);
-  const paging = useRef(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const selectedIds = value.join('|');
-  useEffect(() => {
-    let canceled = false;
-    if (!field.target || !selectedIds) {
-      setSelected([]);
-      return;
-    }
-    const target = field.target;
-    void Promise.all(selectedIds.split('|').map((id) => api.get(target, id)))
-      .then((rows) => {
-        if (!canceled) setSelected(rows);
-      })
-      .catch((e) => {
-        if (!canceled) setError(message(e));
-      });
-    return () => {
-      canceled = true;
-    };
-  }, [field.target, selectedIds]);
-  useEffect(() => {
-    const version = ++generation.current;
-    paging.current = false;
-    setLoadingMore(false);
-    setCursor(undefined);
-    setItems([]);
-    let canceled = false;
-    const timer = setTimeout(() => {
-      setError('');
-      if (field.target)
-        api
-          .list(field.target, '', query)
-          .then((r) => {
-            if (!canceled && version === generation.current) {
-              setItems(r.records);
-              setCursor(r.hasMore ? r.pageToken : undefined);
-            }
-          })
-          .catch((e) => {
-            if (!canceled) setError(message(e));
-          });
-    }, 250);
-    return () => {
-      canceled = true;
-      generation.current++;
-      clearTimeout(timer);
-    };
-  }, [field.target, query]);
-  return (
-    <div className="relation-field">
-      <Input
-        aria-label={`搜索${field.key}`}
-        placeholder={`搜索${field.key}`}
-        value={query}
-        onChange={(e) => {
-          generation.current++;
-          setCursor(undefined);
-          setQuery(e.target.value);
-        }}
-      />
-      <div className="relation-options">
-        {[
-          ...selected.filter((item) => value.includes(item.id)),
-          ...items.filter(
-            (item) =>
-              !selected.some((s) => s.id === item.id && value.includes(s.id)),
-          ),
-        ].map((item) => (
-          <Button
-            type="button"
-            size="sm"
-            variant={value.includes(item.id) ? 'default' : 'outline'}
-            key={item.id}
-            onClick={() =>
-              onChange(
-                field.multiple
-                  ? value.includes(item.id)
-                    ? value.filter((id) => id !== item.id)
-                    : [...value, item.id]
-                  : value.includes(item.id)
-                    ? []
-                    : [item.id],
-              )
-            }
-          >
-            {textValue(item.record[titles[field.target!]]) || item.id}
-          </Button>
-        ))}
-      </div>
-      {cursor && (
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={loadingMore}
-          onClick={async () => {
-            if (paging.current) return;
-            paging.current = true;
-            setLoadingMore(true);
-            const version = generation.current;
-            try {
-              const r = await api.list(field.target!, cursor, query);
-              if (version !== generation.current) return;
-              setItems((prev) => [...new Map([...prev, ...r.records].map((row) => [row.id, row])).values()]);
-              setCursor(r.hasMore ? r.pageToken : undefined);
-            } catch (e: unknown) {
-              if (version === generation.current) setError(message(e));
-            } finally {
-              if (version === generation.current) {
-                paging.current = false;
-                setLoadingMore(false);
-              }
-            }
-          }}
-        >
-          加载更多
-        </Button>
-      )}
-      {error && <p className="field-error">{error}</p>}
-      <small>已选择 {value.length} 项；保存时校验所属企业和有效状态。</small>
-    </div>
-  );
 };
 const DateField: React.FC<{
   value: string;
@@ -247,24 +111,43 @@ export const FieldInput: React.FC<{
   field: FieldSpec;
   draft: Draft;
   onChange: (key: string, value: Draft[string]) => void;
-}> = ({ field: f, draft, onChange }) => {
+  disabled?: boolean;
+}> = ({ field: f, draft, onChange, disabled }) => {
   const set = (v: Draft[string]) => onChange(f.key, v);
+  const personValue = Array.isArray(draft[f.key]) ? (draft[f.key] as string[]) : [];
+  const personProps = {
+    accountType: 'apaas' as const, triggerType: 'search' as const,
+    name: f.key, required: f.required, disabled,
+    placeholder: `请选择${f.label || f.key}`,
+    emptyText: '请输入员工姓名搜索；新增人员须已同步且已激活',
+    className: 'crm-person-picker',
+    classNames: { trigger: 'crm-person-trigger', popover: 'crm-person-popover' },
+    slotProps: { popover: { collisionPadding: 12 } },
+  };
   return (
-    <div className={`field ${f.type === 'long' ? 'wide' : ''}`}>
+    <div className={`field ${f.type === 'long' ? 'wide' : ''}`} onClickCapture={(event) => {
+      // The platform clear button omits type; clearing a person must not submit this form.
+      if (f.type === 'person' && event.target instanceof Element &&
+        event.target.closest('[data-slot="combobox-clear"]')) event.preventDefault();
+    }}>
       <label>
         {f.label || f.key}
         {f.required && <em> *</em>}
       </label>
       {f.type === 'person' ? (
-        <UserSelect
-          accountType="apaas"
-          multiple
-          value={Array.isArray(draft[f.key]) ? (draft[f.key] as string[]) : []}
-          onChange={(v) => set(f.multiple ? v : v.slice(-1))}
-        />
+        <>
+          {f.multiple ? (
+            <UserSelect {...personProps} multiple value={personValue} onChange={set} />
+          ) : (
+            <UserSelect {...personProps} multiple={false} value={personValue[0] || null}
+              onChange={(id) => set(id ? [id] : [])} />
+          )}
+          <small className="field-hint">点击选择框，输入员工姓名搜索{f.multiple ? '，可多选' : '，选择一人'}。</small>
+        </>
       ) : f.type === 'relation' ? (
         <RelationField
           field={f}
+          disabled={disabled}
           value={Array.isArray(draft[f.key]) ? (draft[f.key] as string[]) : []}
           onChange={set}
         />
