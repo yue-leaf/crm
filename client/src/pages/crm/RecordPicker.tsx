@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { Check, ChevronsUpDown, LoaderCircle } from 'lucide-react';
+import { Check, ChevronsUpDown, LoaderCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -38,7 +38,7 @@ export const RecordPicker: React.FC<RecordPickerProps> = (props) => {
           <Button type="button" variant="outline" className="record-picker-trigger"
             role="combobox" aria-label={`选择${label}`} aria-expanded={open && !disabled}
             aria-controls={open ? listId : undefined} aria-haspopup="listbox" disabled={disabled}>
-            <span className={value.length ? '' : 'muted'}>{names.join('、') || `请选择${label}`}</span>
+            <span className={value.length ? '' : 'muted'}>{value.length > 1 ? `已选择 ${value.length} 项` : names[0] || `请选择${label}`}</span>
             <ChevronsUpDown size={16} aria-hidden="true" />
           </Button>
         </PopoverTrigger>
@@ -62,9 +62,8 @@ export const RecordPicker: React.FC<RecordPickerProps> = (props) => {
                   {options.filter((item) => query || !value.includes(item.id)).map((item) => (
                     <CommandItem key={item.id} value={item.id} aria-label={item.name}
                       onSelect={() => {
-                        onChange(multiple
-                          ? value.includes(item.id) ? value.filter((id) => id !== item.id) : [...value, item.id]
-                          : [item.id]);
+                        if (multiple) onChange(value.includes(item.id) ? value.filter((id) => id !== item.id) : [...value, item.id]);
+                        else if (!value.includes(item.id)) onChange([item.id]);
                         if (!multiple) onOpenChange(false);
                       }}>
                       <Check size={16} aria-hidden="true" className={value.includes(item.id) ? '' : 'picker-unchecked'} />
@@ -89,6 +88,16 @@ export const RecordPicker: React.FC<RecordPickerProps> = (props) => {
           </div>
         </PopoverContent>
       </Popover>
+      {multiple && value.length > 0 && <div className="picker-selected" aria-label={`已选${label}`}>
+        {value.slice(0, 3).map((id, index) => <span className="picker-chip" key={id} title={names[index]}>
+          <span>{names[index]}</span><button type="button" disabled={disabled}
+            aria-label={`移除${names[index]}`} onClick={() => onChange(value.filter((item) => item !== id))}>
+            <X size={14} aria-hidden="true" />
+          </button>
+        </span>)}
+        {value.length > 3 && <Button type="button" variant="ghost" size="sm" disabled={disabled}
+          onClick={() => onOpenChange(true)}>查看全部 {value.length} 项</Button>}
+      </div>}
     </div>
   );
 };

@@ -54,9 +54,10 @@ import {
 import { Cell, FieldInput, message } from './Fields';
 import { RecordDetails } from './RecordDetails';
 import {
-  advancementBlocked, commerceKeys, followupTarget, progressFields, relatedDraft,
+  advancementBlocked, followupTarget, progressFields, relatedDraft,
 } from '@shared/crm-workflow';
 import { recordReviewProblem } from '@shared/crm-review';
+import { appendPage, changeDraft, missingFields, requiredField } from '@shared/crm-interaction';
 import './crm.css';
 
 const icons = {
@@ -129,10 +130,13 @@ const CrmPage: React.FC = () => {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [draft, setDraft] = useState<Draft>({});
   const [saveError, setSaveError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uncertain, setUncertain] = useState(false);
   const savingRef = useRef(false);
   const detailVersion = useRef(0);
+  const editorRequestVersion = useRef(0);
   const initialDraft = useRef<Draft>({});
   const [discardOpen, setDiscardOpen] = useState(false);
   const [editReason, setEditReason] = useState('');
@@ -159,6 +163,7 @@ const CrmPage: React.FC = () => {
   const reload = useCallback(async () => {
     if (!authorized) return;
     const version = ++requestVersion.current;
+    setDetailLoadingId(null);
     setLoading(true);
     setError('');
     try {
@@ -196,6 +201,10 @@ const CrmPage: React.FC = () => {
     preset: Draft = {},
   ) => {
     if (savingRef.current) return;
+    editorRequestVersion.current++;
+    detailVersion.current++;
+    setOpeningId(null);
+    setDetailLoadingId(null);
     const ed = { kind, operation, row };
     const initial: Draft =
       row && operation !== 'review' ? recordDraft(row.record, specs(ed)) : {};
@@ -216,6 +225,7 @@ const CrmPage: React.FC = () => {
     initialDraft.current = structuredClone(initial);
     setDraft(initial);
     setSaveError('');
+    setFieldErrors({});
     setEditReason('');
     setUncertain(false);
     setEditor(ed);
@@ -223,10 +233,11 @@ const CrmPage: React.FC = () => {
   const edit = async (row: CrmRecord, kind = active) => {
     if (kind === 'home' || kind === 'access' || openingId) return;
     const version = requestVersion.current;
+    const editorRequest = ++editorRequestVersion.current;
     setOpeningId(row.id);
     try {
       const fresh = await api.get(kind, row.id);
-      if (version !== requestVersion.current) return;
+      if (version !== requestVersion.current || editorRequest !== editorRequestVersion.current) return;
       const blocked = editBlockedReason(kind, fresh);
       if (blocked) {
         toast.error(blocked);
@@ -234,15 +245,16 @@ const CrmPage: React.FC = () => {
       }
       openEditor(kind, 'edit', fresh);
     } catch (e: unknown) {
-      toast.error(message(e));
+      if (version === requestVersion.current && editorRequest === editorRequestVersion.current) toast.error(message(e));
     } finally {
-      setOpeningId(null);
+      if (editorRequest === editorRequestVersion.current) setOpeningId(null);
     }
   };
   const detail = async (row: CrmRecord, kind = active) => {
     if (kind === 'home') return;
     const version = requestVersion.current;
     const detailRequest = ++detailVersion.current;
+    setDetailLoadingId(row.id);
     try {
       const next = await api.get(kind, row.id);
       if (version === requestVersion.current && detailRequest === detailVersion.current) {
@@ -250,7 +262,9 @@ const CrmPage: React.FC = () => {
         setSelection(next);
       }
     } catch (e: unknown) {
-      toast.error(message(e));
+      if (version === requestVersion.current && detailRequest === detailVersion.current) toast.error(message(e));
+    } finally {
+      if (detailRequest === detailVersion.current) setDetailLoadingId(null);
     }
   };
   const closeEditor = () => {
@@ -269,6 +283,18 @@ const CrmPage: React.FC = () => {
   };
   const save = async () => {
     if (!editor || savingRef.current || uncertain) return;
+    const errors = missingFields(specs(editor).filter(showField).map((field) => requiredField(field, editor.kind, editor.operation, draft)), draft);
+    if (editor.operation === 'edit' && !editReason.trim()) errors['修改说明'] = '请填写修改说明';
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      setSaveError('请补全标记的必填项后再保存');
+      requestAnimationFrame(() => {
+        const first = document.querySelector<HTMLElement>('.crm-editor-form [data-invalid="true"]');
+        first?.scrollIntoView({ block: 'center' });
+        first?.querySelector<HTMLElement>('input, textarea, button, [role="combobox"]')?.focus();
+      });
+      return;
+    }
     savingRef.current = true;
     setSaving(true);
     setSaveError('');
@@ -318,33 +344,15 @@ const CrmPage: React.FC = () => {
       setSaving(false);
     }
   };
-  const set = (key: string, value: Draft[string]) =>
-    setDraft((prev) => {
-      if (savingRef.current) return prev;
-      const next = { ...prev, [key]: value };
-      if (key === '跟进归属') {
-        next['直接客户'] = [];
-        next['关联项目'] = [];
-        next['客户联系人'] = [];
-      }
-      if (key === '直接客户' || key === '关联项目') next['客户联系人'] = [];
-      if (key === '记录类型') {
-        next['客户联系人'] = [];
-        next['沟通 / 推进方式'] = '';
-      }
-      if (key === '后续安排')
-        for (const k of [
-          '建议下一步行动',
-          '建议日期',
-          '建议处理人',
-          '无后续动作结论',
-        ])
-          next[k] = null;
-      if (key === '项目类型' && value !== '销售机会')
-        for (const k of commerceKeys)
-          next[k] = editor?.operation === 'edit' ? initialDraft.current[k] ?? null : null;
+  const set = (key: string, value: Draft[string]) => {
+    if (savingRef.current) return;
+    setFieldErrors((previous) => {
+      const next = { ...previous }; delete next[key];
+      if (key === '电话' || key === '邮箱') { delete next['电话']; delete next['邮箱']; }
       return next;
     });
+    setDraft((previous) => changeDraft(previous, key, value, initialDraft.current, editor?.operation === 'edit'));
+  };
   const showField = (f: FieldSpec) => {
     if (editor?.operation === 'progress') {
       if (f.key === '暂停原因') return draft['工作状态'] === '暂停';
@@ -565,7 +573,8 @@ const CrmPage: React.FC = () => {
                     className="list-toolbar"
                     onSubmit={(e) => {
                       e.preventDefault();
-                      setQuery(search);
+                      const next = search.trim();
+                      if (next === query) void reload(); else setQuery(next);
                     }}
                   >
                     <div>
@@ -580,10 +589,13 @@ const CrmPage: React.FC = () => {
                     <Button type="submit" variant="outline">
                       搜索
                     </Button>
-                    <span>
+                    {(search || query) && <Button type="button" variant="ghost" onClick={() => {
+                      setSearch(''); if (query) setQuery(''); else void reload();
+                    }}>清空搜索</Button>}
+                    <span role="status" aria-live="polite">
                       {loading
                         ? '正在读取飞书记录'
-                        : `本页 ${data?.records.length ?? 0} 条`}
+                        : `已加载 ${data?.records.length ?? 0} 条`}
                     </span>
                   </form>
                   <div className="table-scroll">
@@ -604,6 +616,7 @@ const CrmPage: React.FC = () => {
                                 {i === 0 ? (
                                   <button
                                     className="record-title"
+                                    disabled={detailLoadingId === row.id}
                                     onClick={() => void detail(row)}
                                   >
                                     {textValue(row.record[c]) || '未命名'}
@@ -617,13 +630,14 @@ const CrmPage: React.FC = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                disabled={detailLoadingId === row.id}
                                 onClick={() =>
                                   active === 'access'
                                     ? openEditor(active, 'access', row)
                                     : void detail(row)
                                 }
                               >
-                                {active === 'access' ? '维护意向' : '查看'}
+                                {detailLoadingId === row.id ? '读取中…' : active === 'access' ? '维护意向' : '查看'}
                                 <ChevronRight size={14} />
                               </Button>
                               {active !== 'access' && (
@@ -649,9 +663,10 @@ const CrmPage: React.FC = () => {
                       </tbody>
                     </table>
                   </div>
+                  {loading && !data?.records.length && <div className="empty-table" role="status"><LoaderCircle size={18} className="spin" />正在读取记录…</div>}
                   {!loading && !data?.records.length && !error && (
                     <div className="empty-table">
-                      暂无匹配记录，可尝试其他关键词。
+                      {query ? '没有找到匹配记录，请更换关键词或清空搜索。' : active === 'access' ? '尚无成员记录，请先在飞书同步通讯录。' : '还没有记录，点击右上角新建开始填写。'}
                     </div>
                   )}
                   <div className="list-footer">
@@ -661,8 +676,10 @@ const CrmPage: React.FC = () => {
                         variant="outline"
                         disabled={loading}
                         onClick={async () => {
+                          if (!data.pageToken) { setError('分页信息缺失，请刷新后重试'); return; }
                           const version = ++requestVersion.current;
                           setLoading(true);
+                          setError('');
                           try {
                             const next = await api.list(
                               active,
@@ -670,7 +687,7 @@ const CrmPage: React.FC = () => {
                               query,
                             );
                             if (version === requestVersion.current)
-                              setData(next);
+                              setData((previous) => appendPage(previous, next));
                           } catch (e: unknown) {
                             if (version === requestVersion.current)
                               setError(message(e));
@@ -680,7 +697,7 @@ const CrmPage: React.FC = () => {
                           }
                         }}
                       >
-                        下一页
+                        {loading ? '正在加载…' : '加载更多'}
                         <ChevronRight size={15} />
                       </Button>
                     )}
@@ -703,6 +720,7 @@ const CrmPage: React.FC = () => {
         onOpenChange={(open) => {
           if (!open) {
             detailVersion.current++;
+            setDetailLoadingId(null);
             setSelection(null);
           }
         }}
@@ -814,7 +832,7 @@ const CrmPage: React.FC = () => {
           )}
           </div>
           <div className="form-actions">
-            <Button variant="outline" onClick={() => { detailVersion.current++; setSelection(null); }}>关闭详情</Button>
+            <Button variant="outline" onClick={() => { detailVersion.current++; setDetailLoadingId(null); setSelection(null); }}>关闭详情</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -877,8 +895,8 @@ const CrmPage: React.FC = () => {
                   .map((f) => (
                     <FieldInput
                       key={f.key}
-                      field={editor.operation === 'progress' && draft['工作状态'] !== '暂停' &&
-                        ['当前下一步行动', '下次跟进日期'].includes(f.key) ? { ...f, required: true } : f}
+                      field={requiredField(f, editor.kind, editor.operation, draft)}
+                      error={fieldErrors[f.key]}
                       draft={draft}
                       onChange={set}
                       disabled={saving || uncertain}
@@ -887,8 +905,12 @@ const CrmPage: React.FC = () => {
               {editor?.operation === 'edit' && (
                 <FieldInput
                   field={{ key: '修改说明', type: 'long', required: true }}
+                  error={fieldErrors["修改说明"]}
                   draft={{ 修改说明: editReason }}
-                  onChange={(_, value) => setEditReason(String(value ?? ''))}
+                  onChange={(_, value) => {
+                    setEditReason(String(value ?? ''));
+                    setFieldErrors((previous) => { const next = { ...previous }; delete next['修改说明']; return next; });
+                  }}
                 />
               )}
             </fieldset>

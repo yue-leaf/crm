@@ -31,7 +31,9 @@ export const RelationField: React.FC<{
     if (!field.target || !selectedIds) { setSelectionError(''); return; }
     const target = field.target;
     setSelectionError('');
-    void Promise.allSettled(selectedIds.split('|').map((id) => api.get(target, id))).then((results) => {
+    const missing = selectedIds.split('|').filter((id) => !known.some((row) => row.id === id));
+    if (!missing.length) return;
+    void Promise.allSettled(missing.map((id) => api.get(target, id))).then((results) => {
       if (canceled) return;
       const rows = results.flatMap((r) => r.status === 'fulfilled' ? [r.value] : []);
       setKnown((prev) => [...new Map([...prev, ...rows].map((row) => [row.id, row])).values()]);
@@ -70,7 +72,7 @@ export const RelationField: React.FC<{
     <RecordPicker label={field.label || field.key} multiple={field.multiple} disabled={disabled}
       value={value} selected={known.filter((row) => value.includes(row.id)).map(option)} options={items.map(option)}
       open={open} onOpenChange={(next) => { generation.current++; setOpen(next); if (!next) setQuery(''); }}
-      query={query} onQueryChange={(next) => { generation.current++; setItems([]); setCursor(undefined); setLoading(true); setQuery(next); }}
+      query={query} onQueryChange={(next) => { if (next === query) return; generation.current++; setItems([]); setCursor(undefined); setLoading(true); setQuery(next); }}
       onChange={onChange} loading={loading} loadingMore={loadingMore} error={error || selectionError}
       hasMore={Boolean(cursor)} onRetry={() => setRetry((prev) => prev + 1)} onLoadMore={() => {
         if (paging.current || !cursor || !field.target) return;
@@ -91,5 +93,6 @@ export const RelationField: React.FC<{
       }} />
     {selectionError && !open && <p className="field-error" role="alert">{selectionError}</p>}
     <small>{field.multiple ? '可选择多项' : '请选择一项'}；保存时校验所属企业和有效状态。</small>
+    {['直接客户', '关联项目'].includes(field.key) && <small>更换归属后，需要重新选择客户联系人。</small>}
   </div>;
 };
