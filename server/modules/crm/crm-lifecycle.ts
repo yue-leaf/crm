@@ -1,6 +1,6 @@
 import type { CrmLifecycleOperation, CrmRecord, EntityKind } from '@shared/api.interface';
 import { linkIds, textValue } from '@shared/crm';
-import { EVENT_PREFIX, lifecycleBlocked, lifecycleFields, lifecycleEvents } from '@shared/crm-lifecycle';
+import { EVENT_PREFIX, auditNote, lifecycleBlocked, lifecycleFields, lifecycleEvents, lifecycleTitles } from '@shared/crm-lifecycle';
 import type { LifecycleEvent } from '@shared/crm-lifecycle';
 import { recordReviewProblem } from '@shared/crm-review';
 import { parseDraft, reject } from './crm-validation';
@@ -107,7 +107,7 @@ export async function prepareLifecycle(
     },
   };
   const note = [textValue(row.record['管理记录']),
-    `${operation} · ${new Date(now).toISOString()} · ${actor}\n${event.reason}`,
+    `${lifecycleTitles[operation]} · ${new Date(now).toISOString()} · ${actor}\n${auditNote(event.reason)}`,
     EVENT_PREFIX + JSON.stringify(event),
   ].filter(Boolean).join('\n');
   if (note.length > 20000) reject('管理记录', '历史记录已达上限，请先整理留存');

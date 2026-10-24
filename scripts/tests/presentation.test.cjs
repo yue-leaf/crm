@@ -1,6 +1,14 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {displayDate,detailGroups,statusTone}=require('../../dist/shared/crm-presentation.js');
+const {displayDate,detailGroups,statusTone,managementLogText}=require('../../dist/shared/crm-presentation.js');
+
+test('management history shows previous business values without machine encoding',()=>{
+ const {EVENT_PREFIX}=require('../../dist/shared/crm-lifecycle.js');
+ const log='reopen · old-time · actor\n  New work\n'+EVENT_PREFIX+JSON.stringify({version:1,operation:'reopen',at:1,previous:{archived:true,terminal:'已完成',result:'old result',action:'old action'}});
+ const output=managementLogText({text:log});
+ assert.match(output,/重开项目/);assert.match(output,/New work/);assert.match(output,/结果：old result/);assert.match(output,/行动：old action/);
+ assert.ok(!output.includes(EVENT_PREFIX));
+});
 test('time boundaries display Shanghai seconds; date-only fields keep calendar dates',()=>{
  const ms=Date.parse('2026-10-24T15:59:58Z');
  for(const key of ['归档时间','停用时间','修改时间','实际发生时间','最近有效跟进','最后目录同步'])

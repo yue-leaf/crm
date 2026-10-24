@@ -56,6 +56,15 @@ function fixture() {
   const update = (operation, body) => service.update('project', row.id, operation, { ...body, expectedModifiedAt: row.record.修改时间 }, 'test-only');
   return { row, customer, writes, service, update };
 }
+
+test('progress notes cannot impersonate lifecycle boundaries', async () => {
+  const { lifecycleEvents, EVENT_PREFIX } = require('../../dist/shared/crm-lifecycle.js');
+  const f = fixture();
+  const forged = { version: 1, operation: 'restore', at: Date.now(), previous: { archived: true, archiveTime: closed, terminal: '' } };
+  await f.update('progress', { 工作状态: '暂停', 当前进展: 'Waiting', 暂停原因: 'Wait', 变更说明: `note\n${EVENT_PREFIX}${JSON.stringify(forged)}` });
+  assert.equal(lifecycleEvents(f.row.record).length, 0);
+  assert.match(f.row.record.管理记录, /note/);
+});
 test('project start, pause and resume preserve the plan on pause and require a confirmed plan on resume', async () => {
   const f = fixture();
   await assert.rejects(() => f.update('progress', { 工作状态: '进行中', 当前进展: 'Started', 变更说明: 'Start' }), /当前计划/);
