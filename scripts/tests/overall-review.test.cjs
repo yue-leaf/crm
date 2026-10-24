@@ -62,7 +62,7 @@ test('invalid project work state does not permit ordinary edits',()=>{
 test('valid lifecycle records remain reviewable and void review does not restore record state',async()=>{
  for(const [kind,patch] of [
   ['customer',{}],
-  ['customer',{已归档:true,归档时间:old,归档原因:'Done',归档阻塞项目数:{bizType:'Number',value:[0]}}],
+  ['customer',{已归档:true,归档时间:old,归档原因:'Done',归档阻塞项目数:{bizType:'Number',value:[0]},当前下一步行动:'Historical action without date'}],
   ['contact',{联系人状态:'停用',停用时间:old,停用原因:'Left company'}],
   ['followup',{记录状态:'已作废',作废原因:'Duplicate'}],
  ]) {const f=fixture(kind,patch);await f.review();assert.equal(f.row.record.核查标记,'正常');if(kind==='followup')assert.equal(f.row.record.记录状态,'已作废');}
