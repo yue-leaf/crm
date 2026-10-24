@@ -52,6 +52,7 @@ import {
   editBlockedReason,
 } from '@shared/crm-edit';
 import { Cell, FieldInput, message } from './Fields';
+import { RecordDetails } from './RecordDetails';
 import {
   advancementBlocked, commerceKeys, followupTarget, progressFields, relatedDraft,
 } from '@shared/crm-workflow';
@@ -412,7 +413,6 @@ const CrmPage: React.FC = () => {
             {active === 'home' ? '工作台' : labels[active]}
           </span>
           <div>
-            <span className="connection-dot" />
             飞书工作空间
             <span className="current-person">
               {profile.name || session?.name || '登录中'}
@@ -587,20 +587,20 @@ const CrmPage: React.FC = () => {
                     </span>
                   </form>
                   <div className="table-scroll">
-                    <table>
-                      <thead>
-                        <tr>
+                    <table role="table" aria-label={labels[active]}>
+                      <thead role="rowgroup">
+                        <tr role="row">
                           {columns[active].map((c) => (
-                            <th key={c}>{c}</th>
+                            <th role="columnheader" key={c}>{c}</th>
                           ))}
-                          <th>操作</th>
+                          <th role="columnheader">操作</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody role="rowgroup">
                         {data?.records.map((row) => (
-                          <tr key={row.id}>
+                          <tr role="row" key={row.id}>
                             {columns[active].map((c, i) => (
-                              <td key={c}>
+                              <td role="cell" data-label={c} key={c}>
                                 {i === 0 ? (
                                   <button
                                     className="record-title"
@@ -613,7 +613,7 @@ const CrmPage: React.FC = () => {
                                 )}
                               </td>
                             ))}
-                            <td>
+                            <td role="cell" data-label="操作" className="record-actions">
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -708,12 +708,15 @@ const CrmPage: React.FC = () => {
         }}
       >
         <DialogContent className="crm-dialog">
+          <header className="crm-dialog-header">
           <DialogTitle>
             {selection
               ? textValue(selection.record[titles[selectionKind]])
               : '记录详情'}
           </DialogTitle>
-          <DialogDescription>{labels[selectionKind]} · 飞书当前记录 · {selection?.id}</DialogDescription>
+          <DialogDescription>{labels[selectionKind]} · 时间按北京时间展示</DialogDescription>
+          </header>
+          <div className="crm-dialog-body">
           {selection && (
             <>
               <div className="detail-actions">
@@ -795,7 +798,7 @@ const CrmPage: React.FC = () => {
                 )}
               </div>
               {selectionKind !== 'access' && textValue(selection.record['核查标记']) === '待核查' && (
-                <p className="panel-note" role="status">保存成功，当前待核查。请先核对资料并点击“核查通过”，再继续关联业务。</p>
+                <p className="panel-note" role="status">当前记录待核查。请先核对资料并点击“核查通过”，再继续关联业务。</p>
               )}
               {selectionKind !== 'access' && recordReviewProblem(selectionKind, selection.record) && (
                 <p className="panel-note" role="status">{recordReviewProblem(selectionKind, selection.record)}</p>
@@ -803,21 +806,16 @@ const CrmPage: React.FC = () => {
               {selectionKind === 'project' && textValue(selection.record['结束建议']) && (
                 <p className="panel-note">已有结束建议，请在飞书原表核对并完成处理；提出建议不会自动改变终局。</p>
               )}
-              <dl className="detail-grid">
-                {Object.entries(selection.record).map(([key, value]) => (
-                  <div key={key}>
-                    <dt>{key}</dt>
-                    <dd>
-                      <Cell name={key} value={value} />
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+              <RecordDetails key={`${selectionKind}:${selection.id}`} record={selection.record} />
               <p className="panel-note">
                 结束确认、归档与重开请在飞书原表管理，完成前请核对当前计划和历史记录。
               </p>
             </>
           )}
+          </div>
+          <div className="form-actions">
+            <Button variant="outline" onClick={() => { detailVersion.current++; setSelection(null); }}>关闭详情</Button>
+          </div>
         </DialogContent>
       </Dialog>
       <Dialog
@@ -827,6 +825,7 @@ const CrmPage: React.FC = () => {
         }}
       >
         <DialogContent className="crm-dialog">
+          <header className="crm-dialog-header">
           <DialogTitle>
             {editor
               ? editor.operation === 'create'
@@ -853,6 +852,9 @@ const CrmPage: React.FC = () => {
                   ? '保存意向不会自动修改实际角色。'
                   : '请核对信息后保存，保留历史跟进中的原始建议。'}
           </DialogDescription>
+          </header>
+          <form className="crm-editor-form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+          <div className="crm-dialog-body">
           {editor?.kind === 'followup' && (
             <p className="panel-note">
               历史补录按实际发生时间填写：结项当天可补录，归档及联系人停用须严格早于对应时刻；新工作请先恢复或重开。
@@ -862,12 +864,6 @@ const CrmPage: React.FC = () => {
           {editor?.operation === 'edit' && editor.kind === 'project' && draft['项目类型'] !== '销售机会' && (
             <p className="panel-note">切换为非销售类型时保留原有商务信息供核查，不新增商务金额；详情仍可查看历史值。</p>
           )}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void save();
-            }}
-          >
             {editor?.operation === 'edit' && editor.row && (
               <div className="panel-note">
                 正在编辑：{textValue(editor.row.record[titles[editor.kind]])}。
@@ -895,8 +891,9 @@ const CrmPage: React.FC = () => {
                 />
               )}
             </fieldset>
+            </div>
             {saveError && (
-              <div className="error-banner" role="alert">
+              <div className="error-banner save-error" role="alert">
                 {saveError}
               </div>
             )}

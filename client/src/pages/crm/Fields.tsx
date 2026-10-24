@@ -22,6 +22,7 @@ import { api } from '@/api/crm';
 import type { CrmRecord } from '@shared/api.interface';
 import type { Draft, FieldSpec } from '@shared/crm';
 import { titles, textValue, linkIds } from '@shared/crm';
+import { displayDate, statusTone } from '@shared/crm-presentation';
 
 export const message = (e: unknown) =>
   e instanceof Error ? e.message : '操作未完成，请稍后重试';
@@ -51,42 +52,15 @@ export const Cell: React.FC<{ name: string; value: unknown }> = ({
         ))}
       </div>
     );
-  if (
-    (name.includes('日期') || name.includes('时间')) &&
-    typeof value === 'number'
-  )
-    return (
-      <span>
-        {new Intl.DateTimeFormat('zh-CN', {
-          timeZone: 'Asia/Shanghai',
-          dateStyle: 'medium',
-          ...(name === '实际发生时间' ? { timeStyle: 'short' as const } : {}),
-        }).format(value)}
-      </span>
-    );
+  const date = displayDate(name, value);
+  if (date !== null) return <span title="北京时间">{date}</span>;
   const links = linkIds(value);
   if (links.length)
     return <span className="muted">关联 {links.length} 条记录</span>;
   const s = textValue(value);
   if (!s) return <span className="muted">—</span>;
-  if (
-    [
-      '核查标记',
-      '工作状态',
-      '客户关系状态',
-      '联系人状态',
-      '终局确认',
-      '待配置角色',
-      '目录状态',
-    ].includes(name)
-  )
-    return (
-      <span
-        className={`tag ${s === '待核查' ? 'amber' : s === '正常' || s === '已激活' ? 'green' : ''}`}
-      >
-        {s}
-      </span>
-    );
+  const tone = statusTone(name, s);
+  if (tone) return <span className={`tag ${tone}`}>{s}</span>;
   return <span>{s}</span>;
 };
 const RelationField: React.FC<{
