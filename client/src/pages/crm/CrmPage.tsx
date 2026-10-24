@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Building2,
   Users,
@@ -12,7 +12,6 @@ import {
   Search,
   RefreshCw,
   ChevronRight,
-  CheckCircle2,
   LoaderCircle,
   Pencil,
   Eye,
@@ -33,6 +32,9 @@ import type {
   CrmRecord,
   CrmSession,
   CrmSummary,
+  ProjectOverview,
+  ProjectScope,
+  ProjectFilter,
   EntityKind,
 } from '@shared/api.interface';
 import {
@@ -62,6 +64,8 @@ import { appendPage, changeDraft, missingFields, requiredField } from '@shared/c
 import { crmAdmin, crmEmployee } from '@shared/crm-access';
 import { isLifecycle, lifecycleBlocked, lifecycleFields, lifecycleTitles } from '@shared/crm-lifecycle';
 import type { CrmLifecycleOperation } from '@shared/api.interface';
+import { ProjectDashboard } from './ProjectDashboard';
+import { projectFilterLabels, validProjectFilter } from '@shared/crm-dashboard';
 import './crm.css';
 
 const icons = {
@@ -122,10 +126,15 @@ const specs = (editor: Editor): FieldSpec[] =>
 const CrmPage: React.FC = () => {
   const navigate = useNavigate();
   const { section } = useParams();
+  const [params] = useSearchParams();
+  const scope: ProjectScope = params.get('scope') === 'mine' ? 'mine' : 'all';
+  const rawFilter = params.get('projectFilter') || 'all';
+  const projectFilter: ProjectFilter = validProjectFilter(rawFilter) ? rawFilter : 'all';
   const active = crmSection(section);
   const profile = useCurrentUserProfile();
   const [session, setSession] = useState<CrmSession | null>(null);
   const [summary, setSummary] = useState<CrmSummary | null>(null);
+  const [overview, setOverview] = useState<ProjectOverview | null>(null);
   const [data, setData] = useState<PageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -175,10 +184,11 @@ const CrmPage: React.FC = () => {
     setError('');
     try {
       if (active === 'home') {
-        const next = await api.summary();
-        if (version === requestVersion.current) setSummary(next);
+        setOverview(null);
+        const [next, projects] = await Promise.all([api.summary(), api.overview(scope)]);
+        if (version === requestVersion.current) { setSummary(next); setOverview(projects); }
       } else {
-        const next = await api.list(active, '', query);
+        const next = await api.list(active, '', query, active === 'project' ? { scope, projectFilter } : undefined);
         if (version === requestVersion.current) setData(next);
       }
     } catch (e: unknown) {
@@ -186,7 +196,7 @@ const CrmPage: React.FC = () => {
     } finally {
       if (version === requestVersion.current) setLoading(false);
     }
-  }, [active, authorized, query]);
+  }, [active, authorized, query, scope, projectFilter]);
   useEffect(() => {
     setData(null);
     setSelection(null);
@@ -200,6 +210,11 @@ const CrmPage: React.FC = () => {
     setSearch('');
     setQuery('');
     navigate(key === 'home' ? '/' : `/crm/${key}`);
+  };
+  const openProjectFilter = (filter: ProjectFilter) => {
+    requestVersion.current++;
+    setSearch(''); setQuery('');
+    navigate(`/crm/project?${new URLSearchParams({ scope, projectFilter: filter })}`);
   };
   const openEditor = (
     kind: EntityKind,
@@ -471,17 +486,22 @@ const CrmPage: React.FC = () => {
             <>
               <div className="page-heading">
                 <div>
-                  <div className="eyebrow">CUSTOMER & PROJECT WORKSPACE</div>
+                  {active !== 'home' && <div className="eyebrow">CUSTOMER & PROJECT WORKSPACE</div>}
                   <h1>
-                    {active === 'home' ? '让下一步，更清晰' : labels[active]}
+                    {active === 'home' ? '工作台' : labels[active]}
                   </h1>
                   <p>
                     {active === 'home'
-                      ? '连接客户、项目与每一次有效跟进。'
+                      ? '掌握项目推进情况，把关注变成下一步行动。'
                       : '与飞书多维表格同步，协作信息集中管理。'}
                   </p>
                 </div>
                 <div className="heading-actions">
+                  {(active === 'home' || active === 'project') && <select className="project-scope" aria-label="项目范围" value={scope} onChange={event => {
+                    requestVersion.current++;
+                    setSearch(''); setQuery('');
+                    navigate(`${active === 'home' ? '/' : '/crm/project'}?${new URLSearchParams({ scope: event.target.value, ...(active === 'project' ? { projectFilter } : {}) })}`);
+                  }}><option value="all">全部项目</option><option value="mine">我负责的</option></select>}
                   <Button
                     variant="outline"
                     onClick={() => void reload()}
@@ -493,11 +513,11 @@ const CrmPage: React.FC = () => {
                   {active !== 'access' && (
                     <Button
                       onClick={() =>
-                        openEditor(active === 'home' ? 'followup' : active)
+                        openEditor(active === 'home' ? 'project' : active)
                       }
                     >
                       <Plus size={16} />
-                      {active === 'home' ? '记录跟进' : `新建${labels[active]}`}
+                      {active === 'home' ? '新建项目' : `新建${labels[active]}`}
                     </Button>
                   )}
                 </div>
@@ -508,85 +528,14 @@ const CrmPage: React.FC = () => {
                 </div>
               )}
               {active === 'home' ? (
-                <>
-                  <div className="stats" data-ai-section-type="card-stat">
-                    {(
-                      ['customer', 'project', 'contact', 'followup'] as const
-                    ).map((k) => {
-                      const Icon = icons[k];
-                      return (
-                        <button
-                          key={k}
-                          className="stat"
-                          onClick={() => changePage(k)}
-                        >
-                          <div>
-                            {labels[k]}
-                            <Icon size={20} />
-                          </div>
-                          <strong>{summary ? summary[k] : '—'}</strong>
-                          <small>
-                            全部记录，含待核查及历史 <ArrowUpRight size={14} />
-                          </small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="home-grid">
-                    <section className="panel">
-                      <div className="panel-heading">
-                        <h2>开始今天的协作</h2>
-                        <span className="tag">工作流程</span>
-                      </div>
-                      <div className="workflow">
-                        {[
-                          ['customer', '建立客户档案', '确认企业信息与负责人'],
-                          [
-                            'project',
-                            '明确项目目标',
-                            '分配负责人，安排当前计划',
-                          ],
-                          [
-                            'followup',
-                            '记录推进过程',
-                            '记下事实、参与人及后续建议',
-                          ],
-                        ].map(([k, title, sub], i) => (
-                          <button
-                            key={k}
-                            onClick={() => openEditor(k as EntityKind)}
-                          >
-                            <span>{String(i + 1).padStart(2, '0')}</span>
-                            <div>
-                              <h3>{title}</h3>
-                              <p>{sub}</p>
-                            </div>
-                            <ChevronRight size={18} />
-                          </button>
-                        ))}
-                      </div>
-                      <div className="panel-note">
-                        跟进建议保留在历史记录中，由负责人确认后更新当前计划。
-                      </div>
-                    </section>
-                    <section className="blue-panel">
-                      <CheckCircle2 size={27} />
-                      <h2>从记录，到推进</h2>
-                      <p>
-                        新建资料先进入待核查。核查通过且数据检查无异常后，才符合正常统计条件；作废跟进仍不计为有效记录。
-                      </p>
-                      <Button
-                        variant="outline"
-                        onClick={() => changePage('followup')}
-                      >
-                        查看跟进记录
-                        <ArrowUpRight size={15} />
-                      </Button>
-                    </section>
-                  </div>
-                </>
+                <ProjectDashboard data={overview} summary={summary} loading={loading}
+                  onFilter={openProjectFilter} onNavigate={changePage}
+                  onOpen={row => void detail(row, 'project')} onEdit={row => void edit(row, 'project')}
+                  onFollowup={row => openEditor('followup', 'create', undefined, relatedDraft('project', row, 'followup'))} />
               ) : (
                 <section className="panel list-panel">
+                  {active === 'project' && <div className="project-list-filter"><span>项目范围：{scope === 'mine' ? '我负责的' : '全部项目'}</span><span>筛选：{projectFilterLabels[projectFilter]}</span>
+                    {(projectFilter !== 'all' || scope !== 'all') && <Button size="sm" variant="ghost" onClick={() => { requestVersion.current++; setQuery(''); setSearch(''); navigate('/crm/project'); }}>清除筛选</Button>}</div>}
                   {active === 'access' && (
                     <div className="panel-note">
                       这里维护成员资料与授权意向。实际访问由妙搭角色控制，修改本表不会自动授予角色。
@@ -691,7 +640,7 @@ const CrmPage: React.FC = () => {
                   {loading && !data?.records.length && <div className="empty-table" role="status"><LoaderCircle size={18} className="spin" />正在读取记录…</div>}
                   {!loading && !data?.records.length && !error && (
                     <div className="empty-table">
-                      {query ? '没有找到匹配记录，请更换关键词或清空搜索。' : active === 'access' ? '尚无成员记录，请先在飞书同步通讯录。' : '还没有记录，点击右上角新建开始填写。'}
+                      {active === 'project' ? '没有符合当前范围与筛选条件的项目，可清除筛选或新建项目。' : query ? '没有找到匹配记录，请更换关键词或清空搜索。' : active === 'access' ? '尚无成员记录，请先在飞书同步通讯录。' : '还没有记录，点击右上角新建开始填写。'}
                     </div>
                   )}
                   <div className="list-footer">
@@ -710,6 +659,7 @@ const CrmPage: React.FC = () => {
                               active,
                               data.pageToken,
                               query,
+                              active === 'project' ? { scope, projectFilter } : undefined,
                             );
                             if (version === requestVersion.current)
                               setData((previous) => appendPage(previous, next));

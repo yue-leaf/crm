@@ -1,0 +1,93 @@
+.project-dashboard { display: flex; flex-direction: column; gap: 22px; }
+.project-metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); background: #fff; border: 1px solid #e8ebf0; border-radius: 10px; overflow: hidden; }
+.project-metric { text-align: left; padding: 23px 28px; transition: background .15s; }
+.project-metric + .project-metric { border-left: 1px solid #edf0f4; }
+.project-metric:hover:not(:disabled) { background: #f8faff; }
+.metric-label { display: flex; align-items: center; justify-content: space-between; color: #646a73; font-size: 13px; }
+.metric-label svg { color: #8b9db6; }
+.project-metric strong { display: block; font-size: 36px; line-height: 1.35; margin: 10px 0 5px; font-weight: 650; letter-spacing: -1px; }
+.project-metric small { color: #7d8592; font-size: 12px; }
+.metric-attention strong { color: #c77916; }
+.metric-month-completed strong { color: #28846b; }
+.project-overview-grid { display: grid; grid-template-columns: minmax(0,1.45fr) minmax(0,1fr); gap: 22px; }
+.dashboard-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px 26px 16px; }
+.dashboard-panel-heading h2 { font-size: 16px; font-weight: 600; }
+.dashboard-panel-heading p { margin-top: 6px; color: #8a929e; font-size: 12px; line-height: 1.6; }
+.dashboard-panel-heading > button { color: #53719b; flex-shrink: 0; }
+.project-bars { display: flex; flex-direction: column; gap: 22px; padding: 14px 28px 28px; }
+.project-state { display: grid; grid-template-columns: 52px 1fr 36px; gap: 18px; align-items: center; text-align: left; font-size: 13px; }
+.project-state strong { text-align: right; font-size: 16px; font-variant-numeric: tabular-nums; }
+.project-bar-track { height: 10px; background: #f2f4f7; border-radius: 4px; overflow: hidden; }
+.project-bar-track > div { height: 100%; border-radius: 4px; background: #4f7ee8; transition: width .25s; }
+.state-待启动 .project-bar-track > div { background: #9ab5ed; }
+.state-暂停 .project-bar-track > div { background: #dfb36b; }
+.project-outcomes { display: flex; gap: 24px; align-items: center; padding: 19px 26px; border-top: 1px solid #eef0f4; font-size: 12px; color: #68717d; flex-wrap: wrap; }
+.project-outcomes button { display: flex; align-items: center; gap: 8px; }
+.project-outcomes strong { font-size: 15px; color: #303842; }
+.project-outcomes button:last-child { margin-left: auto; }
+.outcome-dot,.priority-dot { width: 7px; height: 7px; border-radius: 50%; background: #a6aeb9; flex-shrink: 0; }
+.outcome-已完成 { background: #55a48c; }
+.priority-mark { display: grid; place-items: center; color: #c58b36; width: 34px; height: 34px; border-radius: 8px; background: #fff8ec; }
+.priority-list { padding: 0 26px; }
+.priority-list button { display: flex; width: 100%; gap: 12px; align-items: center; padding: 19px 0; text-align: left; font-size: 13px; border-bottom: 1px solid #f0f2f5; }
+.priority-list button:last-child { border: 0; }
+.priority-list button > svg { margin-left: auto; color: #929dac; }
+.priority-list strong { font-size: 17px; margin-right: 5px; font-variant-numeric: tabular-nums; }
+.priority-dot.urgent { background: #dc6c63; }
+.priority-dot.warning { background: #d6a051; }
+.priority-dot.review { background: #7898cd; }
+.dashboard-status-note { font-size: 11px; color: #858e9b; padding: 4px 26px 20px; line-height: 1.8; }
+.project-tracking-scroll { overflow-x: auto; }
+.project-tracking table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.project-tracking th { background: #fafbfc; padding: 13px 24px; font-weight: 500; color: #8a929e; text-align: left; white-space: nowrap; border-top: 1px solid #eff1f5; border-bottom: 1px solid #eff1f5; }
+.project-tracking td { padding: 20px 24px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+.project-tracking tr:last-child td { border-bottom: 0; }
+.project-tracking th:first-child { width: 24%; }
+.project-tracking th:nth-child(2) { width: 100px; }
+.project-tracking th:nth-child(3) { width: 24%; }
+.project-tracking th:last-child { width: 210px; }
+.tracking-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; line-height: 1.7; color: #5a6573; }
+.project-status { display: inline-block; font-size: 12px; padding: 4px 9px; border-radius: 5px; white-space: nowrap; background: #f1f3f5; color: #68717d; }
+.status-进行中 { color: #376bc6; background: #edf3ff; }
+.status-暂停 { color: #9d7026; background: #fff6e7; }
+.status-已完成 { color: #28846b; background: #edf8f3; }
+.status-状态异常,.status-异常 { color: #b65c51; background: #fff0ec; }
+.tracking-review,.tracking-date,.tracking-overdue { display: block; margin-top: 6px; font-size: 11px; color: #8a929e; }
+.tracking-review { color: #b38439; }
+.tracking-overdue { color: #cc655b; }
+.tracking-actions { display: flex; gap: 2px; }
+.tracking-actions button { padding-left: 8px; padding-right: 8px; gap: 6px; }
+.dashboard-empty { padding: 45px 24px; color: #8a929e; text-align: center; font-size: 13px; }
+.dashboard-footnote { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 3px; font-size: 11px; color: #939aa5; }
+.dashboard-footnote > div { display: flex; gap: 24px; flex-wrap: wrap; }
+.dashboard-footnote button { display: flex; gap: 8px; align-items: center; color: #6e7b8b; }
+.dashboard-footnote strong { color: #435268; font-weight: 600; }
+.project-scope { height: 36px; background: #fff; border: 1px solid #e1e5eb; border-radius: 6px; padding: 0 30px 0 12px; color: #4c5664; font-size: 13px; }
+.project-scope:focus-visible,.project-dashboard button:focus-visible { outline: 2px solid #4f7ee8; outline-offset: 3px; }
+.project-list-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 22px; border-bottom: 1px solid #edf0f4; background: #f8faff; font-size: 12px; color: #5477aa; }
+.project-dashboard button:disabled { cursor: default; }
+@media (max-width: 1100px) { .project-overview-grid { grid-template-columns: 1fr; } .project-tracking td,.project-tracking th { padding-left: 16px; padding-right: 16px; } }
+@media (max-width: 640px) {
+ .project-dashboard { gap: 16px; }
+ .project-metrics { grid-template-columns: 1fr; }
+ .project-metric { padding: 18px 20px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+ .project-metric + .project-metric { border-left: 0; border-top: 1px solid #edf0f4; }
+ .project-metric strong { grid-column: 2; grid-row: 1 / 3; font-size: 30px; margin: 0; align-self: center; }
+ .metric-label svg { display: none; }
+ .project-metric small { font-size: 11px; }
+ .dashboard-panel-heading { padding: 20px 18px 12px; gap: 8px; }
+ .project-bars { padding: 15px 20px 25px; }
+ .project-outcomes { padding: 16px 18px; gap: 16px; }
+ .priority-list { padding: 0 20px; }
+ .dashboard-status-note { padding-left: 20px; padding-right: 20px; }
+ .dashboard-footnote { flex-direction: column; align-items: flex-start; }
+ .project-tracking-scroll { overflow: visible; }
+ .project-tracking table,.project-tracking tbody,.project-tracking tr,.project-tracking td { display: block; }
+ .project-tracking thead { display: none; }
+ .project-tracking tr { padding: 14px 18px; border-bottom: 1px solid #edf0f4; }
+ .project-tracking td { padding: 5px 0; border: 0; }
+ .project-tracking td:nth-child(3)::before { content: '当前进展'; display: block; color: #9aa1ad; font-size: 11px; margin-bottom: 3px; }
+ .project-tracking td:nth-child(4)::before { content: '下一步'; display: block; color: #9aa1ad; font-size: 11px; margin-bottom: 3px; }
+ .tracking-actions { justify-content: flex-end; margin-top: 4px; }
+ .heading-actions:has(.project-scope) { flex-wrap: wrap; justify-content: flex-end; }
+}

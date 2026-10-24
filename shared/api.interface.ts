@@ -58,3 +58,20 @@ export interface CrmSummary {
   project: number;
   followup: number;
 }
+export type ProjectScope = 'all' | 'mine';
+export type ProjectFilter = 'all' | 'active' | 'attention' | 'month-completed' | 'overdue' | 'missing-plan' | 'review' | '待启动' | '进行中' | '暂停' | '已完成' | '已取消' | 'archived';
+export interface ProjectOverview {
+  scope: ProjectScope;
+  generatedAt: number;
+  total: number;
+  active: number;
+  attention: number;
+  monthCompleted: number;
+  overdue: number;
+  missingPlan: number;
+  review: number;
+  archived: number;
+  unknown: number;
+  states: Record<'待启动' | '进行中' | '暂停' | '已完成' | '已取消', number>;
+  projects: CrmRecord[];
+}
