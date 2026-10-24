@@ -8,6 +8,10 @@
 
 已补齐四类业务记录的日常编辑：列表行“编辑”及详情“编辑资料”均可进入，打开时重新读取原值，保存仅提交改动字段。填写修改说明后保存，记录重新进入待核查；核查与编辑均追加说明，保留之前历史。当前计划与结束建议表单也会回填原值。
 
+流程入口：保存后打开记录详情，核查通过后可继续建立联系人/项目或记录跟进，相关入口预填归属。跟进详情可打开所属客户/项目，确认其当前计划；关闭未保存表单前会确认放弃。项目详情“更新项目进展”支持待启动、进行中、暂停：暂停需原因并保留计划，启动/恢复需确认行动与日期，记录管理历史并重新待核查。
+
+历史补录遵循实际发生时间：终局项目可补录北京时间结束日期当天及之前的记录，客户/项目归档和联系人停用按严格早于对应时刻校验，边界缺失须先在原表核对。历史入口不预填发生时间为当前时刻。历史人员核查要求存在于同步目录，不因当前停用否定历史；新增或变更人员仍要求激活。多次归档/重开完整历史区间仍需人工核查。
+
 企业/项目归属迁移、已归档/已结束/停用/作废记录仍需专门流程。当前插件不支持清空日期、数值、单选字段，尝试此操作会在写入前明确拒绝；文本和人员/联系人关联可以清空，必填约束仍有效。
 
 Base 权限表维护的是授权意向，修改它不会自动授予 Base 或妙搭权限。插件使用应用所有者的 Base 权限，因此所有业务接口均校验实际平台角色，直接 capability HTTP 入口被禁用。
@@ -32,7 +36,7 @@ node scripts/dev-windows.cjs client
 ```powershell
 npm run lint
 node node_modules/@nestjs/cli/bin/nest.js build
-node --test scripts/tests/crm.test.cjs scripts/tests/adversarial.test.cjs
+node --test scripts/tests/crm.test.cjs scripts/tests/adversarial.test.cjs scripts/tests/workflow.test.cjs
 $env:NODE_ENV='production'
 node node_modules/vite/bin/vite.js build --config vite.config.ts
 ```

@@ -68,7 +68,7 @@ test('ambiguous project/contact enterprise links and unknown contact state canno
   for (const broken of ['project', 'contact', 'status']) {
     const f = fixture(customer(), (kind, action) => {
       if (action !== 'getRecord') return;
-      if (kind === 'crm-project') return { id: 'recProject', record: { 核查标记: '正常', 所属企业: { link_record_ids: broken === 'project' ? ['recCompany', 'recOther'] : ['recCompany'] } } };
+      if (kind === 'crm-project') return { id: 'recProject', record: { 核查标记: '正常', 终局确认: '未确认', 所属企业: { link_record_ids: broken === 'project' ? ['recCompany', 'recOther'] : ['recCompany'] } } };
       if (kind === 'crm-contact') return { id: 'recContact', record: { 核查标记: '正常', 联系人状态: broken === 'status' ? '未知状态' : '有效', 停用时间: 1000, 所属企业: { link_record_ids: broken === 'contact' ? ['recCompany', 'recOther'] : ['recCompany'] } } };
     });
     await assert.rejects(() => f.service.relationChecks('followup', draft, { 实际发生时间: 1 }), e => e.getStatus() === 400);
