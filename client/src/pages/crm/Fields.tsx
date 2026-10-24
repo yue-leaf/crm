@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useId, useState } from 'react';
+import { zhCN } from 'date-fns/locale';
 import { CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,40 +67,49 @@ const DateField: React.FC<{
   value: string;
   onChange: (v: string) => void;
   time?: boolean;
-}> = ({ value, onChange, time }) => {
+  label: string;
+}> = ({ value, onChange, time, label }) => {
+  const [open, setOpen] = useState(false);
   const date = value ? new Date(value.slice(0, 10) + 'T12:00:00') : undefined;
   return (
     <div className="date-field">
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button type="button" variant="outline">
+          <Button type="button" variant="outline" aria-label={`选择${label}`}>
             <CalendarDays size={15} />
             {value.slice(0, 10) || '选择日期'}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0">
           <Calendar
+            locale={zhCN}
             mode="single"
+            required
             selected={date}
-            onSelect={(d) =>
+            defaultMonth={date}
+            onSelect={(d) => {
               onChange(
                 d
                   ? day(d) +
-                      (time ? 'T' + (value.slice(11, 16) || '09:00') : '')
+                      (time ? 'T' + (value.slice(11) || '09:00') : '')
                   : '',
-              )
-            }
+              );
+              setOpen(false);
+            }}
           />
         </PopoverContent>
       </Popover>
       {time && (
         <Input
-          aria-label="发生时间（北京时间）"
-          placeholder="09:00"
-          value={value.slice(11, 16)}
+          aria-label={`${label}（北京时间）`}
+          type="time"
+          step="1"
+          disabled={!value.slice(0, 10)}
+          title={value ? '北京时间' : '请先选择日期'}
+          value={value.slice(11)}
           onChange={(e) =>
             onChange(
-              (value.slice(0, 10) || day(new Date())) + 'T' + e.target.value,
+              value.slice(0, 10) + (e.target.value ? 'T' + e.target.value : ''),
             )
           }
         />
@@ -112,7 +122,9 @@ export const FieldInput: React.FC<{
   draft: Draft;
   onChange: (key: string, value: Draft[string]) => void;
   disabled?: boolean;
-}> = ({ field: f, draft, onChange, disabled }) => {
+  error?: string;
+}> = ({ field: f, draft, onChange, disabled, error }) => {
+  const fieldId = useId();
   const set = (v: Draft[string]) => onChange(f.key, v);
   const personValue = Array.isArray(draft[f.key]) ? (draft[f.key] as string[]) : [];
   const personProps = {
@@ -125,12 +137,14 @@ export const FieldInput: React.FC<{
     slotProps: { popover: { collisionPadding: 12 } },
   };
   return (
-    <div className={`field ${f.type === 'long' ? 'wide' : ''}`} onClickCapture={(event) => {
+    <div className={`field ${f.type === 'long' ? 'wide' : ''}`} data-field={f.key}
+      data-invalid={Boolean(error)} role="group" aria-labelledby={`${fieldId}-label`}
+      aria-describedby={error ? `${fieldId}-error` : undefined} onClickCapture={(event) => {
       // The platform clear button omits type; clearing a person must not submit this form.
       if (f.type === 'person' && event.target instanceof Element &&
         event.target.closest('[data-slot="combobox-clear"]')) event.preventDefault();
     }}>
-      <label>
+      <label id={`${fieldId}-label`} htmlFor={fieldId}>
         {f.label || f.key}
         {f.required && <em> *</em>}
       </label>
@@ -153,7 +167,7 @@ export const FieldInput: React.FC<{
         />
       ) : f.type === 'select' ? (
         <Select value={String(draft[f.key] || '')} onValueChange={set}>
-          <SelectTrigger>
+          <SelectTrigger id={fieldId} aria-invalid={Boolean(error)}>
             <SelectValue placeholder="请选择" />
           </SelectTrigger>
           <SelectContent>
@@ -171,6 +185,8 @@ export const FieldInput: React.FC<{
         </Select>
       ) : f.type === 'long' ? (
         <Textarea
+          id={fieldId}
+          aria-invalid={Boolean(error)}
           aria-label={f.key}
           value={String(draft[f.key] || '')}
           onChange={(e) => set(e.target.value)}
@@ -178,12 +194,15 @@ export const FieldInput: React.FC<{
         />
       ) : f.type === 'date' || f.type === 'datetime' ? (
         <DateField
+          label={f.label || f.key}
           value={String(draft[f.key] || '')}
           onChange={set}
           time={f.type === 'datetime'}
         />
       ) : (
         <Input
+          id={fieldId}
+          aria-invalid={Boolean(error)}
           aria-label={f.key}
           value={String(draft[f.key] ?? '')}
           type={f.type === 'number' ? 'number' : 'text'}
@@ -197,6 +216,9 @@ export const FieldInput: React.FC<{
           }
         />
       )}
+      {f.key === '电话' && <small className="field-hint">电话或邮箱至少填写一项。</small>}
+      {f.type === 'datetime' && <small className="field-hint">北京时间，先选择日期，再填写时间。</small>}
+      {error && <p className="field-error" id={`${fieldId}-error`}>{error}</p>}
     </div>
   );
 };

@@ -478,9 +478,13 @@
 }
 .form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
   gap: 21px;
   padding: 16px 0;
+}
+.form-grid > * {
+  min-width: 0;
 }
 .field.wide {
   grid-column: 1/-1;
@@ -517,7 +521,66 @@
   gap: 8px;
 }
 .date-field input {
-  width: 90px;
+  width: 130px;
+  flex-shrink: 0;
+}
+.date-field {
+  flex-wrap: wrap;
+}
+.date-field > button,
+.date-field > input {
+  min-height: 40px;
+}
+.field[data-invalid='true'] input,
+.field[data-invalid='true'] textarea,
+.field[data-invalid='true'] [role='combobox'],
+.field[data-invalid='true'] > .date-field > button {
+  border-color: #d92d20;
+}
+.field[data-invalid='true'] > label {
+  color: #b42318;
+}
+.field-error {
+  margin-top: 6px;
+}
+.picker-selected {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.picker-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px 6px 4px 8px;
+  background: #edf3ff;
+  color: #245bdb;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.picker-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.picker-chip button {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 4px;
+}
+.picker-chip button:focus-visible {
+  outline: 2px solid #245bdb;
+  outline-offset: 2px;
+}
+.empty-table > svg {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
 }
 .relation-field small,
 .field-hint {
@@ -782,7 +845,7 @@
   }
   .form-grid,
   .detail-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .crm-dialog {
     width: calc(100vw - 24px) !important;
