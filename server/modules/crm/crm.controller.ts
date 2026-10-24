@@ -8,6 +8,7 @@ import {
   Query,
   Req,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { NeedLogin } from '@lark-apaas/fullstack-nestjs-core';
 import type { Request } from 'express';
@@ -41,6 +42,12 @@ export class CrmController {
   summary(@Req() req: Request) {
     this.session(req);
     return this.crm.summary();
+  }
+
+  @Get('overview')
+  overview(@Req() req: Request, @Query('scope') scope = 'all') {
+    const actor = this.session(req);
+    return this.crm.overview(scope, actor.userId);
   }
 
   @Post('records/:kind')
@@ -81,8 +88,14 @@ export class CrmController {
     @Param('kind') kind: string,
     @Query('cursor') cursor?: string,
     @Query('search') search?: string,
+    @Query('projectFilter') projectFilter?: string,
+    @Query('scope') scope?: string,
   ) {
-    this.session(req, kind);
+    const actor = this.session(req, kind);
+    if (projectFilter !== undefined || scope !== undefined) {
+      if (kind !== 'project') throw new BadRequestException('项目筛选仅用于项目列表');
+      return this.crm.projectList(scope ?? 'all', projectFilter ?? 'all', cursor, search, actor.userId);
+    }
     return this.crm.list(kind, cursor, search);
   }
 }

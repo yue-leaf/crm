@@ -8,6 +8,9 @@ import type {
   EntityKind,
   WriteResult,
   CrmEditRequest,
+  ProjectOverview,
+  ProjectScope,
+  ProjectFilter,
 } from '@shared/api.interface';
 import type { Draft } from '@shared/crm';
 export class SaveOutcomeUnknown extends Error {}
@@ -49,9 +52,10 @@ async function request<T>(
 export const api = {
   session: () => request<CrmSession>('session'),
   summary: () => request<CrmSummary>('summary'),
-  list: (kind: EntityKind, cursor = '', search = '') =>
+  overview: (scope: ProjectScope) => request<ProjectOverview>(`overview?scope=${scope}`),
+  list: (kind: EntityKind, cursor = '', search = '', project?: { scope: ProjectScope; projectFilter: ProjectFilter }) =>
     request<CrmPage>(
-      `records/${kind}?${new URLSearchParams({ cursor, search })}`,
+      `records/${kind}?${new URLSearchParams({ cursor, search, ...project })}`,
     ),
   get: (kind: EntityKind, id: string) =>
     request<CrmRecord>(`records/${kind}/${encodeURIComponent(id)}`),

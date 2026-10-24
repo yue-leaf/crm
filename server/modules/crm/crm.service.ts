@@ -15,6 +15,8 @@ import type {
   CrmRecord,
   WriteResult,
   CrmSummary,
+  ProjectScope,
+  ProjectOverview,
 } from '@shared/api.interface';
 import {
   forms,
@@ -36,6 +38,7 @@ import { auditNote, isLifecycle } from '@shared/crm-lifecycle';
 import { prepareLifecycle } from './crm-lifecycle';
 import type { RelatedSnapshot } from './crm-lifecycle';
 import { historicalContext } from './crm-workflow';
+import { buildProjectOverview, projectMatches, scopedProjects, sortProjects, validProjectFilter } from '@shared/crm-dashboard';
 
 @Injectable()
 export class CrmService {
@@ -160,6 +163,45 @@ export class CrmService {
       out[key] = value;
     }
     return out;
+  }
+  private projectScope(scope: string): ProjectScope {
+    if (scope !== 'all' && scope !== 'mine') throw new BadRequestException('项目范围无效');
+    return scope;
+  }
+  private async allProjects(): Promise<CrmRecord[]> {
+    const rows: CrmRecord[] = [];
+    const tokens = new Set<string>();
+    const ids = new Set<string>();
+    let cursor: string | undefined;
+    for (let page = 0; page < 100; page++) {
+      const next = await this.list('project', cursor);
+      for (const row of next.records) {
+        if (!row || typeof row.id !== 'string' || !row.record || ids.has(row.id))
+          throw new BadGatewayException('项目分页数据变化或异常，请刷新后重试');
+        ids.add(row.id); rows.push(row);
+      }
+      if (!next.hasMore) return rows;
+      if (!next.pageToken || tokens.has(next.pageToken)) throw new BadGatewayException('项目分页不完整，请刷新后重试');
+      tokens.add(next.pageToken); cursor = next.pageToken;
+    }
+    throw new BadGatewayException('项目数量超出当前统计读取范围，未显示不完整统计，请联系管理员');
+  }
+  async overview(scope: string, userId: string): Promise<ProjectOverview> {
+    const checked = this.projectScope(scope);
+    return buildProjectOverview(await this.allProjects(), checked, userId);
+  }
+  async projectList(scope: string, filter: string, cursor: string | undefined, search: string | undefined, userId: string): Promise<CrmPage> {
+    const checked = this.projectScope(scope);
+    if (!validProjectFilter(filter)) throw new BadRequestException('项目筛选无效');
+    if (search !== undefined && (typeof search !== 'string' || search.length > 200)) throw new BadRequestException('搜索内容过长');
+    if (cursor !== undefined && cursor !== '' && (typeof cursor !== 'string' || !/^offset:\d{1,6}$/.test(cursor))) throw new BadRequestException('分页标记无效');
+    const offset = cursor ? Number(cursor.slice(7)) : 0;
+    const now = Date.now();
+    const rows = sortProjects(scopedProjects(await this.allProjects(), checked, userId)
+      .filter(row => projectMatches(row, filter, now) && (!search || textValue(row.record['项目名称']).toLocaleLowerCase().includes(search.toLocaleLowerCase()))), now);
+    if (offset > rows.length) throw new ConflictException('项目列表已变化，请刷新');
+    const more = offset + 50 < rows.length;
+    return { records: rows.slice(offset, offset + 50), total: rows.length, hasMore: more, ...(more ? { pageToken: `offset:${offset + 50}` } : {}) };
   }
   private async people(
     fields: Record<string, unknown>,
