@@ -353,7 +353,7 @@ export class CrmService {
     await this.verifySaved(key, id, fields);
     return {
       id,
-      message: '已保存到飞书，待管理员核查；当前计划不会被跟进建议覆盖',
+      message: '已保存到飞书，待核查；当前计划不会被跟进建议覆盖',
     };
   }
   private writtenId(result: unknown): string {
@@ -510,7 +510,7 @@ export class CrmService {
         if ((f.type === 'date' || f.type === 'datetime') && typeof row.record[f.key] === 'number')
           checked.fields[f.key] = row.record[f.key];
       this.validateFacts(key, checked.draft, row);
-      // The administrator confirms historical participation. Directory existence
+      // The reviewing employee confirms historical participation. Directory existence
       // is still required, but subsequent deactivation must not erase history.
       await this.people(checked.fields, forms[key], key === 'followup');
       await this.relationChecks(key, checked.draft, checked.fields, row);

@@ -19,12 +19,25 @@ test('employee can use all business controller routes but cannot read or modify 
   const calls = [];
   const controller = new CrmController(new Proxy({}, { get: (_, key) => (...args) => { calls.push([key, args]); return true; } }));
   const req = { userContext: { userId: '123', roles: ['crm_employee'] } };
-  controller.summary(req); controller.list(req, 'customer'); controller.detail(req, 'project', 'recProject');
-  controller.create(req, 'followup', {}); controller.update(req, 'project', 'recProject', 'reopen', {});
-  assert.equal(calls.length, 5);
-  for (const act of [() => controller.list(req, 'access'), () => controller.detail(req, 'access', 'recUser'), () => controller.update(req, 'access', 'recUser', 'access', {})]) assert.throws(act, e => e.getStatus() === 403);
+  controller.summary(req);
+  for (const kind of ['customer', 'contact', 'project', 'followup']) {
+    controller.list(req, kind); controller.detail(req, kind, 'recFixture'); controller.create(req, kind, {});
+  }
+  for (const operation of ['edit', 'review', 'plan', 'progress', 'suggest-end', 'confirm-end', 'archive', 'restore', 'reopen']) {
+    controller.update(req, 'project', 'recProject', operation, {});
+  }
+  assert.equal(calls.length, 22);
+  for (const act of [() => controller.list(req, 'access'), () => controller.detail(req, 'access', 'recUser'), () => controller.create(req, 'access', {}), () => controller.update(req, 'access', 'recUser', 'access', {})]) assert.throws(act, e => e.getStatus() === 403);
   assert.equal(crmEmployee([]), false);
   assert.equal(crmEmployee(['crm_employee']), true);
+});
+
+test('CRM exposes no HTTP delete operation', () => {
+  const { METHOD_METADATA } = require('@nestjs/common/constants');
+  const { RequestMethod } = require('@nestjs/common');
+  for (const name of Object.getOwnPropertyNames(CrmController.prototype)) {
+    assert.notEqual(Reflect.getMetadata(METHOD_METADATA, CrmController.prototype[name]), RequestMethod.DELETE);
+  }
 });
 test('close requires cancellation reason, valid terminal value and nonfuture date', async () => {
   const input = { 终局确认: '已取消', 结束日期: today, 结果说明: 'stopped', 操作原因: 'stop' };
