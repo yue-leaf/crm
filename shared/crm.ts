@@ -20,11 +20,17 @@ export interface FieldSpec {
 export const BASE_URL =
   'https://ecnkuk64l5wd.feishu.cn/base/CJLFbJHZ7al3zisi9e1cLAxjncd';
 export const labels: Record<EntityKind, string> = {
-  customer: '企业客户',
+  customer: '客户',
   contact: '联系人',
-  project: '客户项目',
+  project: '项目',
   followup: '跟进记录',
   access: '权限配置',
+};
+export const sectionLabels: Record<EntityKind, string> = {
+  ...labels,
+  customer: '客户管理',
+  contact: '联系人管理',
+  project: '项目管理',
 };
 export function crmSection(section: string | undefined): EntityKind | 'home' {
   return section && Object.prototype.hasOwnProperty.call(labels, section) ? section as EntityKind : 'home';
