@@ -17,6 +17,8 @@ import type {
   CrmSummary,
   ProjectScope,
   ProjectOverview,
+  RelatedRecordsQuery,
+  FollowupPage,
 } from '@shared/api.interface';
 import {
   forms,
@@ -39,6 +41,7 @@ import { prepareLifecycle } from './crm-lifecycle';
 import type { RelatedSnapshot } from './crm-lifecycle';
 import { historicalContext } from './crm-workflow';
 import { buildProjectOverview, projectMatches, scopedProjects, sortProjects, validProjectFilter } from '@shared/crm-dashboard';
+import { CrmRelations } from './crm-relations';
 
 @Injectable()
 export class CrmService {
@@ -86,6 +89,16 @@ export class CrmService {
   async customerContacts(id: string, cursor?: string): Promise<CrmPage> {
     await this.get('customer', id);
     return this.list('contact', cursor, undefined, id);
+  }
+  async customerProjects(id: string, query: RelatedRecordsQuery): Promise<CrmPage> {
+    await this.get('customer', id);
+    return new CrmRelations((kind: EntityKind, input: Record<string, unknown>) =>
+      this.call(kind, 'searchRecords', input)).customerProjects(id, query);
+  }
+  async relatedFollowups(kind: 'customer' | 'project', id: string, query: RelatedRecordsQuery): Promise<FollowupPage> {
+    const row: CrmRecord = await this.get(kind, id);
+    return new CrmRelations((key: EntityKind, input: Record<string, unknown>) =>
+      this.call(key, 'searchRecords', input)).followups(kind, row, query);
   }
   async list(kind: string, cursor?: string, search?: string, customerId?: string): Promise<CrmPage> {
     const key = this.kind(kind);

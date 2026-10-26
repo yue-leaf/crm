@@ -15,6 +15,7 @@ import {
   LoaderCircle,
   Pencil,
   Eye,
+  ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrentUserProfile } from '@lark-apaas/client-toolkit/hooks/useCurrentUserProfile';
@@ -46,6 +47,7 @@ import {
   endFields,
   textValue,
   crmSection,
+  linkIds,
 } from '@shared/crm';
 import type { Draft, FieldSpec } from '@shared/crm';
 import {
@@ -56,15 +58,17 @@ import {
 } from '@shared/crm-edit';
 import { Cell, FieldInput, message } from './Fields';
 import { RecordDetails } from './RecordDetails';
-import { CustomerContacts } from './CustomerContacts';
+import { DetailToolbar } from './DetailToolbar';
+import { CustomerWorkspace } from './CustomerWorkspace';
+import './customer-workspace.css';
 import {
-  advancementBlocked, followupTarget, progressFields, relatedDraft,
+  followupTarget, progressFields, relatedDraft,
 } from '@shared/crm-workflow';
 import { recordReviewProblem } from '@shared/crm-review';
 import { appendPage, changeDraft, missingFields, requiredField } from '@shared/crm-interaction';
 import { crmAdmin, crmEmployee } from '@shared/crm-access';
-import { isLifecycle, lifecycleBlocked, lifecycleFields, lifecycleTitles } from '@shared/crm-lifecycle';
-import type { CrmLifecycleOperation } from '@shared/api.interface';
+import { isLifecycle, lifecycleFields, lifecycleTitles } from '@shared/crm-lifecycle';
+
 import { ProjectDashboard } from './ProjectDashboard';
 import { projectFilterLabels, validProjectFilter } from '@shared/crm-dashboard';
 import './crm.css';
@@ -143,6 +147,8 @@ const CrmPage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [selection, setSelection] = useState<CrmRecord | null>(null);
   const [selectionKind, setSelectionKind] = useState<EntityKind>('customer');
+  const [customerContext, setCustomerContext] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState('followups');
   const [editor, setEditor] = useState<Editor | null>(null);
   const [draft, setDraft] = useState<Draft>({});
   const [saveError, setSaveError] = useState('');
@@ -288,7 +294,7 @@ const CrmPage: React.FC = () => {
       if (editorRequest === editorRequestVersion.current) setOpeningId(null);
     }
   };
-  const detail = async (row: CrmRecord, kind = active) => {
+  const detail = async (row: CrmRecord, kind = active, contextCustomerId?: string) => {
     if (kind === 'home') return;
     const version = requestVersion.current;
     const detailRequest = ++detailVersion.current;
@@ -297,6 +303,9 @@ const CrmPage: React.FC = () => {
       const next = await api.get(kind, row.id);
       if (version === requestVersion.current && detailRequest === detailVersion.current) {
         setSelectionKind(kind);
+        setDetailTab('followups');
+        const parents: string[] = linkIds(next.record[kind === 'followup' ? '直接客户' : '所属企业']);
+        setCustomerContext(kind === 'customer' ? next.id : contextCustomerId || (parents.length === 1 ? parents[0] : null));
         setSelection(next);
       }
     } catch (e: unknown) {
@@ -369,6 +378,11 @@ const CrmPage: React.FC = () => {
         const fresh = await api.get(editor.kind, r.id);
         if (version === requestVersion.current && detailRequest === detailVersion.current) {
           setSelectionKind(editor.kind);
+          const parents: string[] = linkIds(fresh.record[editor.kind === 'followup' ? '直接客户' : '所属企业']);
+          const fromProject: boolean = editor.kind === 'followup' && selectionKind === 'project'
+            && !!selection && linkIds(fresh.record['关联项目']).includes(selection.id);
+          setCustomerContext(editor.kind === 'customer' ? fresh.id : parents.length === 1 ? parents[0] : fromProject ? customerContext : null);
+          setDetailTab('followups');
           setSelection(fresh);
         }
       } catch {
@@ -702,8 +716,12 @@ const CrmPage: React.FC = () => {
           }
         }}
       >
-        <DialogContent className="crm-dialog">
+        <DialogContent className="crm-dialog crm-detail-dialog">
           <header className="crm-dialog-header">
+          {customerContext && selectionKind !== 'customer' && <Button type="button" variant="ghost" size="sm"
+            className="detail-customer-back" disabled={!!detailLoadingId}
+            onClick={() => void detail({ id: customerContext, record: {} }, 'customer')}>
+            <ArrowLeft size={14} />返回客户全览</Button>}
           <DialogTitle>
             {selection
               ? textValue(selection.record[titles[selectionKind]])
@@ -714,99 +732,13 @@ const CrmPage: React.FC = () => {
           <div className="crm-dialog-body">
           {selection && (
             <>
-              <div className="detail-actions">
-                {selectionKind !== 'access' && (
-                  <Button
-                    variant="outline"
-                    disabled={
-                      !!openingId || !!editBlockedReason(selectionKind, selection)
-                    }
-                    title={editBlockedReason(selectionKind, selection) || '编辑资料'}
-                    onClick={() => void edit(selection, selectionKind)}
-                  >
-                    <Pencil size={15} />
-                    编辑资料
-                  </Button>
-                )}
-                {(selectionKind === 'customer' || selectionKind === 'project') && (
-                  <Button disabled={!!advancementBlocked(selectionKind, selection)}
-                    title={advancementBlocked(selectionKind, selection)}
-                    onClick={() => openEditor(selectionKind, 'plan', selection)}>
-                    调整当前计划
-                  </Button>
-                )}
-                {selectionKind === 'project' && (
-                  <Button variant="outline" disabled={!!advancementBlocked('project', selection)}
-                    title={advancementBlocked('project', selection)}
-                    onClick={() => openEditor('project', 'progress', selection)}>
-                    更新项目进展
-                  </Button>
-                )}
-                {selectionKind === 'project' && (
-                  <Button
-                    variant="outline"
-                    disabled={!!advancementBlocked('project', selection)}
-                    title={advancementBlocked('project', selection)}
-                    onClick={() =>
-                      openEditor('project', 'suggest-end', selection)
-                    }
-                  >
-                    提出结束建议
-                  </Button>
-                )}
-                {(selectionKind === 'customer' || selectionKind === 'project') &&
-                  (['confirm-end', 'archive', 'restore', 'reopen'] as CrmLifecycleOperation[])
-                    .filter(operation => !(selectionKind === 'customer' && ['confirm-end', 'reopen'].includes(operation)))
-                    .filter(operation => operation === 'restore' ? selection.record['已归档'] === true
-                      : operation === 'archive' ? selection.record['已归档'] !== true
-                      : operation === 'confirm-end' ? textValue(selection.record['终局确认']) === '未确认'
-                      : ['已完成', '已取消'].includes(textValue(selection.record['终局确认'])))
-                    .map(operation => (
-                      <Button key={operation} variant="outline"
-                        disabled={!!lifecycleBlocked(selectionKind, operation, selection)}
-                        title={lifecycleBlocked(selectionKind, operation, selection) || undefined}
-                        onClick={() => openEditor(selectionKind, operation, selection)}>
-                        {lifecycleTitles[operation]}
-                      </Button>
-                    ))}
-                {selectionKind !== 'access' &&
-                  textValue(selection.record['核查标记']) === '待核查' && (
-                    <Button
-                      variant="outline"
-                      disabled={!!recordReviewProblem(selectionKind, selection.record)}
-                      title={recordReviewProblem(selectionKind, selection.record) || undefined}
-                      onClick={() => openEditor(selectionKind, 'review', selection)}
-                    >
-                      核查通过
-                    </Button>
-                  )}
-                {(selectionKind === 'customer' || selectionKind === 'project') && (
-                  <>
-                    {selectionKind === 'customer' && (['project'] as const).map((kind) => (
-                      <Button key={kind} variant="outline"
-                        disabled={selection.record['已归档'] === true || textValue(selection.record['核查标记']) !== '正常'}
-                        title="先核查客户，通过后可创建联系人和项目"
-                        onClick={() => openEditor(
-                          kind, 'create', undefined, relatedDraft('customer', selection, kind),
-                        )}>
-                        新建{labels[kind]}
-                      </Button>
-                    ))}
-                    <Button variant="outline" disabled={textValue(selection.record['核查标记']) !== '正常'}
-                      onClick={() => openEditor(
-                        'followup', 'create', undefined, relatedDraft(selectionKind, selection, 'followup'),
-                      )}>
-                      {advancementBlocked(selectionKind, selection) ? '补录历史跟进' : '记录跟进'}
-                    </Button>
-                  </>
-                )}
-                {selectionKind === 'followup' && followupTarget(selection) && (
-                  <Button variant="outline" onClick={() => {
-                    const target = followupTarget(selection)!;
-                    void detail({ id: target.id, record: {} }, target.kind);
-                  }}>查看所属对象与当前计划</Button>
-                )}
-              </div>
+              <DetailToolbar kind={selectionKind} row={selection} busy={!!openingId || !!detailLoadingId}
+                onEdit={() => void edit(selection, selectionKind)}
+                onAction={(operation: string) => openEditor(selectionKind, operation, selection)}
+                onFollowup={() => openEditor('followup', 'create', undefined, relatedDraft(
+                  selectionKind as 'customer' | 'project', selection, 'followup'))}
+                onTarget={() => { const target = followupTarget(selection); if (target) void detail(
+                  { id: target.id, record: {} }, target.kind, customerContext || undefined); }} />
               {selectionKind !== 'access' && textValue(selection.record['核查标记']) === '待核查' && (
                 <p className="panel-note" role="status">当前记录待核查。请先核对资料并点击“核查通过”，再继续关联业务。</p>
               )}
@@ -816,15 +748,17 @@ const CrmPage: React.FC = () => {
               {selectionKind === 'project' && textValue(selection.record['结束建议']) && (
                 <p className="panel-note">已有结束建议，可通过“确认项目结束”处理；提出建议不会自动改变终局。</p>
               )}
-              {selectionKind === 'customer' && <CustomerContacts key={selection.id} customerId={selection.id}
-                createBlocked={selection.record['已归档'] === true || textValue(selection.record['核查标记']) !== '正常'}
-                busy={!!openingId || !!detailLoadingId}
-                onCreate={() => openEditor('contact', 'create', undefined, relatedDraft('customer', selection, 'contact'))}
-                onView={row => void detail(row, 'contact')} onEdit={row => void edit(row, 'contact')} />}
-              <RecordDetails key={`${selectionKind}:${selection.id}`} record={selection.record} onOpenCustomer={id => void detail({ id, record: {} }, 'customer')} />
-              {(selectionKind === 'customer' || selectionKind === 'project') && <p className="panel-note">
-                生命周期操作会保留历史与原因。项目取消归档后仍保持结束状态，继续新工作请使用“重开项目”。
-              </p>}
+              {selectionKind === 'customer' || selectionKind === 'project'
+                ? <CustomerWorkspace key={`${selectionKind}:${selection.id}`} kind={selectionKind} row={selection}
+                    tab={detailTab} onTabChange={setDetailTab}
+                    busy={!!openingId || !!detailLoadingId}
+                    onView={(row: CrmRecord, kind: EntityKind, customerId?: string) => void detail(row, kind, customerId)}
+                    onEditContact={(row: CrmRecord) => void edit(row, 'contact')}
+                    onCreate={(kind: 'contact' | 'project') => openEditor(kind, 'create', undefined,
+                      relatedDraft('customer', selection, kind))} />
+                : <RecordDetails key={`${selectionKind}:${selection.id}`} record={selection.record}
+                    onOpenCustomer={(id: string) => void detail({ id, record: {} }, 'customer')} />}
+
             </>
           )}
           </div>
