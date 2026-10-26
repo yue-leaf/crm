@@ -85,18 +85,6 @@
         "writeable": false
       },
       {
-        "id": "fld0i9YW1A",
-        "name": "核查标记",
-        "type": 3,
-        "bizType": "SingleSelect",
-        "readable": true,
-        "writeable": true,
-        "enumValues": [
-          "正常",
-          "待核查"
-        ]
-      },
-      {
         "id": "fldOHpx22G",
         "name": "创建人",
         "type": 1003,
@@ -214,14 +202,6 @@
         "writeable": false
       },
       {
-        "id": "fldUMw4EBM",
-        "name": "核查说明",
-        "type": 1,
-        "bizType": "Text",
-        "readable": true,
-        "writeable": true
-      },
-      {
         "id": "fldb48YhyT",
         "name": "联系人编号",
         "type": 1005,
@@ -240,5 +220,5 @@
     ]
   },
   "createdAt": 1792795161505,
-  "updatedAt": 1792795161505
+  "updatedAt": 1793030195163
 }

@@ -39,14 +39,6 @@
         "writeable": true
       },
       {
-        "id": "fldLxG2oq1",
-        "name": "核查说明",
-        "type": 1,
-        "bizType": "Text",
-        "readable": true,
-        "writeable": true
-      },
-      {
         "id": "fldeMU9Ji4",
         "name": "作废原因",
         "type": 1,
@@ -105,18 +97,6 @@
         "bizType": "Text",
         "readable": true,
         "writeable": true
-      },
-      {
-        "id": "fldzuUNvcA",
-        "name": "核查标记",
-        "type": 3,
-        "bizType": "SingleSelect",
-        "readable": true,
-        "writeable": true,
-        "enumValues": [
-          "正常",
-          "待核查"
-        ]
       },
       {
         "id": "fldHSp3bSK",
@@ -313,9 +293,17 @@
         "bizType": "Text",
         "readable": true,
         "writeable": true
+      },
+      {
+        "id": "fldJtZSB2H",
+        "name": "管理记录",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
       }
     ]
   },
   "createdAt": 1792795161508,
-  "updatedAt": 1792795161508
+  "updatedAt": 1793030197824
 }

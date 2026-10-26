@@ -29,15 +29,15 @@ export async function prepareLifecycle(
   };
   if (operation === 'confirm-end' || operation === 'archive') {
     const issue = recordReviewProblem(kind, row.record);
-    if (issue) reject('核查', issue);
+    if (issue) reject('资料', issue);
   }
   if (kind === 'project' && (operation === 'confirm-end' || operation === 'reopen')) {
     const parents = linkIds(row.record['所属企业']);
     if (parents.length !== 1) reject('所属企业', '项目必须关联唯一企业');
     const customer = await load('customer', parents[0]);
     if (customer.record['已归档'] === true) reject('所属企业', '请先取消客户归档，再操作项目');
-    if (textValue(customer.record['核查标记']) !== '正常' || recordReviewProblem('customer', customer.record))
-      reject('所属企业', '请先核查客户资料');
+    if (recordReviewProblem('customer', customer.record))
+      reject('所属企业', '客户资料不完整，请先修正');
   }
   if (operation === 'confirm-end') {
     if (!['已完成', '已取消'].includes(String(fields['终局确认']))) reject('终局确认', '请选择完成或取消');
@@ -56,7 +56,7 @@ export async function prepareLifecycle(
         (typeof occurred !== 'number' || !Number.isFinite(occurred) || day(occurred) > day(closed)))
         reject('结束日期', '结束日期不能早于已有跟进；异常跟进需先核对');
     }
-    Object.assign(fields, { 结束建议: '', 建议说明: '', 取消原因: fields['取消原因'] || '', 核查标记: '待核查' });
+    Object.assign(fields, { 结束建议: '', 建议说明: '', 取消原因: fields['取消原因'] || '' });
   } else if (operation === 'archive') {
     if (kind === 'customer') {
       const projects = linkIds(row.record['项目']);
@@ -64,8 +64,8 @@ export async function prepareLifecycle(
       for (const id of projects) {
         const project = await load('project', id);
         if (!['已完成', '已取消'].includes(textValue(project.record['终局确认'])) ||
-          textValue(project.record['核查标记']) !== '正常' || recordReviewProblem('project', project.record))
-          reject('归档', '仍有未结束、未核查或信息不完整的项目');
+          recordReviewProblem('project', project.record))
+          reject('归档', '仍有未结束或信息不完整的项目');
       }
       if (textValue(row.record['归档阻塞项目数']) !== '0') reject('归档', '关联项目计算尚未就绪，请刷新核对');
     }
@@ -74,7 +74,7 @@ export async function prepareLifecycle(
     const archivedAt = row.record['归档时间'];
     if (typeof archivedAt !== 'number' || !Number.isFinite(archivedAt) || archivedAt > now)
       reject('归档时间', '历史边界无效，请先在原表核对');
-    Object.assign(fields, { 已归档: false, 归档原因: '', 核查标记: '待核查' });
+    Object.assign(fields, { 已归档: false, 归档原因: '' });
     if (kind === 'customer') {
       fields['行动执行人'] ||= [];
       await context.people(fields);
@@ -89,7 +89,7 @@ export async function prepareLifecycle(
       if (typeof at !== 'number' || !Number.isFinite(at) || at > now) reject('归档时间', '历史归档边界无效');
     }
     Object.assign(fields, { 终局确认: '未确认', 已归档: false, 归档原因: '', 结果说明: '', 取消原因: '',
-      暂停原因: '', 结束建议: '', 建议说明: '', 最近重开原因: fields['操作原因'], 核查标记: '待核查' });
+      暂停原因: '', 结束建议: '', 建议说明: '', 最近重开原因: fields['操作原因'] });
     fields['行动执行人'] ||= [];
     await context.people(fields);
   }

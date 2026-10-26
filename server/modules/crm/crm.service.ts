@@ -35,12 +35,13 @@ import { changedFields, recordDraft } from '@shared/crm-edit';
 import {
   advancementBlocked, commerceKeys, existingProjectFields, progressFields,
 } from '@shared/crm-workflow';
-import { contactLifecycleProblem, recordReviewProblem } from '@shared/crm-review';
+import { contactLifecycleProblem } from '@shared/crm-review';
 import { auditNote, isLifecycle } from '@shared/crm-lifecycle';
 import { prepareLifecycle } from './crm-lifecycle';
 import type { RelatedSnapshot } from './crm-lifecycle';
 import { historicalContext } from './crm-workflow';
 import { buildProjectOverview, projectMatches, scopedProjects, sortProjects, validProjectFilter } from '@shared/crm-dashboard';
+import { followupStatus, sortFollowups, validFollowupFilter } from '@shared/crm-followup-status';
 import { CrmRelations } from './crm-relations';
 
 @Injectable()
@@ -192,13 +193,13 @@ export class CrmService {
     if (scope !== 'all' && scope !== 'mine') throw new BadRequestException('项目范围无效');
     return scope;
   }
-  private async allProjects(): Promise<CrmRecord[]> {
+  private async allBusiness(key: 'customer' | 'project'): Promise<CrmRecord[]> {
     const rows: CrmRecord[] = [];
     const tokens = new Set<string>();
     const ids = new Set<string>();
     let cursor: string | undefined;
     for (let page = 0; page < 100; page++) {
-      const next = await this.list('project', cursor);
+      const next = await this.list(key, cursor);
       for (const row of next.records) {
         if (!row || typeof row.id !== 'string' || !row.record || ids.has(row.id))
           throw new BadGatewayException('项目分页数据变化或异常，请刷新后重试');
@@ -212,20 +213,37 @@ export class CrmService {
   }
   async overview(scope: string, userId: string): Promise<ProjectOverview> {
     const checked = this.projectScope(scope);
-    return buildProjectOverview(await this.allProjects(), checked, userId);
+    return buildProjectOverview(await this.allBusiness('project'), checked, userId);
   }
-  async projectList(scope: string, filter: string, cursor: string | undefined, search: string | undefined, userId: string): Promise<CrmPage> {
+  async projectList(scope: string, filter: string, cursor: string | undefined, search: string | undefined, userId: string, followupFilter = 'all'): Promise<CrmPage> {
     const checked = this.projectScope(scope);
     if (!validProjectFilter(filter)) throw new BadRequestException('项目筛选无效');
+    if (!validFollowupFilter(followupFilter)) throw new BadRequestException('跟进状态筛选无效');
     if (search !== undefined && (typeof search !== 'string' || search.length > 200)) throw new BadRequestException('搜索内容过长');
     if (cursor !== undefined && cursor !== '' && (typeof cursor !== 'string' || !/^offset:\d{1,6}$/.test(cursor))) throw new BadRequestException('分页标记无效');
     const offset = cursor ? Number(cursor.slice(7)) : 0;
     const now = Date.now();
-    const rows = sortProjects(scopedProjects(await this.allProjects(), checked, userId)
-      .filter(row => projectMatches(row, filter, now) && (!search || textValue(row.record['项目名称']).toLocaleLowerCase().includes(search.toLocaleLowerCase()))), now);
+    const rows = sortProjects(scopedProjects(await this.allBusiness('project'), checked, userId)
+      .filter(row => projectMatches(row, filter === 'all' && followupFilter === 'none' ? 'none' : filter, now)
+        && (followupFilter === 'all' || followupStatus(row.record, now).key === followupFilter)
+        && (!search || textValue(row.record['项目名称']).toLocaleLowerCase().includes(search.toLocaleLowerCase()))), now);
     if (offset > rows.length) throw new ConflictException('项目列表已变化，请刷新');
     const more = offset + 50 < rows.length;
     return { records: rows.slice(offset, offset + 50), total: rows.length, hasMore: more, ...(more ? { pageToken: `offset:${offset + 50}` } : {}) };
+  }
+  async customerList(filter: string, cursor?: string, search?: string): Promise<CrmPage> {
+    if (!validFollowupFilter(filter)) throw new BadRequestException('跟进状态筛选无效');
+    if (search !== undefined && (typeof search !== 'string' || search.length > 200)) throw new BadRequestException('搜索内容过长');
+    if (cursor && !/^offset:\d{1,6}$/.test(cursor)) throw new BadRequestException('分页标记无效');
+    const offset = cursor ? Number(cursor.slice(7)) : 0;
+    const now = Date.now();
+    const rows = sortFollowups((await this.allBusiness('customer')).filter(row =>
+      (filter === 'all' || followupStatus(row.record, now).key === filter) &&
+      (!search || textValue(row.record['企业全称']).toLocaleLowerCase().includes(search.toLocaleLowerCase()))), now);
+    if (offset > rows.length) throw new ConflictException('客户列表已变化，请刷新');
+    const more = offset + 50 < rows.length;
+    return { records: rows.slice(offset, offset + 50), total: rows.length, hasMore: more,
+      ...(more ? { pageToken: 'offset:' + (offset + 50) } : {}) };
   }
   private async people(
     fields: Record<string, unknown>,
@@ -290,8 +308,6 @@ export class CrmService {
   private async activeCustomer(id: string): Promise<CrmRecord> {
     const c = await this.get('customer', id);
     if (c.record['已归档'] === true) reject('所属企业', '企业已归档');
-    if (textValue(c.record['核查标记']) !== '正常')
-      reject('所属企业', '企业需先核查通过');
     return c;
   }
   private async relationChecks(
@@ -349,8 +365,6 @@ export class CrmService {
         const parents = linkIds(c.record['所属企业']);
         if (parents.length !== 1 || parents[0] !== customerId)
           reject('客户联系人', '联系人不属于当前企业');
-        if (textValue(c.record['核查标记']) !== '正常')
-          reject('客户联系人', '联系人需先核查通过');
         const issue = contactLifecycleProblem(c.record);
         if (issue) reject('客户联系人', issue);
         if (
@@ -412,7 +426,7 @@ export class CrmService {
         const before = existing ? recordDraft(existing.record, forms.project) : {};
         const spec = forms.project.filter((f) => commerceKeys.includes(f.key));
         if (!existing || Object.keys(changedFields(before, draft, spec)).length)
-          reject('项目类型', '非销售项目只能保留已有商务信息供核查，不能新增或修改商务金额');
+          reject('项目类型', '非销售项目只能保留已有商务信息，不能新增或修改商务金额');
       }
       if (
         draft['预计金额'] != null &&
@@ -430,7 +444,6 @@ export class CrmService {
     await this.relationChecks(key, draft, fields);
     Object.assign(
       fields,
-      { 核查标记: '待核查' },
       key === 'customer'
         ? { 客户关系状态: '待建立', 已归档: false }
         : key === 'project'
@@ -446,7 +459,7 @@ export class CrmService {
     await this.verifySaved(key, id, fields);
     return {
       id,
-      message: '已保存到飞书，待核查；当前计划不会被跟进建议覆盖',
+      message: '已保存',
     };
   }
   private writtenId(result: unknown): string {
@@ -576,40 +589,8 @@ export class CrmService {
       if (note.length > 20000) reject('管理记录', '历史说明已达上限，请先整理留存');
       delete fields['变更说明'];
       fields['管理记录'] = note;
-      fields['核查标记'] = '待核查';
     } else if (operation === 'access' && key === 'access') {
       fields = parseDraft(input, forms.access, this.enums(key)).fields;
-    } else if (operation === 'review' && key !== 'access') {
-      const parsed = parseDraft(
-        input,
-        [{ key: '核查说明', type: 'long', required: true }],
-        {},
-      );
-      fields = parsed.fields;
-      if (textValue(row.record['核查标记']) !== '待核查')
-        reject('核查', '此记录不处于待核查状态');
-      // Revalidate original data and cross-record relations before admitting it into aggregates.
-      const original = recordDraft(row.record, forms[key]);
-      const issue = recordReviewProblem(key, row.record);
-      if (issue) reject('核查', issue);
-      const reviewSpec = key === 'project' ? existingProjectFields(row.record) : forms[key];
-      const checked = parseDraft(original, reviewSpec, this.enums(key));
-      // Revalidation must not round historical timestamps down to a whole second.
-      for (const f of forms[key])
-        if ((f.type === 'date' || f.type === 'datetime') && typeof row.record[f.key] === 'number')
-          checked.fields[f.key] = row.record[f.key];
-      this.validateFacts(key, checked.draft, row);
-      await this.people(checked.fields, forms[key], key === 'followup');
-      await this.relationChecks(key, checked.draft, checked.fields, row);
-      fields['核查标记'] = '正常';
-      fields['核查说明'] = [
-        textValue(row.record['核查说明']),
-        `${textValue(fields['核查说明'])}\n核查人 ${actor} · ${new Date().toISOString()}`,
-      ]
-        .filter(Boolean)
-        .join('\n\n');
-      if (String(fields['核查说明']).length > 20000)
-        reject('核查说明', '历史说明已达上限，请先整理留存');
     } else reject('操作', '不支持的操作');
     // Base has no atomic compare-and-set. Recheck after slow relation/person reads;
     // a process-local lock also excludes overlapping updates in this instance.
@@ -633,7 +614,7 @@ export class CrmService {
         key === 'access'
           ? '已保存授权意向；未改变飞书或妙搭实际角色'
           : operation === 'edit'
-            ? '修改已保存并回读，记录进入待核查'
+            ? '修改已保存'
             : '已保存并回读飞书记录',
     };
   }

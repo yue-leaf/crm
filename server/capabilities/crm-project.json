@@ -187,14 +187,6 @@
         "writeable": false
       },
       {
-        "id": "fldCM2c7Rr",
-        "name": "核查说明",
-        "type": 1,
-        "bizType": "Text",
-        "readable": true,
-        "writeable": true
-      },
-      {
         "id": "fldZYIow56",
         "name": "行动执行人",
         "type": 11,
@@ -444,18 +436,6 @@
         "writeable": true
       },
       {
-        "id": "fldDsK03m1",
-        "name": "核查标记",
-        "type": 3,
-        "bizType": "SingleSelect",
-        "readable": true,
-        "writeable": true,
-        "enumValues": [
-          "正常",
-          "待核查"
-        ]
-      },
-      {
         "id": "fld4NdKK9y",
         "name": "当前下一步行动",
         "type": 1,
@@ -530,9 +510,17 @@
         "bizType": "Text",
         "readable": true,
         "writeable": true
+      },
+      {
+        "id": "fld8VUEIPI",
+        "name": "跟进状态",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
       }
     ]
   },
   "createdAt": 1792795161506,
-  "updatedAt": 1792795161506
+  "updatedAt": 1793030196521
 }

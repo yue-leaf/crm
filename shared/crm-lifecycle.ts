@@ -30,9 +30,8 @@ export function lifecycleBlocked(kind: EntityKind, operation: CrmLifecycleOperat
   if (operation === 'reopen') return kind === 'project' && ['已完成', '已取消'].includes(terminal)
     ? '' : '仅已完成或已取消的项目可以重开';
   if (archived) return '记录已归档，请先取消归档或重开项目';
-  if (textValue(row.record['核查标记']) !== '正常') return '请先核查通过';
   if (operation === 'confirm-end') return kind === 'project' && terminal === '未确认' ? '' : '仅未结项项目可以确认结束';
-  if (kind === 'project' && !['已完成', '已取消'].includes(terminal)) return '项目完成或取消并核查通过后才能归档';
+  if (kind === 'project' && !['已完成', '已取消'].includes(terminal)) return '项目完成或取消后才能归档';
   return '';
 }
 

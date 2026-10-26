@@ -7,7 +7,7 @@ export function contactLifecycleProblem(record: CrmRecord['record'], now = Date.
   if (!['有效', '停用'].includes(status)) return '联系人状态异常，请在原表核对';
   if (status === '有效') {
     if (record['停用时间'] != null || textValue(record['停用原因']).trim())
-      return '有效联系人残留停用信息，请在原表完成恢复核查';
+      return '有效联系人残留停用信息，请在原表修正恢复信息';
   } else {
     const disabled = record['停用时间'];
     if (typeof disabled !== 'number' || !Number.isFinite(disabled) || disabled > now)

@@ -115,11 +115,14 @@ export class CrmController {
     @Query('search') search?: string,
     @Query('projectFilter') projectFilter?: string,
     @Query('scope') scope?: string,
+    @Query('followupFilter') followupFilter?: string,
   ) {
     const actor = this.session(req, kind);
-    if (projectFilter !== undefined || scope !== undefined) {
-      if (kind !== 'project') throw new BadRequestException('项目筛选仅用于项目列表');
-      return this.crm.projectList(scope ?? 'all', projectFilter ?? 'all', cursor, search, actor.userId);
+    if (followupFilter !== undefined && kind !== 'customer' && kind !== 'project') throw new BadRequestException('跟进状态筛选仅用于客户或项目');
+    if ((projectFilter !== undefined || scope !== undefined) && kind !== 'project') throw new BadRequestException('项目筛选仅用于项目列表');
+    if (kind === 'customer') return this.crm.customerList(followupFilter ?? 'all', cursor, search);
+    if (kind === 'project') {
+      return this.crm.projectList(scope ?? 'all', projectFilter ?? 'all', cursor, search, actor.userId, followupFilter ?? 'all');
     }
     return this.crm.list(kind, cursor, search);
   }

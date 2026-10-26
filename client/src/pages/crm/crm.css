@@ -1005,3 +1005,12 @@
   display: grid;
   gap: 4px;
 }
+.crm-app .tag.deep-red, .tag.deep-red {
+  color: #881b22;
+  background: #fbd4d7;
+  border: 1px solid #e9a0a8;
+  font-weight: 600;
+}
+.followup-filter { display: flex; align-items: center; gap: 12px; padding: 16px 20px 0; font-size: 13px; }
+.followup-filter > button { width: 180px; }
+.workspace-followup-status { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 13px; color: #646a73; }

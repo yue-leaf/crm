@@ -43,7 +43,7 @@ export function FollowupFeed({ kind, id, busy, onView }: Props) {
             onClick={() => onView(row, 'followup')}>{textValue(row.record['跟进主题']) || '未命名跟进'}</button>
             <Cell name="实际发生时间" value={row.record['实际发生时间']} /></div>
           <div className="followup-meta"><Cell name="实际跟进人" value={row.record['实际跟进人']} />
-            <span>{textValue(row.record['记录类型'])}</span><Cell name="核查标记" value={row.record['核查标记']} />
+            <span>{textValue(row.record['记录类型'])}</span>
             {textValue(row.record['记录状态']) === '已作废' && <Cell name="记录状态" value={row.record['记录状态']} />}</div>
           <p className="followup-conclusion">{textValue(row.record['内容 / 推进结论']) || '未填写推进结论'}</p>
           {textValue(row.record['建议下一步行动']) && <p className="followup-advice"><span>下一步建议</span>{textValue(row.record['建议下一步行动'])}</p>}

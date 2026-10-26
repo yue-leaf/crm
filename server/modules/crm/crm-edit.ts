@@ -68,15 +68,15 @@ export function prepareEdit(
     )
       checked.fields[f.key] = row.record[f.key];
   }
+  const auditKey = kind === 'contact' ? '联系人管理记录' : '管理记录';
   const note = [
-    textValue(row.record['核查说明']),
+    textValue(row.record[auditKey]),
     `资料修改 · ${new Date().toISOString()} · 操作人 ${actor}\n字段：${Object.keys(changes).join('、')}${reason ? `\n说明：${String(reason)}` : ''}`,
   ]
     .filter(Boolean)
     .join('\n\n');
   if (note.length > 20000)
-    reject('核查说明', '历史说明已达上限，请先由管理员整理留存');
-  writes['核查标记'] = '待核查';
-  writes['核查说明'] = note;
+    reject('管理记录', '历史说明已达上限，请先由管理员整理留存');
+  writes[auditKey] = note;
   return { draft: checked.draft, validationFields: checked.fields, writes };
 }
