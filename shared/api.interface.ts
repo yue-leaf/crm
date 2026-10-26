@@ -17,6 +17,20 @@ export interface CrmPage {
 export interface CustomerContactsQuery {
   cursor?: string;
 }
+export type FollowupScope = 'all' | 'direct' | 'project';
+export interface RelatedRecordsQuery {
+  cursor?: string;
+  search?: string;
+  scope?: FollowupScope;
+}
+export interface RelatedSource {
+  kind: 'customer' | 'project';
+  id: string;
+  name: string;
+}
+export interface FollowupPage extends CrmPage {
+  sources: Record<string, RelatedSource>;
+}
 export interface CrmSession {
   userId: string;
   name: string;

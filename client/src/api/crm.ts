@@ -12,6 +12,8 @@ import type {
   ProjectScope,
   ProjectFilter,
   CustomerContactsQuery,
+  RelatedRecordsQuery,
+  FollowupPage,
 } from '@shared/api.interface';
 import type { Draft } from '@shared/crm';
 export class SaveOutcomeUnknown extends Error {}
@@ -51,6 +53,10 @@ async function request<T>(
   }
 }
 export const api = {
+  customerProjects: (customerId: string, query: RelatedRecordsQuery = {}) =>
+    request<CrmPage>(`customers/${encodeURIComponent(customerId)}/projects?${new URLSearchParams({ cursor: query.cursor || '', search: query.search || '' })}`),
+  relatedFollowups: (kind: 'customer' | 'project', id: string, query: RelatedRecordsQuery = {}) =>
+    request<FollowupPage>(`${kind === 'customer' ? 'customers' : 'projects'}/${encodeURIComponent(id)}/followups?${new URLSearchParams({ cursor: query.cursor || '', search: query.search || '', scope: query.scope || 'all' })}`),
   customerContacts: (customerId: string, query: CustomerContactsQuery = {}) =>
     request<CrmPage>(`customers/${encodeURIComponent(customerId)}/contacts?${new URLSearchParams({ cursor: query.cursor || '' })}`),
   session: () => request<CrmSession>('session'),

@@ -12,7 +12,7 @@ export const CustomerContacts: React.FC<{
   customerId: string;
   createBlocked: boolean;
   busy: boolean;
-  onCreate: () => void;
+  onCreate?: () => void;
   onView: (row: CrmRecord) => void;
   onEdit: (row: CrmRecord) => void;
 }> = ({ customerId, createBlocked, busy, onCreate, onView, onEdit }) => {
@@ -42,7 +42,7 @@ export const CustomerContacts: React.FC<{
   };
   return <section className="detail-section customer-contacts" aria-label="客户联系人">
     <div className="customer-contacts-heading"><h3>客户联系人{page ? ` · ${page.hasMore ? `已加载 ${page.records.length}` : page.records.length} 人` : ''}</h3>
-      <Button type="button" variant="outline" size="sm" disabled={createBlocked || busy} title={createBlocked ? '客户核查通过且未归档后可新建联系人' : undefined} onClick={onCreate}><Plus size={14} />新建联系人</Button>
+      {onCreate && <Button type="button" variant="outline" size="sm" disabled={createBlocked || busy} title={createBlocked ? '客户核查通过且未归档后可新建联系人' : undefined} onClick={onCreate}><Plus size={14} />新建联系人</Button>}
     </div>
     {page?.records.map(row => <article key={row.id} className="customer-contact-row">
       <div className="customer-contact-info"><button type="button" className="record-title" disabled={busy} onClick={() => onView(row)}>{textValue(row.record['姓名']) || '未命名联系人'}</button>
@@ -53,7 +53,7 @@ export const CustomerContacts: React.FC<{
       <div className="record-actions"><Button variant="ghost" size="sm" disabled={busy} onClick={() => onView(row)}><Eye size={14} />查看</Button>
         <Button variant="ghost" size="sm" disabled={busy || !!editBlockedReason('contact', row)} title={editBlockedReason('contact', row) || undefined} onClick={() => onEdit(row)}><Pencil size={14} />编辑</Button></div>
     </article>)}
-    {!loading && !error && page?.records.length === 0 && <p className="panel-note">该客户暂无联系人，可点击“新建联系人”，所属客户会自动带入。</p>}
+    {!loading && !error && page?.records.length === 0 && <p className="panel-note">{onCreate ? '该客户暂无联系人，可点击“新建联系人”，所属客户会自动带入。' : '所属客户暂无联系人，可返回客户全览新建。'}</p>}
     {loading && <p role="status" className="panel-note">正在读取联系人…</p>}
     {error && <div role="alert" className="panel-note">{error} <Button variant="ghost" size="sm" onClick={() => page ? void more() : setRetry(n => n + 1)}>重试</Button></div>}
     {page?.hasMore && <Button variant="outline" size="sm" disabled={loading} onClick={() => void more()}>加载更多联系人</Button>}

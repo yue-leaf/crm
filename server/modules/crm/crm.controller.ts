@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { NeedLogin } from '@lark-apaas/fullstack-nestjs-core';
 import type { Request } from 'express';
-import type { CrmSession } from '@shared/api.interface';
+import type { CrmSession, RelatedRecordsQuery } from '@shared/api.interface';
 import { CrmService } from './crm.service';
 import { crmAdmin, crmEmployee } from '@shared/crm-access';
 
@@ -54,6 +54,24 @@ export class CrmController {
   overview(@Req() req: Request, @Query('scope') scope = 'all') {
     const actor = this.session(req);
     return this.crm.overview(scope, actor.userId);
+  }
+
+  @Get('customers/:id/projects')
+  customerProjects(@Req() req: Request, @Param('id') id: string, @Query() query: RelatedRecordsQuery) {
+    this.session(req);
+    return this.crm.customerProjects(id, query);
+  }
+
+  @Get('customers/:id/followups')
+  customerFollowups(@Req() req: Request, @Param('id') id: string, @Query() query: RelatedRecordsQuery) {
+    this.session(req);
+    return this.crm.relatedFollowups('customer', id, query);
+  }
+
+  @Get('projects/:id/followups')
+  projectFollowups(@Req() req: Request, @Param('id') id: string, @Query() query: RelatedRecordsQuery) {
+    this.session(req);
+    return this.crm.relatedFollowups('project', id, query);
   }
 
   @Post('records/:kind')
