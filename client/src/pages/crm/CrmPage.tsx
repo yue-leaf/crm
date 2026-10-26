@@ -553,15 +553,6 @@ const CrmPage: React.FC = () => {
                 <section className="panel list-panel">
                   {active === 'project' && <div className="project-list-filter"><span>项目范围：{scope === 'mine' ? '我负责的' : '全部项目'}</span><span>筛选：{projectFilterLabels[projectFilter]}</span>
                     {(projectFilter !== 'all' || scope !== 'all') && <Button size="sm" variant="ghost" onClick={() => { requestVersion.current++; setQuery(''); setSearch(''); navigate('/crm/project'); }}>清除筛选</Button>}</div>}
-                  {(active === 'customer' || active === 'project') && <div className="followup-filter"><span>跟进状态</span>
-                    <Select value={followupFilter} onValueChange={(value: string) => {
-                      requestVersion.current++;
-                      const next = new URLSearchParams(params);
-                      if (value === 'all') next.delete('followupFilter'); else next.set('followupFilter', value);
-                      navigate('/crm/' + active + '?' + next.toString());
-                    }}><SelectTrigger aria-label="筛选跟进状态"><SelectValue /></SelectTrigger>
-                      <SelectContent>{Object.entries(followupFilterLabels).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent>
-                    </Select></div>}
                   <form
                     className="list-toolbar"
                     onSubmit={(e) => {
@@ -570,8 +561,8 @@ const CrmPage: React.FC = () => {
                       if (next === query) void reload(); else setQuery(next);
                     }}
                   >
-                    <div>
-                      <Search size={17} />
+                    <div className="toolbar-search">
+                      <Search size={16} aria-hidden="true" />
                       <Input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -582,12 +573,21 @@ const CrmPage: React.FC = () => {
                     <Button type="submit" variant="outline">
                       搜索
                     </Button>
+                    {(active === 'customer' || active === 'project') && <div className="followup-filter"><span>跟进状态</span>
+                      <Select value={followupFilter} onValueChange={(value: string) => {
+                        requestVersion.current++;
+                        const next = new URLSearchParams(params);
+                        if (value === 'all') next.delete('followupFilter'); else next.set('followupFilter', value);
+                        navigate('/crm/' + active + '?' + next.toString());
+                      }}><SelectTrigger aria-label="筛选跟进状态"><SelectValue>{followupFilter === 'all' ? '全部' : followupFilterLabels[followupFilter]}</SelectValue></SelectTrigger>
+                        <SelectContent>{Object.entries(followupFilterLabels).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent>
+                      </Select></div>}
                     {(search || query) && <Button type="button" variant="ghost" onClick={() => {
                       setSearch(''); if (query) setQuery(''); else void reload();
                     }}>清空搜索</Button>}
-                    <span role="status" aria-live="polite">
+                    <span className="toolbar-count" role="status" aria-live="polite">
                       {loading
-                        ? '正在读取飞书记录'
+                        ? '加载中…'
                         : `已加载 ${data?.records.length ?? 0} 条`}
                     </span>
                   </form>

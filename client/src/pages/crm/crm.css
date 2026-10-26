@@ -291,13 +291,13 @@
   align-items: center;
   padding: 20px 24px;
 }
-.list-toolbar > div {
+.list-toolbar > .toolbar-search {
   display: flex;
   align-items: center;
   width: 300px;
   gap: 9px;
 }
-.list-toolbar > div svg {
+.list-toolbar .toolbar-search > svg {
   color: #68717d;
 }
 .list-toolbar > span {
@@ -837,7 +837,7 @@
     padding: 16px;
     flex-wrap: wrap;
   }
-  .list-toolbar > div {
+  .list-toolbar > .toolbar-search {
     width: 210px;
   }
   .page-footer {
@@ -944,7 +944,7 @@
   .list-toolbar {
     padding: 0 0 16px;
   }
-  .list-toolbar > div {
+  .list-toolbar > .toolbar-search {
     flex: 1;
     width: auto;
     min-width: 140px;
@@ -1011,6 +1011,26 @@
   border: 1px solid #e9a0a8;
   font-weight: 600;
 }
-.followup-filter { display: flex; align-items: center; gap: 12px; padding: 16px 20px 0; font-size: 13px; }
-.followup-filter > button { width: 180px; }
 .workspace-followup-status { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 13px; color: #646a73; }
+
+/* Compact search and filters share a single, aligned toolbar. */
+.list-toolbar { flex-wrap: wrap; gap: 12px; padding: 18px 24px; }
+.list-toolbar > .toolbar-search { position: relative; width: 300px; min-width: 200px; gap: 0; }
+.list-toolbar .toolbar-search > svg { position: absolute; left: 12px; pointer-events: none; }
+.list-toolbar .toolbar-search > input { height: 36px; padding-left: 36px; font-size: 13px; }
+.list-toolbar > button { height: 36px; font-size: 13px; }
+.list-toolbar > .followup-filter { display: flex; align-items: center; gap: 8px; margin-left: 8px; font-size: 13px; }
+.followup-filter > span { color: #646a73; white-space: nowrap; }
+.followup-filter > button { width: 148px; height: 36px; font-size: 13px; background: #fff; }
+.list-toolbar > .toolbar-count { margin-left: auto; white-space: nowrap; }
+@media (max-width: 1100px) {
+  .list-toolbar > .toolbar-search { width: 240px; }
+  .list-toolbar > .followup-filter { margin-left: 0; }
+}
+@media (max-width: 640px) {
+  .list-toolbar { padding: 12px 0 16px; gap: 10px; }
+  .list-toolbar > .toolbar-search { flex: 1 1 180px; min-width: 140px; width: auto; }
+  .list-toolbar > .followup-filter { flex: 1 1 auto; }
+  .followup-filter > button { width: 148px; }
+  .list-toolbar > .toolbar-count { width: auto; }
+}
