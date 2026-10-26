@@ -50,9 +50,9 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
     { key: '客户备注', type: 'long' },
   ],
   contact: [
+    { key: '所属企业', label: '所属客户', type: 'relation', required: true, target: 'customer' },
     { key: '姓名', type: 'text', required: true },
     { key: '职务', type: 'text', required: true },
-    { key: '所属企业', type: 'relation', required: true, target: 'customer' },
     { key: '电话', type: 'text' },
     { key: '邮箱', type: 'text' },
     { key: '维护人', type: 'person', required: true },

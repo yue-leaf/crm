@@ -44,6 +44,12 @@ export class CrmController {
     return this.crm.summary();
   }
 
+  @Get('customers/:id/contacts')
+  customerContacts(@Req() req: Request, @Param('id') id: string, @Query('cursor') cursor?: string) {
+    this.session(req);
+    return this.crm.customerContacts(id, cursor);
+  }
+
   @Get('overview')
   overview(@Req() req: Request, @Query('scope') scope = 'all') {
     const actor = this.session(req);

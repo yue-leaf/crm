@@ -22,6 +22,7 @@ import { UserDisplay } from '@/components/business-ui/user-display';
 import type { Draft, FieldSpec } from '@shared/crm';
 import { textValue, linkIds } from '@shared/crm';
 import { RelationField } from './RelationField';
+import { CustomerLink } from './CustomerLink';
 import { displayDate, statusTone } from '@shared/crm-presentation';
 
 export const message = (e: unknown) =>
@@ -40,9 +41,10 @@ const personKeys = new Set([
   '修改人',
   '协同人员',
 ]);
-export const Cell: React.FC<{ name: string; value: unknown }> = ({
+export const Cell: React.FC<{ name: string; value: unknown; onOpenCustomer?: (id: string) => void }> = ({
   name,
   value,
+  onOpenCustomer,
 }) => {
   if (personKeys.has(name) && Array.isArray(value))
     return (
@@ -55,6 +57,7 @@ export const Cell: React.FC<{ name: string; value: unknown }> = ({
   const date = displayDate(name, value);
   if (date !== null) return <span title="北京时间">{date}</span>;
   const links = linkIds(value);
+  if (name === '所属企业') return links.length ? <div className="customer-links">{links.map(id => <CustomerLink key={id} id={id} onOpen={onOpenCustomer} />)}</div> : <span className="muted">未关联客户</span>;
   if (links.length)
     return <span className="muted">关联 {links.length} 条记录</span>;
   const s = textValue(value);
@@ -217,6 +220,7 @@ export const FieldInput: React.FC<{
         />
       )}
       {f.key === '电话' && <small className="field-hint">电话或邮箱至少填写一项。</small>}
+      {f.key === '所属企业' && f.label === '所属客户' && <small className="field-hint">请选择该联系人所属的企业客户；从客户详情新建时会自动带入。</small>}
       {f.type === 'datetime' && <small className="field-hint">北京时间，先选择日期，再填写时间。</small>}
       {error && <p className="field-error" id={`${fieldId}-error`}>{error}</p>}
     </div>
