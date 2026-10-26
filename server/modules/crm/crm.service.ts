@@ -7,7 +7,7 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { AuthNPaasService, CapabilityService } from '@lark-apaas/fullstack-nestjs-core';
+import { AuthNPaasService, CapabilityService, FileService } from '@lark-apaas/fullstack-nestjs-core';
 import { isDeepStrictEqual } from 'node:util';
 import type {
   CrmPage,
@@ -43,6 +43,8 @@ import { historicalContext } from './crm-workflow';
 import { buildProjectOverview, projectMatches, scopedProjects, sortProjects, validProjectFilter } from '@shared/crm-dashboard';
 import { followupStatus, sortFollowups, validFollowupFilter } from '@shared/crm-followup-status';
 import { CrmRelations } from './crm-relations';
+import { resolveAttachments, attachmentWriteMatches } from './crm-attachments';
+import { attachmentSignature } from '@shared/crm-attachments';
 
 @Injectable()
 export class CrmService {
@@ -51,6 +53,7 @@ export class CrmService {
   constructor(
     @Inject(CapabilityService) private readonly capability: CapabilityService,
     @Inject(AuthNPaasService) private readonly identities: AuthNPaasService,
+    @Inject(FileService) private readonly files: FileService,
   ) {}
 
   private kind(value: string): EntityKind {
@@ -452,11 +455,12 @@ export class CrmService {
             ? { 联系人状态: '有效' }
             : { 记录状态: '正常' },
     );
+    const attachmentCheck = key === 'followup' ? await this.prepareAttachments(fields) : undefined;
     const result = await this.call(key, 'batchAddRecords', {
       records: [{ record: fields }],
     });
     const id = this.writtenId(result);
-    await this.verifySaved(key, id, fields);
+    await this.verifySaved(key, id, fields, attachmentCheck);
     return {
       id,
       message: '已保存',
@@ -474,7 +478,18 @@ export class CrmService {
       throw new BadGatewayException('保存结果未确认，请先刷新核对');
     return result.records[0].id;
   }
-  private async verifySaved(key: EntityKind, id: string, fields: Record<string, unknown>): Promise<void> {
+  private async prepareAttachments(fields: Record<string, unknown>, previous?: unknown) {
+    if (!Object.hasOwn(fields, '附件')) return undefined;
+    try {
+      const result = await resolveAttachments(fields['附件'] as string[], previous, this.files);
+      fields['附件'] = result.urls;
+      return result.expected;
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      throw new BadRequestException('附件处理失败，记录尚未保存，请重新上传或稍后重试');
+    }
+  }
+  private async verifySaved(key: EntityKind, id: string, fields: Record<string, unknown>, attachmentCheck?: { name: string; size: number }[]): Promise<void> {
     let saved: CrmRecord;
     try {
       saved = await this.get(key, id);
@@ -484,6 +499,7 @@ export class CrmService {
     const specs = [...forms[key], ...planFields, ...endFields, ...progressFields];
     const mismatch = Object.entries(fields).some(([name, expected]) => {
       const actual = saved.record[name];
+      if (name === '附件' && attachmentCheck) return !attachmentWriteMatches(actual, attachmentCheck);
       if (expected === null) return actual != null;
       if (Array.isArray(expected)) {
         const values = specs.find((f) => f.key === name)?.type === 'relation'
@@ -593,14 +609,18 @@ export class CrmService {
     } else if (operation === 'access' && key === 'access') {
       fields = parseDraft(input, forms.access, this.enums(key)).fields;
     } else reject('操作', '不支持的操作');
-    // Base has no atomic compare-and-set. Recheck after slow relation/person reads;
+    const attachmentCheck = key === 'followup' ? await this.prepareAttachments(fields, row.record['附件']) : undefined;
+    // Base has no atomic compare-and-set. Recheck after slow relation/person/file reads;
     // a process-local lock also excludes overlapping updates in this instance.
     for (const check of related) {
       if (!isDeepStrictEqual(check.row.record, (await this.get(check.kind, check.row.id)).record))
         throw new ConflictException('关联记录在操作期间已变化，请刷新后重新操作');
     }
     const latest = await this.get(key, id);
-    if (!isDeepStrictEqual(row.record, latest.record))
+    // Download signatures expire/rotate; compare attachment identity metadata instead.
+    const comparable = (record: CrmRecord['record']) => key === 'followup'
+      ? { ...record, 附件: attachmentSignature(record['附件']) } : record;
+    if (!isDeepStrictEqual(comparable(row.record), comparable(latest.record)))
       throw new ConflictException('记录在校验期间已变化，请刷新后重新操作');
     const written = this.writtenId(
       await this.call(key, 'batchUpdateRecords', {
@@ -608,7 +628,7 @@ export class CrmService {
       }),
     );
     if (written !== id) throw new BadGatewayException('保存响应记录不一致，请刷新核对');
-    await this.verifySaved(key, id, fields);
+    await this.verifySaved(key, id, fields, attachmentCheck);
     return {
       id,
       message:

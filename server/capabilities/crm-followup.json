@@ -128,7 +128,7 @@
         "type": 17,
         "bizType": "Attachment",
         "readable": true,
-        "writeable": false
+        "writeable": true
       },
       {
         "id": "fldnVUhIme",

@@ -110,9 +110,9 @@ export const RelationField: React.FC<{
       const issue = contactChoiceProblem(row, occurredAt ?? NaN);
       return issue ? <p key={row.id} className="field-error" role="alert">{textValue(row.record['姓名'])}：{issue}</p> : null;
     })}
-    {field.key === '关联项目' && customerId !== undefined && <small>{customerId ? '选填；只显示该客户的项目。' : '请先选择客户。'}</small>}
+    {field.key === '关联项目' && customerId === '' && <small>请先选择客户</small>}
     {field.target === 'contact' && <div className="flex flex-wrap items-center gap-2">
-      <small>{customerId ? '只显示该客户的联系人，可多选。' : '请先选择客户。'}</small>
+      {!customerId && <small>请先选择客户</small>}
       {onCreateContact && <Button type="button" size="sm" variant="ghost" disabled={disabled || !customerId}
         onClick={onCreateContact}>新建联系人</Button>}
     </div>}

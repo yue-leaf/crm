@@ -66,7 +66,7 @@ export function prepareEdit(
     const field = spec.find((f) => f.key === key)!;
     if (checked.fields[key] !== undefined) writes[key] = checked.fields[key];
     else if (field.type === 'text' || field.type === 'long') writes[key] = '';
-    else if (field.type === 'person' || field.type === 'relation')
+    else if (field.type === 'person' || field.type === 'relation' || field.type === 'attachment')
       writes[key] = [];
     else
       reject(

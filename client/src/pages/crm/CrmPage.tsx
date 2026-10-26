@@ -78,7 +78,7 @@ import type { FollowupFilter } from '@shared/api.interface';
 import { projectFacts, validProjectFilter } from '@shared/crm-dashboard';
 import { numberValue, detailFieldLabel } from '@shared/crm-presentation';
 import { projectFilterLabels } from '@shared/crm-dashboard';
-import { changeFilter, actionDraft, suggestedPlan, followupTime, suggestionKey, readPlanSuggestion } from '@shared/crm-ux';
+import { changeFilter, actionDraft, suggestedPlan, suggestionKey, readPlanSuggestion } from '@shared/crm-ux';
 import { defaultFollowupView, type FollowupView } from './FollowupFeed';
 import { RelatedPageMemory } from './RelatedPageMemory';
 import type { RelatedPosition } from '@shared/crm-navigation';
@@ -189,6 +189,9 @@ const CrmPage: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const uploadingRef = useRef(false);
+  const onUploadBusy = useCallback((busy: boolean) => { uploadingRef.current = busy; setUploading(busy); }, []);
   const [uncertain, setUncertain] = useState(false);
   const savingRef = useRef(false);
   const detailVersion = useRef(0);
@@ -315,7 +318,7 @@ const CrmPage: React.FC = () => {
     row?: CrmRecord,
     preset: Draft = {},
   ) => {
-    if (savingRef.current) return;
+    if (savingRef.current || uploadingRef.current) return;
     editorOrigin.current = currentLocation();
     planSuggestion.current = null;
     setFollowupCustomer(''); setCustomerResolveError('');
@@ -428,13 +431,13 @@ const CrmPage: React.FC = () => {
     return true;
   };
   const newContactDuringFollowup = () => {
-    if (!editor || !followupCustomer || savingRef.current) return;
+    if (!editor || !followupCustomer || savingRef.current || uploadingRef.current) return;
     const suspended: SuspendedEditor = { editor, draft: structuredClone(draft), initial: initialDraft.current, origin: editorOrigin.current };
     openEditor('contact', 'create', undefined, { 所属企业: [followupCustomer] });
     suspendedEditor.current = suspended;
   };
   const closeEditor = () => {
-    if (savingRef.current) return;
+    if (savingRef.current || uploadingRef.current) return;
     if (!uncertain && editor && (
       Object.keys(changedFields(initialDraft.current, draft, specs(editor))).length
     )) {
@@ -450,7 +453,7 @@ const CrmPage: React.FC = () => {
     }
   };
   const save = async () => {
-    if (!editor || savingRef.current || uncertain) return;
+    if (!editor || savingRef.current || uploadingRef.current || uncertain) return;
     const errors = missingFields(specs(editor).filter(showField).map((field) => requiredField(field, editor.kind, editor.operation, draft)), draft);
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
@@ -573,7 +576,7 @@ const CrmPage: React.FC = () => {
     finally { setOpeningId(null); }
   };
   const set = (key: string, value: Draft[string]) => {
-    if (savingRef.current) return;
+    if (savingRef.current || (uploadingRef.current && key !== '附件')) return;
     setFieldErrors((previous) => {
       const next = { ...previous }; delete next[key];
       if (key === FOLLOWUP_CUSTOMER) { delete next['关联项目']; delete next['客户联系人']; }
@@ -843,8 +846,7 @@ const CrmPage: React.FC = () => {
                       {active === 'project' ? '没有符合当前范围与筛选条件的项目，可清除筛选或新建项目。' : query ? '没有找到匹配记录，请更换关键词或清空搜索。' : active === 'access' ? '尚无成员记录，请先在飞书同步通讯录。' : '还没有记录，点击右上角新建开始填写。'}
                     </div>
                   )}
-                  <div className="list-footer">
-                    <span>保存后自动更新</span>
+                  <div className="list-footer" hidden={!data?.hasMore}>
                     {data?.hasMore && (
                       <Button
                         variant="outline"
@@ -998,7 +1000,7 @@ const CrmPage: React.FC = () => {
                         : '提出结束建议'
               : ''}
           </DialogTitle>
-          <DialogDescription className={editor?.operation === 'edit' ? 'sr-only' : undefined}>
+          <DialogDescription className="sr-only">
             {editor?.operation === 'create'
               ? '填写信息后保存。'
               : editor?.operation === 'edit'
@@ -1010,12 +1012,6 @@ const CrmPage: React.FC = () => {
           </header>
           <form className="crm-editor-form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
           <div className="crm-dialog-body">
-          {editor?.kind === 'followup' && shanghaiDay(followupTime(draft['实际发生时间'])) < shanghaiDay(now) && (
-            <p className="panel-note">
-              正在补录历史跟进，请填写实际发生时间；联系人需在当时有效。
-            </p>
-          )}
-          {editor?.operation === 'progress' && <p className="panel-note">更新进展时可一起调整下一步计划；暂停时保留原计划。</p>}
           {editor?.operation === 'plan' && editor.row && <p className="panel-note">当前计划：{textValue(editor.row.record['当前下一步行动']) || '尚未安排'}。保存后将采用下方计划。</p>}
           {editor && isLifecycle(editor.operation) && <p className="panel-note">
             {editor.operation === 'confirm-end' ? '确认后项目停止活动推进，可在结束后归档。取消项目必须说明原因。'
@@ -1026,7 +1022,7 @@ const CrmPage: React.FC = () => {
           {editor?.operation === 'edit' && editor.kind === 'project' && draft['项目类型'] !== '销售机会' && (
             <p className="panel-note">切换为非销售类型时保留原有商务信息，不新增商务金额；详情仍可查看历史值。</p>
           )}
-            <fieldset className="form-grid" disabled={saving || uncertain}>
+            <fieldset className="form-grid" disabled={saving || uploading || uncertain}>
               {editor &&
                 specs(editor)
                   .filter(showField)
@@ -1039,7 +1035,8 @@ const CrmPage: React.FC = () => {
                       customerId={editor.kind === 'followup' && ['关联项目', '客户联系人'].includes(f.key) ? followupCustomer : undefined}
                       onCreateContact={editor.kind === 'followup' && f.key === '客户联系人' ? newContactDuringFollowup : undefined}
                       onChange={set}
-                      disabled={saving || uncertain || (editor.kind === 'followup' && ['关联项目', '客户联系人'].includes(f.key) && !followupCustomer) ||
+                      onUploadBusy={onUploadBusy}
+                      disabled={saving || uploading || uncertain || (editor.kind === 'followup' && ['关联项目', '客户联系人'].includes(f.key) && !followupCustomer) ||
                         (Boolean(suspendedEditor.current) && f.key === '所属企业')}
                     />
                   ))}
@@ -1056,12 +1053,12 @@ const CrmPage: React.FC = () => {
               <Button
                 type="button"
                 variant="outline"
-                disabled={saving}
+                disabled={saving || uploading}
                 onClick={closeEditor}
               >
                 {suspendedEditor.current ? '返回跟进' : '取消'}
               </Button>
-              <Button type="submit" disabled={saving || uncertain}>
+              <Button type="submit" disabled={saving || uploading || uncertain}>
                 {saving ? (
                   <>
                     <LoaderCircle size={16} className="spin" />

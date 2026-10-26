@@ -1,6 +1,7 @@
 import type { EntityKind, CrmRecord } from './api.interface';
 import { forms, textValue, linkIds } from './crm';
 import type { Draft, FieldSpec } from './crm';
+import { attachmentDraft } from './crm-attachments';
 
 // Parent migration and project lifecycle changes use their dedicated workflows.
 const locked = new Set([
@@ -42,6 +43,7 @@ export function recordDraft(
     else if (f.type === 'person')
       out[f.key] = Array.isArray(value) ? value.map(String) : null;
     else if (f.type === 'relation') out[f.key] = linkIds(value);
+    else if (f.type === 'attachment') out[f.key] = attachmentDraft(value);
     else if (f.type === 'number')
       out[f.key] = typeof value === 'number' ? value : null;
     else if (f.type === 'date' || f.type === 'datetime') {

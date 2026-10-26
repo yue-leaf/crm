@@ -20,5 +20,5 @@ export function useFollowupClock(): number {
 export function FollowupBadge({ record }: { record: CrmRecord['record'] }) {
   const now = useFollowupClock();
   const status = followupStatus(record, now);
-  return <span className={`tag ${status.tone}`} title="按北京时间的下次跟进日期计算">{status.label}</span>;
+  return <span className={`tag ${status.tone}`}>{status.label}</span>;
 }

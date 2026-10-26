@@ -20,7 +20,7 @@ export const ProjectDashboard: React.FC<Props> = ({ data, summary, loading, onFi
   const metrics = [
     { key: 'active', label: '在办项目', value: data?.active, note: '待启动、进行中及暂停', icon: Clock3 },
     { key: 'attention', label: '需要关注', value: data?.attention, note: '逾期、今日、明日及未安排 · 按项目去重', icon: CircleAlert },
-    { key: 'month-completed', label: '本月完成', value: data?.monthCompleted, note: '按北京时间结束日期', icon: FileCheck2 },
+    { key: 'month-completed', label: '本月完成', value: data?.monthCompleted, note: '本月结束且已完成', icon: FileCheck2 },
   ] as const;
   return <div className="project-dashboard" aria-busy={loading}>
     <section className="project-metrics" aria-label="项目关键指标">
@@ -52,7 +52,7 @@ export const ProjectDashboard: React.FC<Props> = ({ data, summary, loading, onFi
           { filter: 'today', label: '项目今日需跟进', value: data?.today, tone: 'urgent' },
           { filter: 'tomorrow', label: '项目明日需跟进', value: data?.tomorrow, tone: 'warning' },
         ].map(item => <button key={item.filter} disabled={loading || !data} onClick={() => onFilter(item.filter as ProjectFilter)}><span className={`priority-dot ${item.tone}`} /><span><strong>{count(item.value)}</strong> 个{item.label}</span><ArrowRight size={16} /></button>)}</div>
-        <p className="dashboard-status-note">跟进提醒按北京时间计算，已结束和已归档项目不参与提醒。</p>
+        <p className="dashboard-status-note">已结束和已归档项目不参与提醒。</p>
       </section>
     </div>
     <section className="panel project-tracking">

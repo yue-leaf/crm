@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import type { FieldSpec, Draft } from '@shared/crm';
+import { attachmentRef, MAX_ATTACHMENTS } from '@shared/crm-attachments';
 
 export function reject(field: string, message: string): never {
   throw new BadRequestException(`${field}：${message}`);
@@ -71,6 +72,13 @@ export function parseDraft(
           reject(f.key, '人员标识超出插件安全范围');
         fields[f.key] = n;
       } else fields[f.key] = ids;
+    } else if (f.type === 'attachment') {
+      if (!Array.isArray(v) || v.length > MAX_ATTACHMENTS || v.some(x => typeof x !== 'string' || x.length > 4096))
+        reject(f.key, '附件信息无效或数量超限');
+      try { for (const item of v) attachmentRef(item); }
+      catch { reject(f.key, '附件信息无效，请重新选择文件'); }
+      draft[f.key] = v as string[];
+      fields[f.key] = v;
     } else if (f.type === 'date' || f.type === 'datetime') {
       fields[f.key] = dateMillis(v, f.key, f.type === 'datetime');
       draft[f.key] = String(v);
