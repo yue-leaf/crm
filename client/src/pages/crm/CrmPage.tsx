@@ -298,7 +298,7 @@ const CrmPage: React.FC = () => {
       if (editorRequest === editorRequestVersion.current) setOpeningId(null);
     }
   };
-  const detail = async (row: CrmRecord, kind = active, contextCustomerId?: string) => {
+  const detail = async (row: CrmRecord, kind = active, contextCustomerId?: string, initialTab: 'followups' | 'contacts' = 'followups') => {
     if (kind === 'home') return;
     const version = requestVersion.current;
     const detailRequest = ++detailVersion.current;
@@ -307,7 +307,7 @@ const CrmPage: React.FC = () => {
       const next = await api.get(kind, row.id);
       if (version === requestVersion.current && detailRequest === detailVersion.current) {
         setSelectionKind(kind);
-        setDetailTab('followups');
+        setDetailTab(initialTab);
         const parents: string[] = linkIds(next.record[kind === 'followup' ? '直接客户' : '所属企业']);
         setCustomerContext(kind === 'customer' ? next.id : contextCustomerId || (parents.length === 1 ? parents[0] : null));
         setSelection(next);
@@ -615,12 +615,12 @@ const CrmPage: React.FC = () => {
                                     {textValue(row.record[c]) || '未命名'}
                                   </button>
                                 ) : c === '跟进状态' ? <FollowupBadge record={row.record} /> : (
-                                  <Cell name={c} value={row.record[c]} onOpenCustomer={id => void detail({ id, record: {} }, 'customer')} />
+                                  <Cell name={c} value={row.record[c]} onOpenCustomer={id => void detail({ id, record: {} }, 'customer', undefined, active === 'contact' ? 'contacts' : 'followups')} />
                                 )}
                               </td>
                             ))}
                             <td role="cell" data-label="操作" className="record-actions">
-                              {active === 'customer' && <Button variant="ghost" size="sm" disabled={detailLoadingId === row.id} onClick={() => void detail(row, 'customer')}><Users size={14} />联系人</Button>}
+                              {active === 'customer' && <Button variant="ghost" size="sm" disabled={detailLoadingId === row.id} onClick={() => void detail(row, 'customer', undefined, 'contacts')}><Users size={14} />联系人</Button>}
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -722,18 +722,17 @@ const CrmPage: React.FC = () => {
           }
         }}
       >
-        <DialogContent className="crm-dialog crm-detail-dialog">
+        <DialogContent className="crm-dialog crm-detail-dialog" aria-describedby={undefined}>
           <header className="crm-dialog-header">
           {customerContext && selectionKind !== 'customer' && <Button type="button" variant="ghost" size="sm"
             className="detail-customer-back" disabled={!!detailLoadingId}
-            onClick={() => void detail({ id: customerContext, record: {} }, 'customer')}>
+            onClick={() => void detail({ id: customerContext, record: {} }, 'customer', undefined, selectionKind === 'contact' ? 'contacts' : 'followups')}>
             <ArrowLeft size={14} />返回客户全览</Button>}
           <DialogTitle>
             {selection
               ? textValue(selection.record[titles[selectionKind]])
               : '记录详情'}
           </DialogTitle>
-          <DialogDescription>{labels[selectionKind]} · 时间按北京时间展示</DialogDescription>
           </header>
           <div className="crm-dialog-body">
           {selection && (
@@ -760,7 +759,7 @@ const CrmPage: React.FC = () => {
                     onCreate={(kind: 'contact' | 'project') => openEditor(kind, 'create', undefined,
                       relatedDraft('customer', selection, kind))} />
                 : <RecordDetails key={`${selectionKind}:${selection.id}`} record={selection.record}
-                    onOpenCustomer={(id: string) => void detail({ id, record: {} }, 'customer')} />}
+                    onOpenCustomer={(id: string) => void detail({ id, record: {} }, 'customer', undefined, selectionKind === 'contact' ? 'contacts' : 'followups')} />}
 
             </>
           )}
