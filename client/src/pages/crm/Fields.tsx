@@ -27,6 +27,7 @@ import { ContactName } from './ContactName';
 import { displayBoolean, displayDate, statusTone } from '@shared/crm-presentation';
 import { followupTime } from '@shared/crm-ux';
 import type { EntityKind } from '@shared/api.interface';
+import { AttachmentField, AttachmentList } from './AttachmentField';
 
 export const message = (e: unknown) =>
   e instanceof Error ? e.message : '操作未完成，请稍后重试';
@@ -51,6 +52,7 @@ export const Cell: React.FC<{ name: string; value: unknown; onOpenCustomer?: (id
   onOpenCustomer,
   onOpenRecord,
 }) => {
+  if (name === '附件') return <AttachmentList value={value} />;
   const booleanLabel = displayBoolean(name, value);
   if (booleanLabel !== null) return <span className={name === '已归档' ? 'tag neutral' : undefined}>{booleanLabel}</span>;
   if (personKeys.has(name) && Array.isArray(value))
@@ -62,7 +64,7 @@ export const Cell: React.FC<{ name: string; value: unknown; onOpenCustomer?: (id
       </div>
     );
   const date = displayDate(name, value);
-  if (date !== null) return <span title="北京时间">{date}</span>;
+  if (date !== null) return <span>{date}</span>;
   const links = linkIds(value);
   const relationKind: EntityKind | undefined = ({ 客户联系人: 'contact', 已沟通联系人: 'contact', 联系人: 'contact',
     直接客户: 'customer', 关联项目: 'project', 项目: 'project', 相关业务项目: 'project' } as Record<string, EntityKind>)[name];
@@ -117,11 +119,11 @@ const DateField: React.FC<{
       </Popover>
       {time && (
         <Input
-          aria-label={`${label}（北京时间）`}
+          aria-label={label}
           type="time"
           step="1"
           disabled={!value.slice(0, 10)}
-          title={value ? '北京时间' : '请先选择日期'}
+          title={value ? undefined : '请先选择日期'}
           value={value.slice(11)}
           onChange={(e) =>
             onChange(
@@ -141,7 +143,8 @@ export const FieldInput: React.FC<{
   error?: string;
   customerId?: string;
   onCreateContact?: () => void;
-}> = ({ field: f, draft, onChange, disabled, error, customerId, onCreateContact }) => {
+  onUploadBusy?: (busy: boolean) => void;
+}> = ({ field: f, draft, onChange, disabled, error, customerId, onCreateContact, onUploadBusy }) => {
   const fieldId = useId();
   const set = (v: Draft[string]) => onChange(f.key, v);
   const personValue = Array.isArray(draft[f.key]) ? (draft[f.key] as string[]) : [];
@@ -155,7 +158,7 @@ export const FieldInput: React.FC<{
     slotProps: { popover: { collisionPadding: 12 } },
   };
   return (
-    <div className={`field ${f.type === 'long' ? 'wide' : ''}`} data-field={f.key}
+    <div className={`field ${f.type === 'long' || f.type === 'attachment' ? 'wide' : ''}`} data-field={f.key}
       data-invalid={Boolean(error)} role="group" aria-labelledby={`${fieldId}-label`}
       aria-describedby={error ? `${fieldId}-error` : undefined} onClickCapture={(event) => {
       // The platform clear button omits type; clearing a person must not submit this form.
@@ -166,7 +169,8 @@ export const FieldInput: React.FC<{
         {f.label || f.key}
         {f.required && <em> *</em>}
       </label>
-      {f.type === 'person' ? (
+      {f.type === 'attachment' ? <AttachmentField value={Array.isArray(draft[f.key]) ? draft[f.key] as string[] : []}
+        onChange={set} disabled={disabled} onBusy={onUploadBusy} /> : f.type === 'person' ? (
         <>
           {f.multiple ? (
             <UserSelect {...personProps} multiple value={personValue} onChange={set} />
@@ -238,7 +242,6 @@ export const FieldInput: React.FC<{
       )}
       {f.key === '电话' && <small className="field-hint">电话或邮箱至少填写一项。</small>}
       {f.key === '联系人状态' && draft['联系人状态'] === '停用' && <small className="field-hint">停用后保留历史跟进记录。</small>}
-      {f.type === 'datetime' && <small className="field-hint">北京时间</small>}
       {error && <p className="field-error" id={`${fieldId}-error`}>{error}</p>}
     </div>
   );

@@ -11,6 +11,7 @@ export interface FieldSpec {
     | 'relation'
     | 'date'
     | 'datetime'
+    | 'attachment'
     | 'number';
   required?: boolean;
   multiple?: boolean;
@@ -129,6 +130,7 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
     { key: '建议处理人', type: 'person' },
     { key: '建议日期', type: 'date' },
     { key: '无后续动作结论', type: 'long' },
+    { key: '附件', type: 'attachment', multiple: true },
   ],
   access: [
     {
