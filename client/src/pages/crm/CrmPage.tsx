@@ -127,7 +127,9 @@ const specs = (editor: Editor): FieldSpec[] =>
         ? endFields
         : editor.operation === 'review'
           ? [{ key: '核查说明', type: 'long', required: true }]
-          : forms[editor.kind];
+          : editor.operation === 'access'
+            ? forms.access.filter((field) => field.key === '待配置角色')
+            : forms[editor.kind];
 const CrmPage: React.FC = () => {
   const navigate = useNavigate();
   const { section } = useParams();
@@ -870,7 +872,7 @@ const CrmPage: React.FC = () => {
                     正在保存
                   </>
                 ) : (
-                  '保存到飞书'
+                  '保存'
                 )}
               </Button>
             </div>
