@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { MessageSquareText, Search, ArrowUpRight } from 'lucide-react';
+import { MessageSquareText, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api } from '@/api/crm';
@@ -29,7 +29,7 @@ export function FollowupFeed({ kind, id, busy, onView }: Props) {
         onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setScope(event.target.value as FollowupScope)}>
         <option value="all">全部跟进</option><option value="direct">客户直接跟进</option><option value="project">项目跟进</option>
       </select>}
-      <div><Search size={15} /><Input aria-label="搜索跟进记录" placeholder="搜索主题或推进结论" value={search}
+      <div><Input aria-label="搜索跟进记录" placeholder="搜索主题或推进结论" value={search}
         onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearch(event.target.value)} /></div>
       <Button type="submit" variant="outline" size="sm">搜索</Button>
       {(search || query) && <Button type="button" variant="ghost" size="sm" onClick={() => { setSearch(''); if (query) setQuery(''); else retry(); }}>清空</Button>}
