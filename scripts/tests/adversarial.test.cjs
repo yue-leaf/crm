@@ -38,13 +38,6 @@ test('reject update when Base changes during employee validation, even with same
   await assert.rejects(() => f.service.update('customer', 'recCompany', 'plan', plan, 'test'), e => e.getStatus() === 409);
   assert.equal(f.writes.length, 0);
 });
-test('clear access notes explicitly while preserving omitted fields', async () => {
-  const f = fixture({ id: 'recAccess', record: { 修改时间: 1, 授权范围说明: { text: 'old' }, 权限核验记录: { text: 'history' } } });
-  await f.service.update('access', 'recAccess', 'access', { expectedModifiedAt: 1, 待配置角色: '员工', 授权范围说明: '' }, 'test');
-  assert.equal(f.row.record.授权范围说明, '');
-  assert.deepEqual(f.row.record.权限核验记录, { text: 'history' });
-});
-
 test('access configuration accepts only employee/admin and rejects removed fields', async () => {
   for (const role of ['员工', '管理员']) {
     const f = fixture({ id: 'recAccess', record: { 修改时间: 1 } });
@@ -52,7 +45,8 @@ test('access configuration accepts only employee/admin and rejects removed field
     assert.equal(f.row.record.待配置角色, role);
   }
   for (const patch of [{ 待配置角色: '只读' }, { 待配置角色: '系统管理员' },
-    { 待配置角色: '员工', 处理请求: '申请开通' }, { 待配置角色: '员工', 目录状态: '已激活' }]) {
+    { 待配置角色: '员工', 处理请求: '申请开通' }, { 待配置角色: '员工', 目录状态: '已激活' },
+    { 待配置角色: '员工', 授权范围说明: 'old' }, { 待配置角色: '员工', 权限核验记录: 'old' }]) {
     const f = fixture({ id: 'recAccess', record: { 修改时间: 1 } });
     await assert.rejects(() => f.service.update('access', 'recAccess', 'access', { expectedModifiedAt: 1, ...patch }, 'test'));
     assert.equal(f.writes.length, 0);

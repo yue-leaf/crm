@@ -579,10 +579,6 @@ export class CrmService {
       fields['核查标记'] = '待核查';
     } else if (operation === 'access' && key === 'access') {
       fields = parseDraft(input, forms.access, this.enums(key)).fields;
-      for (const f of forms.access) {
-        if ((f.type === 'text' || f.type === 'long') && Object.hasOwn(input, f.key) && fields[f.key] === undefined)
-          fields[f.key] = '';
-      }
     } else if (operation === 'review' && key !== 'access') {
       const parsed = parseDraft(
         input,
