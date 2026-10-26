@@ -4,7 +4,7 @@ import { followupStatus, followupFilterLabels, sortFollowups } from './crm-follo
 export const projectStates = ['进行中', '待启动', '暂停', '已完成', '已取消'] as const;
 export const projectFilterLabels: Record<ProjectFilter, string> = {
   active: '在办项目', attention: '需要关注', 'month-completed': '本月完成',
-  ...followupFilterLabels, all: '全部未归档项目', 'missing-plan': '缺少下一步计划',
+  ...followupFilterLabels, all: '全部项目', 'missing-plan': '缺少下一步计划',
   待启动: '待启动', 进行中: '进行中', 暂停: '暂停', 已完成: '已完成', 已取消: '已取消', archived: '已归档',
 };
 export function validProjectFilter(value: string): value is ProjectFilter { return Object.prototype.hasOwnProperty.call(projectFilterLabels, value); }
@@ -31,10 +31,10 @@ export function projectFacts(row: CrmRecord, now: number) {
 }
 export function projectMatches(row: CrmRecord, filter: ProjectFilter, now: number): boolean {
   const f = projectFacts(row, now);
+  if (filter === 'all') return true;
   if (filter === 'archived') return f.archived;
   if (filter === 'none') return f.followup.key === 'none';
   if (f.archived) return false;
-  if (filter === 'all') return true;
   if (filter === 'active') return f.active;
   if (filter === 'attention') return f.attention;
   if (filter === 'month-completed') return f.monthCompleted;
