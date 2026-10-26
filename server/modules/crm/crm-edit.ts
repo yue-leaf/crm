@@ -39,14 +39,29 @@ export function prepareEdit(
   );
   const raw = input.changes as Record<string, unknown>;
   // Customer status is editable but is initialized by the server on creation.
-  const validationSpec = kind === 'customer' ? spec : forms[kind];
+  const validationSpec = kind === 'customer' ? spec : kind === 'contact'
+    ? [...forms.contact, ...spec.filter((field) => ['联系人状态', '停用原因'].includes(field.key))]
+    : forms[kind];
   const before = recordDraft(row.record, validationSpec);
   const merged = { ...before };
   for (const key of Object.keys(raw)) merged[key] = patch.draft[key];
+  if (kind === 'contact' && merged['联系人状态'] === '有效') merged['停用原因'] = null;
   const checked = parseDraft(merged, kind === 'project' ? existingProjectFields(row.record) : validationSpec, enums);
   const changes = changedFields(before, checked.draft, spec);
   if (!Object.keys(changes).length) reject('编辑', '没有需要保存的修改');
   const writes: Record<string, unknown> = {};
+  if (kind === 'contact') {
+    const status = checked.draft['联系人状态'];
+    if (status === '停用' && !checked.draft['停用原因']) reject('停用原因', '停用联系人时必填');
+    if (status === '有效') {
+      writes['停用时间'] = null;
+      writes['停用原因'] = '';
+    } else if (textValue(row.record['联系人状态']) !== '停用') {
+      writes['停用时间'] = Date.now();
+    } else if (typeof row.record['停用时间'] !== 'number' || !Number.isFinite(row.record['停用时间']) || row.record['停用时间'] > Date.now()) {
+      reject('停用时间', '历史停用时间异常，请先在原表核对');
+    }
+  }
   for (const key of Object.keys(changes)) {
     const field = spec.find((f) => f.key === key)!;
     if (checked.fields[key] !== undefined) writes[key] = checked.fields[key];
@@ -71,6 +86,10 @@ export function prepareEdit(
   const auditKey = kind === 'contact' ? '联系人管理记录' : '管理记录';
   const note = [
     textValue(row.record[auditKey]),
+    ...(kind === 'contact' && Object.hasOwn(changes, '联系人状态') ? [
+      `联系人状态：${textValue(row.record['联系人状态'])} → ${String(checked.draft['联系人状态'])}`,
+      `停用信息：${String(writes['停用时间'] ?? row.record['停用时间'] ?? '')} · ${textValue(writes['停用原因'] || row.record['停用原因'] || checked.draft['停用原因'])}`,
+    ] : []),
     `资料修改 · ${new Date().toISOString()} · 操作人 ${actor}\n字段：${Object.keys(changes).join('、')}${reason ? `\n说明：${String(reason)}` : ''}`,
   ]
     .filter(Boolean)

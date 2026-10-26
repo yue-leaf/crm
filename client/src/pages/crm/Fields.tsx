@@ -221,6 +221,7 @@ export const FieldInput: React.FC<{
         />
       )}
       {f.key === '电话' && <small className="field-hint">电话或邮箱至少填写一项。</small>}
+      {f.key === '联系人状态' && <small className="field-hint">停用需填写原因，保存时自动记录停用时间；恢复有效会保留历史管理记录。</small>}
       {f.key === '所属企业' && f.label === '所属客户' && <small className="field-hint">请选择该联系人所属的企业客户；从客户详情新建时会自动带入。</small>}
       {f.type === 'datetime' && <small className="field-hint">北京时间，先选择日期，再填写时间。</small>}
       {error && <p className="field-error" id={`${fieldId}-error`}>{error}</p>}
