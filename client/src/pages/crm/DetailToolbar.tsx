@@ -1,5 +1,6 @@
 import React from 'react';
-import { MoreHorizontal, Pencil, MessageSquarePlus, ArrowUpRight } from 'lucide-react';
+import { MoreHorizontal, Pencil, MessageSquarePlus, ArrowUpRight, Archive, ArchiveRestore, RotateCcw, CheckCircle2, TrendingUp, Flag } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -18,6 +19,14 @@ interface Props {
   onFollowup: () => void;
   onTarget: () => void;
 }
+interface ToolbarAction {
+  operation: string;
+  label: string;
+  icon: LucideIcon;
+}
+const lifecycleIcons: Record<CrmLifecycleOperation, LucideIcon> = {
+  'confirm-end': CheckCircle2, archive: Archive, restore: ArchiveRestore, reopen: RotateCcw,
+};
 export function DetailToolbar({ kind, row, busy, onEdit, onAction, onFollowup, onTarget }: Props) {
   const business: boolean = kind === 'customer' || kind === 'project';
   const editReason: string = editBlockedReason(kind, row);
@@ -28,6 +37,19 @@ export function DetailToolbar({ kind, row, busy, onEdit, onAction, onFollowup, o
       : op === 'archive' ? row.record['已归档'] !== true
       : op === 'confirm-end' ? textValue(row.record['终局确认']) === '未确认'
       : ['已完成', '已取消'].includes(textValue(row.record['终局确认'])));
+  const progressActions: ToolbarAction[] = kind === 'project' && !advanceReason ? [
+    { operation: 'progress', label: '更新项目进展', icon: TrendingUp },
+    { operation: 'suggest-end', label: '提出结束建议', icon: Flag },
+  ] : [];
+  const stateActions: ToolbarAction[] = business ? lifecycle
+    .filter((operation: CrmLifecycleOperation) => !lifecycleBlocked(kind, operation, row))
+    .map((operation: CrmLifecycleOperation) => ({ operation, label: lifecycleTitles[operation], icon: lifecycleIcons[operation] })) : [];
+  const actions: ToolbarAction[] = [...progressActions, ...stateActions];
+  const groups = [
+    { label: '计划与推进', actions: progressActions },
+    { label: '状态管理', actions: stateActions },
+  ].filter(group => group.actions.length > 0);
+  const singleAction: ToolbarAction | undefined = actions.length === 1 ? actions[0] : undefined;
   return <div className="detail-toolbar" aria-label="记录操作">
     <div className="detail-toolbar-primary">
       {business && <Button size="sm" disabled={busy}
@@ -39,20 +61,17 @@ export function DetailToolbar({ kind, row, busy, onEdit, onAction, onFollowup, o
       {kind === 'followup' && followupTarget(row) && <Button size="sm" variant="outline" disabled={busy}
         onClick={onTarget}>查看所属对象<ArrowUpRight size={14} /></Button>}
     </div>
-    {business && <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" disabled={busy}
+    {singleAction && <Button size="sm" variant="ghost" className="detail-toolbar-secondary" disabled={busy}
+      onClick={() => onAction(singleAction.operation)}><singleAction.icon size={15} aria-hidden="true" />{singleAction.label}</Button>}
+    {actions.length > 1 && <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="detail-toolbar-secondary" disabled={busy}
       aria-label="更多操作"><MoreHorizontal size={17} />更多操作</Button></DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="crm-detail-menu">
-        <DropdownMenuLabel>计划与推进</DropdownMenuLabel>
-        {kind === 'project' && <DropdownMenuItem disabled={!!advanceReason} title={advanceReason || undefined}
-          onSelect={() => onAction('progress')}>更新项目进展</DropdownMenuItem>}
-        {kind === 'project' && <DropdownMenuItem disabled={!!advanceReason} title={advanceReason || undefined}
-          onSelect={() => onAction('suggest-end')}>提出结束建议</DropdownMenuItem>}
-        <DropdownMenuSeparator /><DropdownMenuLabel>状态管理</DropdownMenuLabel>
-        {lifecycle.map((operation: CrmLifecycleOperation) => {
-          const blocked: string = lifecycleBlocked(kind, operation, row);
-          return <DropdownMenuItem key={operation} disabled={!!blocked} title={blocked || undefined}
-            onSelect={() => onAction(operation)}>{lifecycleTitles[operation]}{blocked && <span className="detail-menu-reason">{blocked}</span>}</DropdownMenuItem>;
-        })}
+        {groups.map((group, index) => <React.Fragment key={group.label}>
+          {index > 0 && <DropdownMenuSeparator />}
+          <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
+          {group.actions.map((action: ToolbarAction) => <DropdownMenuItem key={action.operation} disabled={busy}
+            onSelect={() => onAction(action.operation)}><action.icon size={15} aria-hidden="true" />{action.label}</DropdownMenuItem>)}
+        </React.Fragment>)}
       </DropdownMenuContent></DropdownMenu>}
   </div>;
 }
