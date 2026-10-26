@@ -3,7 +3,7 @@ import { ArrowRight, Clock3, CircleAlert, FileCheck2, Eye, Pencil, MessageSquare
 import { Button } from '@/components/ui/button';
 import type { CrmRecord, CrmSummary, ProjectFilter, ProjectOverview } from '@shared/api.interface';
 import { projectFacts, projectStates } from '@shared/crm-dashboard';
-import { textValue } from '@shared/crm';
+import { sectionLabels, textValue } from '@shared/crm';
 import { displayDate } from '@shared/crm-presentation';
 import { editBlockedReason } from '@shared/crm-edit';
 import './project-overview.css';
@@ -68,6 +68,6 @@ export const ProjectDashboard: React.FC<Props> = ({ data, summary, loading, onFi
       </tbody></table></div>
       {(loading || !data?.projects.length) && <div className="dashboard-empty" role="status">{loading ? '正在读取项目概览…' : data ? '当前范围暂无未归档项目' : '项目概览尚未加载，请刷新重试'}</div>}
     </section>
-    <div className="dashboard-footnote"><div>{(['customer', 'contact', 'followup'] as const).map(kind => <button key={kind} onClick={() => onNavigate(kind)}>{({ customer: '企业客户', contact: '联系人', followup: '跟进记录' })[kind]}<strong>{count(summary?.[kind])}</strong><ArrowRight size={12} /></button>)}</div><span>辅助数量为全体记录 · 项目统计{data ? `更新于 ${new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(data.generatedAt)}` : '等待加载'}</span></div>
+    <div className="dashboard-footnote"><div>{(['customer', 'contact', 'followup'] as const).map(kind => <button key={kind} onClick={() => onNavigate(kind)}>{sectionLabels[kind]}<strong>{count(summary?.[kind])}</strong><ArrowRight size={12} /></button>)}</div><span>辅助数量为全体记录 · 项目统计{data ? `更新于 ${new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(data.generatedAt)}` : '等待加载'}</span></div>
   </div>;
 };

@@ -47,6 +47,7 @@ import {
   endFields,
   textValue,
   crmSection,
+  sectionLabels,
   linkIds,
 } from '@shared/crm';
 import type { Draft, FieldSpec } from '@shared/crm';
@@ -457,7 +458,7 @@ const CrmPage: React.FC = () => {
                 onClick={() => changePage(key)}
               >
                 <Icon size={18} />
-                {labels[key]}
+                {sectionLabels[key]}
               </Button>
             );
           })}
@@ -471,7 +472,7 @@ const CrmPage: React.FC = () => {
         <header className="crm-topbar">
           <span>
             客户与项目协作 <ChevronRight size={14} />{' '}
-            {active === 'home' ? '工作台' : labels[active]}
+            {active === 'home' ? '工作台' : sectionLabels[active]}
           </span>
           <div>
             飞书工作空间
@@ -503,7 +504,7 @@ const CrmPage: React.FC = () => {
                 <div>
                   {active !== 'home' && <div className="eyebrow">CUSTOMER & PROJECT WORKSPACE</div>}
                   <h1>
-                    {active === 'home' ? '工作台' : labels[active]}
+                    {active === 'home' ? '工作台' : sectionLabels[active]}
                   </h1>
                   <p>
                     {active === 'home'
@@ -581,7 +582,7 @@ const CrmPage: React.FC = () => {
                     </span>
                   </form>
                   <div className="table-scroll">
-                    <table role="table" aria-label={labels[active]}>
+                    <table role="table" aria-label={sectionLabels[active]}>
                       <thead role="rowgroup">
                         <tr role="row">
                           {columns[active].map((c) => (
