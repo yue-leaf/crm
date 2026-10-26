@@ -162,7 +162,6 @@ const CrmPage: React.FC = () => {
   const editorRequestVersion = useRef(0);
   const initialDraft = useRef<Draft>({});
   const [discardOpen, setDiscardOpen] = useState(false);
-  const [editReason, setEditReason] = useState('');
   const [openingId, setOpeningId] = useState<string | null>(null);
   const requestVersion = useRef(0);
   const admin = !!session && crmAdmin(session.roles);
@@ -271,7 +270,6 @@ const CrmPage: React.FC = () => {
     setDraft(initial);
     setSaveError('');
     setFieldErrors({});
-    setEditReason('');
     setUncertain(false);
     setEditor(ed);
   };
@@ -318,7 +316,7 @@ const CrmPage: React.FC = () => {
   const closeEditor = () => {
     if (savingRef.current) return;
     if (!uncertain && editor && (
-      editReason.trim() || Object.keys(changedFields(initialDraft.current, draft, specs(editor))).length
+      Object.keys(changedFields(initialDraft.current, draft, specs(editor))).length
     )) {
       setDiscardOpen(true);
       return;
@@ -332,7 +330,6 @@ const CrmPage: React.FC = () => {
   const save = async () => {
     if (!editor || savingRef.current || uncertain) return;
     const errors = missingFields(specs(editor).filter(showField).map((field) => requiredField(field, editor.kind, editor.operation, draft)), draft);
-    if (editor.operation === 'edit' && !editReason.trim()) errors['修改说明'] = '请填写修改说明';
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
       setSaveError('请补全标记的必填项后再保存');
@@ -355,7 +352,6 @@ const CrmPage: React.FC = () => {
                 draft,
                 specs(editor),
               ),
-              reason: editReason,
               expectedModifiedAt: Number(editor.row.record['修改时间']),
             })
           : editor.row
@@ -790,11 +786,11 @@ const CrmPage: React.FC = () => {
                         : '提出结束建议'
               : ''}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className={editor?.operation === 'edit' ? 'sr-only' : undefined}>
             {editor?.operation === 'create'
               ? '保存后写入飞书多维表格，并进入待核查。'
               : editor?.operation === 'edit'
-                ? '修改已有资料，保存后重新核查；只更新本次改动，不覆盖历史建议或当前计划。'
+                ? `编辑${labels[editor.kind]}资料`
                 : editor?.operation === 'access'
                   ? '修改成员信息后保存。'
                   : '请核对信息后保存，保留历史跟进中的原始建议。'}
@@ -817,12 +813,6 @@ const CrmPage: React.FC = () => {
           {editor?.operation === 'edit' && editor.kind === 'project' && draft['项目类型'] !== '销售机会' && (
             <p className="panel-note">切换为非销售类型时保留原有商务信息供核查，不新增商务金额；详情仍可查看历史值。</p>
           )}
-            {editor?.operation === 'edit' && editor.row && (
-              <div className="panel-note">
-                正在编辑：{textValue(editor.row.record[titles[editor.kind]])}。
-                客户或项目归属保持不变，当前计划请使用“调整当前计划”。
-              </div>
-            )}
             <fieldset className="form-grid" disabled={saving || uncertain}>
               {editor &&
                 specs(editor)
@@ -837,17 +827,6 @@ const CrmPage: React.FC = () => {
                       disabled={saving || uncertain}
                     />
                   ))}
-              {editor?.operation === 'edit' && (
-                <FieldInput
-                  field={{ key: '修改说明', type: 'long', required: true }}
-                  error={fieldErrors["修改说明"]}
-                  draft={{ 修改说明: editReason }}
-                  onChange={(_, value) => {
-                    setEditReason(String(value ?? ''));
-                    setFieldErrors((previous) => { const next = { ...previous }; delete next['修改说明']; return next; });
-                  }}
-                />
-              )}
             </fieldset>
             </div>
             {saveError && (

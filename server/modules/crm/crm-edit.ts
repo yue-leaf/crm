@@ -27,7 +27,7 @@ export function prepareEdit(
     reject('编辑', '请求包含不可修改的字段');
   const reason = parseDraft(
     { 修改说明: input.reason },
-    [{ key: '修改说明', type: 'long', required: true }],
+    [{ key: '修改说明', type: 'long' }],
     {},
   ).draft['修改说明'];
   if (String(reason).length > 1000) reject('修改说明', '最多1000字');
@@ -68,7 +68,7 @@ export function prepareEdit(
   }
   const note = [
     textValue(row.record['核查说明']),
-    `资料修改 · ${new Date().toISOString()} · 操作人 ${actor}\n字段：${Object.keys(changes).join('、')}\n说明：${String(reason)}`,
+    `资料修改 · ${new Date().toISOString()} · 操作人 ${actor}\n字段：${Object.keys(changes).join('、')}${reason ? `\n说明：${String(reason)}` : ''}`,
   ]
     .filter(Boolean)
     .join('\n\n');

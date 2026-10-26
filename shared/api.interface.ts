@@ -42,7 +42,7 @@ export interface WriteResult {
 }
 export interface CrmEditRequest {
   changes: Record<string, string | string[] | number | boolean | null>;
-  reason: string;
+  reason?: string;
   expectedModifiedAt: number;
 }
 export interface CrmProgressRequest {

@@ -63,7 +63,7 @@ test('edit writes only changed fields, clears text and retains prior audit histo
   assert.equal(result.draft.企业全称, 'Example');
   assert.deepEqual(result.validationFields.客户负责人, [123]);
 });
-test('edit rejects management fields, parent migration, no changes and missing reasons', () => {
+test('edit rejects management fields, parent migration and no changes; reason is optional', () => {
   const row = editableCustomer();
   for (const changes of [
     { 核查标记: '正常' },
@@ -74,11 +74,11 @@ test('edit rejects management fields, parent migration, no changes and missing r
     assert.throws(() =>
       prepareEdit('customer', row, { changes, reason: 'x' }, {}, 'unit-test'),
     );
-  assert.throws(() =>
+  assert.doesNotThrow(() =>
     prepareEdit(
       'customer',
       row,
-      { changes: { 地区: '北京' }, reason: '' },
+      { changes: { 地区: '北京' } },
       {},
       'unit-test',
     ),

@@ -159,7 +159,6 @@ export const FieldInput: React.FC<{
             <UserSelect {...personProps} multiple={false} value={personValue[0] || null}
               onChange={(id) => set(id ? [id] : [])} />
           )}
-          <small className="field-hint">点击选择框，输入员工姓名搜索{f.multiple ? '，可多选' : '，选择一人'}。</small>
         </>
       ) : f.type === 'relation' ? (
         <RelationField
