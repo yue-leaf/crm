@@ -214,14 +214,6 @@
         "writeable": false
       },
       {
-        "id": "fldj9KK57Z",
-        "name": "最近成功提醒时间",
-        "type": 5,
-        "bizType": "DateTime",
-        "readable": true,
-        "writeable": true
-      },
-      {
         "id": "fldHhXtPQl",
         "name": "创建时间",
         "type": 1001,
@@ -244,14 +236,6 @@
         "bizType": "Formula",
         "readable": true,
         "writeable": false
-      },
-      {
-        "id": "fldZTyufZk",
-        "name": "最近成功提醒键",
-        "type": 1,
-        "bizType": "Text",
-        "readable": true,
-        "writeable": true
       },
       {
         "id": "fldkal1QV9",
@@ -323,14 +307,6 @@
           "暂停合作",
           "结束合作"
         ]
-      },
-      {
-        "id": "flddqyOGZx",
-        "name": "允许员工维护",
-        "type": 20,
-        "bizType": "Formula",
-        "readable": true,
-        "writeable": false
       },
       {
         "id": "fldc2spJh0",
