@@ -38,10 +38,12 @@ export function prepareEdit(
     enums,
   );
   const raw = input.changes as Record<string, unknown>;
-  const before = recordDraft(row.record, forms[kind]);
+  // Customer status is editable but is initialized by the server on creation.
+  const validationSpec = kind === 'customer' ? spec : forms[kind];
+  const before = recordDraft(row.record, validationSpec);
   const merged = { ...before };
   for (const key of Object.keys(raw)) merged[key] = patch.draft[key];
-  const checked = parseDraft(merged, kind === 'project' ? existingProjectFields(row.record) : forms[kind], enums);
+  const checked = parseDraft(merged, kind === 'project' ? existingProjectFields(row.record) : validationSpec, enums);
   const changes = changedFields(before, checked.draft, spec);
   if (!Object.keys(changes).length) reject('编辑', '没有需要保存的修改');
   const writes: Record<string, unknown> = {};
