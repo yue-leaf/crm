@@ -47,14 +47,12 @@ export const CustomerContacts: React.FC<{
     <div className="customer-contact-list">{page?.records.map((row: CrmRecord) => {
       const phone: string = textValue(row.record['电话']).trim();
       const email: string = textValue(row.record['邮箱']).trim();
-      const position: string = [textValue(row.record['部门']).trim(), textValue(row.record['职务']).trim()].filter(Boolean).join(' · ');
       const name: string = textValue(row.record['姓名']) || '未命名联系人';
       const editReason: string = editBlockedReason('contact', row);
       return <article key={row.id} className="contact-card">
         <div className="contact-card-identity">
           <div className="contact-card-heading"><button type="button" className="contact-card-name" disabled={busy} onClick={() => onView(row)}>{name}</button>
             <Cell name="联系人状态" value={row.record['联系人状态']} /></div>
-          {position && <p className="contact-card-position">{position}</p>}
         </div>
         <dl className="contact-card-channels">
           {phone && <div><dt><Phone size={13} aria-hidden="true" /><span>电话</span></dt><dd>{phone}</dd></div>}
