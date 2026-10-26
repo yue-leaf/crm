@@ -75,7 +75,7 @@ import { FollowupBadge, useFollowupClock } from './FollowupStatus';
 import { followupFilterLabels, validFollowupFilter, shanghaiDay } from '@shared/crm-followup-status';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { FollowupFilter } from '@shared/api.interface';
-import { projectFilterLabels, validProjectFilter } from '@shared/crm-dashboard';
+import { projectFacts, validProjectFilter } from '@shared/crm-dashboard';
 import { numberValue } from '@shared/crm-presentation';
 import './crm.css';
 
@@ -99,9 +99,8 @@ const columns: Record<EntityKind, string[]> = {
   project: [
     '项目名称',
     '项目类型',
-    '项目负责人',
+    '所属企业',
     '工作状态',
-    '终局确认',
     '跟进状态',
     '下次跟进日期',
   ],
@@ -562,8 +561,6 @@ const CrmPage: React.FC = () => {
                   onFollowup={row => openEditor('followup', 'create', undefined, relatedDraft('project', row, 'followup'))} />
               ) : (
                 <section className="panel list-panel">
-                  {active === 'project' && <div className="project-list-filter"><span>项目范围：{scope === 'mine' ? '我负责的' : '全部项目'}</span><span>筛选：{projectFilterLabels[projectFilter]}</span>
-                    {(projectFilter !== 'all' || scope !== 'all') && <Button size="sm" variant="ghost" onClick={() => { requestVersion.current++; setQuery(''); setSearch(''); navigate('/crm/project'); }}>清除筛选</Button>}</div>}
                   <form
                     className="list-toolbar"
                     onSubmit={(e) => {
@@ -584,6 +581,7 @@ const CrmPage: React.FC = () => {
                     <Button type="submit" variant="outline">
                       搜索
                     </Button>
+                    {active === 'project' && projectFilter !== 'all' && <Button type="button" size="sm" variant="ghost" onClick={() => { requestVersion.current++; setQuery(''); setSearch(''); navigate('/crm/project'); }}>清除项目筛选</Button>}
                     {(active === 'customer' || active === 'project') && <div className="followup-filter"><span>跟进状态</span>
                       <Select value={followupFilter} onValueChange={(value: string) => {
                         requestVersion.current++;
@@ -616,7 +614,7 @@ const CrmPage: React.FC = () => {
                         {data?.records.map((row) => (
                           <tr role="row" key={row.id}>
                             {columns[active].map((c, i) => (
-                              <td role="cell" data-label={c === '待配置角色' ? '角色' : c} key={c}>
+                              <td role="cell" data-label={c === '所属企业' ? '所属客户' : c === '待配置角色' ? '角色' : c} key={c}>
                                 {i === 0 ? (
                                   <button
                                     className="record-title"
@@ -625,6 +623,8 @@ const CrmPage: React.FC = () => {
                                   >
                                     {textValue(row.record[c]) || '未命名'}
                                   </button>
+                                ) : active === 'project' && c === '工作状态' ? (
+                                  <Cell name="工作状态" value={projectFacts(row, Date.now()).state || '状态异常'} />
                                 ) : c === '跟进状态' ? <FollowupBadge record={row.record} /> : (
                                   <Cell name={c} value={row.record[c]} onOpenCustomer={id => void detail({ id, record: {} }, 'customer', undefined, active === 'contact' ? 'contacts' : 'followups')} />
                                 )}
