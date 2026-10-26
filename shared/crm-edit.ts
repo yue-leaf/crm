@@ -2,7 +2,7 @@ import type { EntityKind, CrmRecord } from './api.interface';
 import { forms, textValue, linkIds } from './crm';
 import type { Draft, FieldSpec } from './crm';
 
-// Parent migration and lifecycle changes need their own cross-record workflow.
+// Parent migration and project lifecycle changes use their dedicated workflows.
 const locked = new Set([
   '所属企业',
   '跟进归属',
@@ -12,7 +12,18 @@ const locked = new Set([
   '下次跟进日期',
 ]);
 export function editFields(kind: EntityKind): FieldSpec[] {
-  return kind === 'access' ? [] : forms[kind].filter((f) => !locked.has(f.key));
+  if (kind === 'access') return [];
+  const fields: FieldSpec[] = forms[kind].filter((f) => !locked.has(f.key));
+  if (kind === 'customer') {
+    fields.splice(3, 0, {
+      key: '客户关系状态',
+      label: '客户状态',
+      type: 'select',
+      required: true,
+      options: ['待建立', '接洽中', '合作中', '暂停合作', '结束合作'],
+    });
+  }
+  return fields;
 }
 export function recordDraft(
   record: CrmRecord['record'],

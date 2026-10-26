@@ -8,7 +8,7 @@ const { CrmController } = require('../../dist/server/modules/crm/crm.controller.
 const { crmSection } = require('../../dist/shared/crm.js');
 const customer = () => ({ id: 'recCompany', record: {
   企业全称: { text: 'Example' }, 行业: '其他化学制药', 地区: { text: '上海' },
-  客户负责人: [123], 核查标记: '正常', 已归档: false, 修改时间: 1,
+  客户负责人: [123], 客户关系状态: '待建立', 核查标记: '正常', 已归档: false, 修改时间: 1,
 } });
 function fixture(row = customer(), hook = () => {}) {
   const writes = [];
