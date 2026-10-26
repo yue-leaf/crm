@@ -1,3 +1,4 @@
+const { identityFixture } = require('./helpers/identity.cjs');
 require('reflect-metadata');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -18,13 +19,13 @@ function fixture() {
     load: name => ({ call: async (action, input) => {
       if (action === 'getRecord') return structuredClone(name === 'crm-customer'
         ? { id: 'recCustomer', record: { 核查标记: '正常', 已归档: false } } : row);
-      if (action === 'searchRecords') return { records: [{ record: { 目录状态: '已激活', 飞书成员: [123] } }], hasMore: false };
+      if (action === 'searchRecords') return { records: [{ record: { 飞书成员: [123] } }], hasMore: false };
       assert.equal(action, 'batchUpdateRecords');
       writes.push(input.records[0].record);
       Object.assign(row.record, input.records[0].record, { 修改时间: row.record.修改时间 + 1 });
       return { records: [{ id: row.id }] };
     } }),
-  });
+  }, identityFixture());
   const update = (operation, body) => service.update('project', row.id, operation,
     { ...body, expectedModifiedAt: row.record.修改时间 }, 'test-only');
   return { row, writes, service, update };

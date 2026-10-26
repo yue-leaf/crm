@@ -89,14 +89,14 @@ test('bounded reads explicitly fail instead of returning incomplete followup his
   let pages=0;const {s}=service([],[],{fail:(n,a)=>a==='getRecord'?customer:n==='crm-project'?{records:[],hasMore:false}:{records:[],hasMore:true,pageToken:String(++pages)}});
   await assert.rejects(()=>s.relatedFollowups('customer',customer.id,{}),/超出.*未返回不完整/);assert.equal(pages,99);
 });
-test('all new routes enforce existing employee/admin policy before any data access',async()=>{
+test('related routes require login and admit tenant members without assigned roles',async()=>{
   const {s}=service([],[]);const controller=new CrmController(s);
   for(const method of ['customerProjects','customerFollowups','projectFollowups']) {
     assert.throws(()=>controller[method]({},customer.id,{}),e=>e.getStatus()===403);
-    assert.throws(()=>controller[method]({userContext:{userId:'123',roles:[]}},customer.id,{}),e=>e.getStatus()===403);
+    assert.throws(()=>controller[method]({userContext:{roles:[]}},customer.id,{}),e=>e.getStatus()===403);
   }
-  for(const role of ['crm_employee','crm_admin']) {
-    const req={userContext:{userId:'123',roles:[role]}};
+  for(const role of [undefined,'crm_employee','crm_admin']) {
+    const req={userContext:{userId:'123',roles:role?[role]:undefined}};
     await controller.customerProjects(req,customer.id,{});await controller.customerFollowups(req,customer.id,{});
   }
 });

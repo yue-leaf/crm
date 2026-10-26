@@ -20,11 +20,8 @@
         "readable": true,
         "writeable": true,
         "enumValues": [
-          "未授权",
-          "只读",
           "员工",
-          "业务管理人员",
-          "系统管理员"
+          "管理员"
         ]
       },
       {
@@ -34,20 +31,6 @@
         "bizType": "Text",
         "readable": true,
         "writeable": false
-      },
-      {
-        "id": "fldLlJJaq2",
-        "name": "处理请求",
-        "type": 3,
-        "bizType": "SingleSelect",
-        "readable": true,
-        "writeable": true,
-        "enumValues": [
-          "无",
-          "申请开通",
-          "申请调整",
-          "申请停用"
-        ]
       },
       {
         "id": "fldJWP3SRF",
@@ -133,19 +116,6 @@
         "bizType": "User",
         "readable": true,
         "writeable": false
-      },
-      {
-        "id": "fldBF6WGGW",
-        "name": "目录状态",
-        "type": 3,
-        "bizType": "SingleSelect",
-        "readable": true,
-        "writeable": false,
-        "enumValues": [
-          "待核验",
-          "已激活",
-          "未激活"
-        ]
       },
       {
         "id": "fld8fq6Qbe",

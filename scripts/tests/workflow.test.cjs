@@ -1,3 +1,4 @@
+const { identityFixture } = require('./helpers/identity.cjs');
 // Workflow state transitions and temporal boundaries; isolated SDK doubles only.
 require('reflect-metadata');
 const { test } = require('node:test');
@@ -46,13 +47,13 @@ function fixture() {
     getCapability: () => ({ formValue: { fields: [] } }),
     load: name => ({ call: async (action, input) => {
       if (action === 'getRecord') return structuredClone(name === 'crm-customer' ? customer : row);
-      if (action === 'searchRecords') return { records: [{ record: { 目录状态: '已激活', 飞书成员: [123] } }], hasMore: false };
+      if (action === 'searchRecords') return { records: [{ record: { 飞书成员: [123] } }], hasMore: false };
       assert.equal(action, 'batchUpdateRecords');
       writes.push(input.records[0].record);
       Object.assign(row.record, input.records[0].record, { 修改时间: row.record.修改时间 + 1 });
       return { records: [{ id: row.id }] };
     } }),
-  });
+  }, identityFixture());
   const update = (operation, body) => service.update('project', row.id, operation, { ...body, expectedModifiedAt: row.record.修改时间 }, 'test-only');
   return { row, customer, writes, service, update };
 }
@@ -98,12 +99,20 @@ test('historical followup validates both the project and its archived customer',
   await f.service.relationChecks('followup', draft, { 实际发生时间: time('2026-10-20T11:59:59') });
   await assert.rejects(() => f.service.relationChecks('followup', draft, { 实际发生时间: time('2026-10-20T13:00:00') }), /恢复/);
 });
-test('inactive historical participants can be reviewed but new assignment still requires activation', async () => {
-  const service = new CrmService({ load: () => ({ call: async () => ({ records: [
-    { record: { 目录状态: '未激活', 飞书成员: [123] } },
-  ], hasMore: false }) }) });
+test('person validation admits tenant members without roster synchronization, rejects unknown and mismatched identities', async () => {
+  const service = new CrmService({ load: () => ({ call: async () => { assert.fail('live identities must not read the roster'); } }) }, identityFixture([123,456]));
   const spec = [{ key: '实际跟进人', type: 'person', multiple: true }];
-  await service.people({ 实际跟进人: [123] }, spec, true);
-  await assert.rejects(() => service.people({ 实际跟进人: [123] }, spec), /已激活/);
-  await assert.rejects(() => service.people({ 实际跟进人: [456] }, spec, true), /人员/);
+  await service.people({ 实际跟进人: [123,456] }, spec);
+  await assert.rejects(() => service.people({ 实际跟进人: [789] }, spec), /本企业/);
+  const mismatch = new CrmService({}, { ...identityFixture(), getBatchMiaodaUserIds: async () => ['other-tenant-id'] });
+  await assert.rejects(() => mismatch.people({ 实际跟进人: [123] }, spec), /本企业/);
+  const failure = new CrmService({}, { getBatchLarkUserIds: async () => { throw Error('secret'); } });
+  await assert.rejects(() => failure.people({ 实际跟进人: [123] }, spec), e => e.getStatus()===502 && !e.message.includes('secret'));
+});
+
+test('historical review can retain synchronized identities that no longer map to active tenant accounts', async () => {
+  const service = new CrmService({ load: () => ({ call: async () => ({ records: [{record:{飞书成员:[123]}}], hasMore:false }) }) }, identityFixture([]));
+  const spec = [{ key:'实际跟进人',type:'person',multiple:true }];
+  await service.people({实际跟进人:[123]},spec,true);
+  await assert.rejects(()=>service.people({实际跟进人:[789]},spec,true),/历史人员/);
 });

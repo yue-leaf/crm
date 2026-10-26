@@ -1,3 +1,4 @@
+const { identityFixture } = require('./helpers/identity.cjs');
 require('reflect-metadata');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -13,12 +14,12 @@ function fixture(kind, patch={}) {
   project:{项目名称:'Project',项目类型:'技术验证',所属企业:{link_record_ids:['recCustomer']},项目负责人:[123],'目标 / 需求摘要':'Goal',工作状态:'待启动',终局确认:'未确认',当前下一步行动:'Plan',下次跟进日期:old},
   followup:{跟进主题:'History',跟进归属:'客户直接跟进',直接客户:{link_record_ids:['recCustomer']},记录类型:'内部推进',实际发生时间:old,实际跟进人:[123],'内容 / 推进结论':'Done',后续安排:'无后续动作',无后续动作结论:'Done',记录状态:'正常'}};
  const row={id:kind==='customer'?'recCustomer':'recTarget',record:{...data[kind],核查标记:'待核查',修改时间:1,...patch}};
- const writes=[]; const directory=[{record:{目录状态:'已激活',飞书成员:[123,456]}}];
+ const writes=[]; const directory=[{record:{飞书成员:[123,456]}}];
  const service=new CrmService({getCapability:()=>({formValue:{fields:[]}}),load:name=>({call:async(action,input)=>{
   if(action==='getRecord')return structuredClone(input.recordID===row.id?row:customer);
   if(action==='searchRecords')return {records:name==='crm-access'?directory:[],hasMore:false};
   assert.equal(action,'batchUpdateRecords');writes.push(input.records[0].record);Object.assign(row.record,input.records[0].record);return {records:[{id:row.id}]};
- }})});
+ }})}, identityFixture([123,456]));
  const update=(op,body)=>service.update(kind,row.id,op,{...body,expectedModifiedAt:1},'test');
  return {row,customer,writes,directory,service,update,review:()=>update('review',{核查说明:'Checked'})};
 }
@@ -43,11 +44,11 @@ test('future contact disable timestamps cannot authorize external followups',asy
  await assert.rejects(()=>f.service.relationChecks('followup',{跟进归属:'客户直接跟进',直接客户:['recCustomer'],记录类型:'外部沟通','沟通 / 推进方式':'电话',客户联系人:['recTarget'],后续安排:'无后续动作',无后续动作结论:'Done'},{实际发生时间:old}),/停用/);
  assert.equal(f.writes.length,0);
 });
-test('adding active participants preserves inactive historical participants but rejects new inactive ones',async()=>{
- const f=fixture('followup');f.directory.splice(0,1,{record:{目录状态:'未激活',飞书成员:[123,789]}},{record:{目录状态:'已激活',飞书成员:[456]}});
+test('adding synchronized participants preserves history but rejects unknown identities',async()=>{
+ const f=fixture('followup');f.directory.splice(0,1,{record:{飞书成员:[123]}},{record:{飞书成员:[456]}});
  await f.update('edit',{changes:{实际跟进人:['123','456']},reason:'Add missing colleague'});
  assert.deepEqual(f.row.record.实际跟进人,[123,456]);
- await assert.rejects(()=>f.update('edit',{changes:{实际跟进人:['123','456','789']},reason:'Reject inactive new colleague'}),/人员/);
+ await assert.rejects(()=>f.update('edit',{changes:{实际跟进人:['123','456','789']},reason:'Reject unregistered new colleague'}),/人员/);
 });
 test('terminal project review remains possible under archived customer while new project creation stays blocked',async()=>{
  const f=fixture('project',{终局确认:'已完成',结束日期:old,结果说明:'Done'});

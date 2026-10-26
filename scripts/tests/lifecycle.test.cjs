@@ -4,7 +4,6 @@ require('reflect-metadata');
 const { prepareLifecycle } = require('../../dist/server/modules/crm/crm-lifecycle.js');
 const { historicalContext } = require('../../dist/server/modules/crm/crm-workflow.js');
 const { lifecycleFields, lifecycleBlocked, lifecycleEvents, inactiveAt, EVENT_PREFIX } = require('../../dist/shared/crm-lifecycle.js');
-const { crmEmployee } = require('../../dist/shared/crm-access.js');
 const { CrmController } = require('../../dist/server/modules/crm/crm.controller.js');
 const { CrmService } = require('../../dist/server/modules/crm/crm.service.js');
 const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
@@ -15,10 +14,10 @@ const context = (rows = {}) => ({ get: async (kind, id) => structuredClone(rows[
 const closed = () => { const row = project(); Object.assign(row.record, { 终局确认: '已完成', 结束日期: day, 结果说明: { text: 'done' } }); return row; };
 const reopen = { 工作状态: '进行中', 当前进展: 'new progress', 当前下一步行动: 'new plan', 下次跟进日期: today, 操作原因: 'new work' };
 
-test('employee can use all business controller routes but cannot read or modify access configuration', () => {
+test('roleless tenant member can use every business route but cannot manage access', () => {
   const calls = [];
   const controller = new CrmController(new Proxy({}, { get: (_, key) => (...args) => { calls.push([key, args]); return true; } }));
-  const req = { userContext: { userId: '123', roles: ['crm_employee'] } };
+  const req = { userContext: { userId: '123', roles: [] } };
   controller.summary(req);
   for (const kind of ['customer', 'contact', 'project', 'followup']) {
     controller.list(req, kind); controller.detail(req, kind, 'recFixture'); controller.create(req, kind, {});
@@ -28,8 +27,6 @@ test('employee can use all business controller routes but cannot read or modify 
   }
   assert.equal(calls.length, 22);
   for (const act of [() => controller.list(req, 'access'), () => controller.detail(req, 'access', 'recUser'), () => controller.create(req, 'access', {}), () => controller.update(req, 'access', 'recUser', 'access', {})]) assert.throws(act, e => e.getStatus() === 403);
-  assert.equal(crmEmployee([]), false);
-  assert.equal(crmEmployee(['crm_employee']), true);
 });
 
 test('CRM exposes no HTTP delete operation', () => {

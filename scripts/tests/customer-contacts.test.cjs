@@ -34,11 +34,11 @@ test('rejects wrong customer, malformed ID/cursor and broken pagination', async 
   await assert.rejects(() => s.customerContacts(customer.id, {}), /分页/);
   await assert.rejects(() => s.customerContacts(customer.id), /分页/);
 });
-test('employee/admin can read customer contacts; anonymous/unassigned roles cannot', async () => {
-  const roles = ['crm_admin', 'crm_employee'];
+test('tenant members including unassigned users can read contacts; anonymous users cannot', async () => {
+  const roles = [undefined, 'crm_admin', 'crm_employee'];
   const c = new CrmController(service(() => ({ records: [], hasMore: false })));
-  for (const role of roles) await c.customerContacts({ userContext: { userId: '123', roles: [role] } }, customer.id);
-  for (const context of [undefined, { userId: '123', roles: [] }]) assert.throws(() => c.customerContacts({ userContext: context }, customer.id), e => e.getStatus() === 403);
+  for (const role of roles) await c.customerContacts({ userContext: { userId: '123', roles: role ? [role] : undefined } }, customer.id);
+  for (const context of [undefined, {roles: []}]) assert.throws(() => c.customerContacts({ userContext: context }, customer.id), e => e.getStatus() === 403);
 });
 test('contact create requires exactly one customer and customer detail presets it', () => {
   const draft = { 姓名: '张三', 职务: '经理', 电话: '13800000000', 维护人: ['123'] };
