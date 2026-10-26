@@ -23,6 +23,7 @@ import type { Draft, FieldSpec } from '@shared/crm';
 import { textValue, linkIds } from '@shared/crm';
 import { RelationField } from './RelationField';
 import { CustomerLink } from './CustomerLink';
+import { ContactName } from './ContactName';
 import { displayBoolean, displayDate, statusTone } from '@shared/crm-presentation';
 
 export const message = (e: unknown) =>
@@ -59,6 +60,9 @@ export const Cell: React.FC<{ name: string; value: unknown; onOpenCustomer?: (id
   const date = displayDate(name, value);
   if (date !== null) return <span title="北京时间">{date}</span>;
   const links = linkIds(value);
+  if (name === '客户联系人') return links.length
+    ? <div className="flex flex-col gap-1">{links.map((id: string) => <ContactName key={id} id={id} />)}</div>
+    : <span className="muted">—</span>;
   if (name === '所属企业') return links.length ? <div className="customer-links">{links.map(id => <CustomerLink key={id} id={id} onOpen={onOpenCustomer} />)}</div> : <span className="muted">未关联客户</span>;
   if (links.length)
     return <span className="muted">关联 {links.length} 条记录</span>;
