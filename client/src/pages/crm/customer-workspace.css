@@ -62,7 +62,6 @@
 .contact-card-name:focus-visible { outline: 2px solid #3370ff; outline-offset: 3px; }
 .contact-card-name:disabled { opacity: 0.6; }
 .contact-card-heading .tag { padding: 2px 7px; font-size: 11px; flex-shrink: 0; }
-.contact-card-position { color: #646a73; font-size: 12px; line-height: 1.6; margin-top: 6px; overflow-wrap: anywhere; }
 .contact-card-channels { display: grid; gap: 7px; font-size: 12px; }
 .contact-card-channels > div { display: flex; gap: 12px; align-items: baseline; min-width: 0; }
 .contact-card-channels dt { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; color: #8a9099; }
