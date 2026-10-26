@@ -8,6 +8,7 @@ export function changeDraft(previous: Draft, key: string, value: Draft[string], 
   if (JSON.stringify(comparable(previous[key])) === JSON.stringify(comparable(value))) return previous;
   const next = { ...previous, [key]: value };
   if (key === '终局确认' && value === '已完成') next['取消原因'] = '';
+  if (key === '联系人状态' && value === '有效') next['停用原因'] = null;
   if (key === '跟进归属') {
     next['直接客户'] = [];
     next['关联项目'] = [];
@@ -24,6 +25,8 @@ export function changeDraft(previous: Draft, key: string, value: Draft[string], 
 
 export function requiredField(field: FieldSpec, kind: string, operation: string, draft: Draft): FieldSpec {
   let required = Boolean(field.required);
+  if (kind === 'contact' && operation === 'edit' && field.key === '停用原因')
+    required = draft['联系人状态'] === '停用';
   if (operation === 'confirm-end' && field.key === '取消原因') required = draft['终局确认'] === '已取消';
   if (operation === 'progress') {
     if (field.key === '暂停原因') required = draft['工作状态'] === '暂停';

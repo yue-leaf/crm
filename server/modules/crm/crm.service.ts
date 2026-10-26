@@ -484,6 +484,7 @@ export class CrmService {
     const specs = [...forms[key], ...planFields, ...endFields, ...progressFields];
     const mismatch = Object.entries(fields).some(([name, expected]) => {
       const actual = saved.record[name];
+      if (expected === null) return actual != null;
       if (Array.isArray(expected)) {
         const values = specs.find((f) => f.key === name)?.type === 'relation'
           ? linkIds(actual) : actual == null ? [] : actual;

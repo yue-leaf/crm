@@ -23,6 +23,12 @@ export function editFields(kind: EntityKind): FieldSpec[] {
       options: ['待建立', '接洽中', '合作中', '暂停合作', '结束合作'],
     });
   }
+  if (kind === 'contact') {
+    fields.push(
+      { key: '联系人状态', type: 'select', required: true, options: ['有效', '停用'] },
+      { key: '停用原因', type: 'long' },
+    );
+  }
   return fields;
 }
 export function recordDraft(
@@ -79,8 +85,8 @@ export function editBlockedReason(kind: EntityKind, row: CrmRecord): string {
     return '项目已结束或终局状态异常，请先重开或核对状态';
   if (kind === 'project' && !['待启动', '进行中', '暂停'].includes(textValue(row.record['工作状态'])))
     return '项目工作状态异常，请先更新项目进展';
-  if (kind === 'contact' && textValue(row.record['联系人状态']) !== '有效')
-    return '联系人已停用，请先在飞书恢复后编辑';
+  if (kind === 'contact' && !['有效', '停用'].includes(textValue(row.record['联系人状态'])))
+    return '联系人状态异常，请先在飞书核对';
   if (kind === 'followup' && textValue(row.record['记录状态']) !== '正常')
     return '跟进记录已作废或状态异常，请在飞书核对';
   return '';
