@@ -1,5 +1,5 @@
 import React from 'react';
-import { MoreHorizontal, Pencil, MessageSquarePlus, ArrowUpRight, Archive, ArchiveRestore, RotateCcw, CheckCircle2, TrendingUp, Flag } from 'lucide-react';
+import { MoreHorizontal, Pencil, MessageSquarePlus, ArrowUpRight, Archive, ArchiveRestore, RotateCcw, CheckCircle2, TrendingUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -37,33 +37,27 @@ export function DetailToolbar({ kind, row, busy, onEdit, onAction, onFollowup, o
       : op === 'archive' ? row.record['已归档'] !== true
       : op === 'confirm-end' ? textValue(row.record['终局确认']) === '未确认'
       : ['已完成', '已取消'].includes(textValue(row.record['终局确认'])));
-  const progressActions: ToolbarAction[] = kind === 'project' && !advanceReason ? [
-    { operation: 'progress', label: '更新项目进展', icon: TrendingUp },
-    { operation: 'suggest-end', label: '提出结束建议', icon: Flag },
-  ] : [];
   const stateActions: ToolbarAction[] = business ? lifecycle
     .filter((operation: CrmLifecycleOperation) => !lifecycleBlocked(kind, operation, row))
     .map((operation: CrmLifecycleOperation) => ({ operation, label: lifecycleTitles[operation], icon: lifecycleIcons[operation] })) : [];
-  const actions: ToolbarAction[] = [...progressActions, ...stateActions];
+  const actions: ToolbarAction[] = stateActions;
   const groups = [
-    { label: '计划与推进', actions: progressActions },
     { label: '状态管理', actions: stateActions },
   ].filter(group => group.actions.length > 0);
-  const singleAction: ToolbarAction | undefined = actions.length === 1 ? actions[0] : undefined;
   return <div className="detail-toolbar" aria-label="记录操作">
     <div className="detail-toolbar-primary">
       {business && <Button size="sm" disabled={busy}
         onClick={onFollowup}><MessageSquarePlus size={15} />{advanceReason ? '补录历史跟进' : '记录跟进'}</Button>}
-      {business && <Button size="sm" variant="outline" disabled={busy || !!advanceReason}
+      {kind === 'project' && <Button size="sm" variant="outline" disabled={busy || !!advanceReason}
+        title={advanceReason || undefined} onClick={() => onAction('progress')}><TrendingUp size={15} />更新进展</Button>}
+      {kind === 'customer' && <Button size="sm" variant="outline" disabled={busy || !!advanceReason}
         title={advanceReason || undefined} onClick={() => onAction('plan')}>调整计划</Button>}
       {kind !== 'access' && <Button size="sm" variant="outline" disabled={busy || !!editReason}
         title={editReason || '编辑资料'} onClick={onEdit}><Pencil size={15} />编辑资料</Button>}
       {kind === 'followup' && followupTarget(row) && <Button size="sm" variant="outline" disabled={busy}
-        onClick={onTarget}>查看所属对象<ArrowUpRight size={14} /></Button>}
+        onClick={onTarget}>查看{followupTarget(row)?.kind === 'project' ? '项目' : '客户'}<ArrowUpRight size={14} /></Button>}
     </div>
-    {singleAction && <Button size="sm" variant="ghost" className="detail-toolbar-secondary" disabled={busy}
-      onClick={() => onAction(singleAction.operation)}><singleAction.icon size={15} aria-hidden="true" />{singleAction.label}</Button>}
-    {actions.length > 1 && <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="detail-toolbar-secondary" disabled={busy}
+    {actions.length > 0 && <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="detail-toolbar-secondary" disabled={busy}
       aria-label="更多操作"><MoreHorizontal size={17} />更多操作</Button></DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="crm-detail-menu">
         {groups.map((group, index) => <React.Fragment key={group.label}>

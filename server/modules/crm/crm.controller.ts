@@ -46,9 +46,10 @@ export class CrmController {
   }
 
   @Get('customers/:id/contacts')
-  customerContacts(@Req() req: Request, @Param('id') id: string, @Query('cursor') cursor?: string) {
+  customerContacts(@Req() req: Request, @Param('id') id: string, @Query('cursor') cursor?: string,
+    @Query('search') search?: string) {
     this.session(req);
-    return this.crm.customerContacts(id, cursor);
+    return this.crm.customerContacts(id, cursor, search);
   }
 
   @Get('overview')

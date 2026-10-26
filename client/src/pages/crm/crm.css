@@ -426,7 +426,7 @@
   overflow: hidden;
   padding: 0 !important;
   color: #1f2329;
-  font-family: var(--font-sans);
+  font-family: Inter, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 .crm-dialog-header {
   flex-shrink: 0;

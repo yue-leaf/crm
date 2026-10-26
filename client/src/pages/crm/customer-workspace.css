@@ -67,6 +67,8 @@
 .contact-card-channels > div { display: flex; gap: 12px; align-items: baseline; min-width: 0; }
 .contact-card-channels dt { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; color: #8a9099; }
 .contact-card-channels dd { margin: 0; color: #4e5969; min-width: 0; overflow-wrap: anywhere; line-height: 1.6; }
+.contact-card-channels a { color: #245bdb; text-decoration: none; }
+.contact-card-channels a:hover { text-decoration: underline; }
 .contact-card-channels .contact-card-empty dd { color: #8a9099; }
 .contact-card-actions { display: flex; align-items: center; gap: 4px; }
 .contact-card-actions button { min-height: 32px; padding-inline: 9px; font-size: 12px; gap: 6px; color: #646a73; }

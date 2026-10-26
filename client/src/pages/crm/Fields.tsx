@@ -25,6 +25,8 @@ import { RelationField } from './RelationField';
 import { CustomerLink } from './CustomerLink';
 import { ContactName } from './ContactName';
 import { displayBoolean, displayDate, statusTone } from '@shared/crm-presentation';
+import { followupTime } from '@shared/crm-ux';
+import type { EntityKind } from '@shared/api.interface';
 
 export const message = (e: unknown) =>
   e instanceof Error ? e.message : '操作未完成，请稍后重试';
@@ -42,10 +44,12 @@ const personKeys = new Set([
   '修改人',
   '协同人员',
 ]);
-export const Cell: React.FC<{ name: string; value: unknown; onOpenCustomer?: (id: string) => void }> = ({
+export const Cell: React.FC<{ name: string; value: unknown; onOpenCustomer?: (id: string) => void;
+  onOpenRecord?: (id: string, kind: EntityKind) => void }> = ({
   name,
   value,
   onOpenCustomer,
+  onOpenRecord,
 }) => {
   const booleanLabel = displayBoolean(name, value);
   if (booleanLabel !== null) return <span className={name === '已归档' ? 'tag neutral' : undefined}>{booleanLabel}</span>;
@@ -60,8 +64,11 @@ export const Cell: React.FC<{ name: string; value: unknown; onOpenCustomer?: (id
   const date = displayDate(name, value);
   if (date !== null) return <span title="北京时间">{date}</span>;
   const links = linkIds(value);
-  if (name === '客户联系人') return links.length
-    ? <div className="flex flex-col gap-1">{links.map((id: string) => <ContactName key={id} id={id} />)}</div>
+  const relationKind: EntityKind | undefined = ({ 客户联系人: 'contact', 已沟通联系人: 'contact', 联系人: 'contact',
+    直接客户: 'customer', 关联项目: 'project', 项目: 'project', 相关业务项目: 'project' } as Record<string, EntityKind>)[name];
+  if (relationKind) return links.length
+    ? <div className="flex flex-col gap-1">{links.map((id: string) => <ContactName key={id} id={id} kind={relationKind}
+      onOpen={onOpenRecord ? () => onOpenRecord(id, relationKind) : relationKind === 'customer' && onOpenCustomer ? () => onOpenCustomer(id) : undefined} />)}</div>
     : <span className="muted">—</span>;
   if (name === '所属企业') return links.length ? <div className="customer-links">{links.map(id => <CustomerLink key={id} id={id} onOpen={onOpenCustomer} />)}</div> : <span className="muted">未关联客户</span>;
   if (links.length)
@@ -133,7 +140,8 @@ export const FieldInput: React.FC<{
   disabled?: boolean;
   error?: string;
   customerId?: string;
-}> = ({ field: f, draft, onChange, disabled, error, customerId }) => {
+  onCreateContact?: () => void;
+}> = ({ field: f, draft, onChange, disabled, error, customerId, onCreateContact }) => {
   const fieldId = useId();
   const set = (v: Draft[string]) => onChange(f.key, v);
   const personValue = Array.isArray(draft[f.key]) ? (draft[f.key] as string[]) : [];
@@ -171,6 +179,8 @@ export const FieldInput: React.FC<{
         <RelationField
           field={f}
           customerId={customerId}
+          occurredAt={followupTime(draft['实际发生时间'])}
+          onCreateContact={onCreateContact}
           disabled={disabled}
           value={Array.isArray(draft[f.key]) ? (draft[f.key] as string[]) : []}
           onChange={set}
@@ -197,7 +207,7 @@ export const FieldInput: React.FC<{
         <Textarea
           id={fieldId}
           aria-invalid={Boolean(error)}
-          aria-label={f.key}
+          aria-label={f.label || f.key}
           value={String(draft[f.key] || '')}
           onChange={(e) => set(e.target.value)}
           rows={3}
@@ -213,7 +223,7 @@ export const FieldInput: React.FC<{
         <Input
           id={fieldId}
           aria-invalid={Boolean(error)}
-          aria-label={f.key}
+          aria-label={f.label || f.key}
           value={String(draft[f.key] ?? '')}
           type={f.type === 'number' ? 'number' : 'text'}
           step={f.type === 'number' ? '0.01' : undefined}
@@ -227,9 +237,8 @@ export const FieldInput: React.FC<{
         />
       )}
       {f.key === '电话' && <small className="field-hint">电话或邮箱至少填写一项。</small>}
-      {f.key === '联系人状态' && <small className="field-hint">停用需填写原因，保存时自动记录停用时间；恢复有效会保留历史管理记录。</small>}
-      {f.key === '所属企业' && f.label === '所属客户' && <small className="field-hint">请选择该联系人所属的企业客户；从客户详情新建时会自动带入。</small>}
-      {f.type === 'datetime' && <small className="field-hint">北京时间，先选择日期，再填写时间。</small>}
+      {f.key === '联系人状态' && draft['联系人状态'] === '停用' && <small className="field-hint">停用后保留历史跟进记录。</small>}
+      {f.type === 'datetime' && <small className="field-hint">北京时间</small>}
       {error && <p className="field-error" id={`${fieldId}-error`}>{error}</p>}
     </div>
   );

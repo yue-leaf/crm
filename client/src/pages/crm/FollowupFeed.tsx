@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { MessageSquareText, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/api/crm';
 import type { CrmRecord, EntityKind, FollowupPage, FollowupScope } from '@shared/api.interface';
 import { textValue } from '@shared/crm';
@@ -25,10 +26,10 @@ export function FollowupFeed({ kind, id, busy, onView }: Props) {
     <div className="related-panel-heading"><div><h3>跟进记录{page && <span>{page.total} 条</span>}</h3>
       <p>{kind === 'customer' ? '汇总客户直接跟进及全部关联项目的跟进，包含历史记录。' : '按实际发生时间查看项目的全部跟进。'}</p></div></div>
     <form className="related-search" onSubmit={(event: React.FormEvent) => { event.preventDefault(); const value: string = search.trim(); if (value === query) retry(); else setQuery(value); }}>
-      {kind === 'customer' && <select aria-label="跟进记录范围" value={scope}
-        onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setScope(event.target.value as FollowupScope)}>
-        <option value="all">全部跟进</option><option value="direct">客户直接跟进</option><option value="project">项目跟进</option>
-      </select>}
+      {kind === 'customer' && <Select value={scope} onValueChange={(value: FollowupScope) => setScope(value)}>
+        <SelectTrigger aria-label="跟进记录范围" className="w-36"><SelectValue /></SelectTrigger>
+        <SelectContent><SelectItem value="all">全部跟进</SelectItem><SelectItem value="direct">客户跟进</SelectItem><SelectItem value="project">项目跟进</SelectItem></SelectContent>
+      </Select>}
       <div><Input aria-label="搜索跟进记录" placeholder="搜索主题或推进结论" value={search}
         onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearch(event.target.value)} /></div>
       <Button type="submit" variant="outline" size="sm">搜索</Button>
