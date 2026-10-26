@@ -6,6 +6,7 @@ import { RecordDetails } from './RecordDetails';
 import { CustomerContacts } from './CustomerContacts';
 import { CustomerProjects } from './CustomerProjects';
 import { FollowupFeed } from './FollowupFeed';
+import type { FollowupView } from './FollowupFeed';
 import { FollowupBadge } from './FollowupStatus';
 import { Cell } from './Fields';
 
@@ -18,8 +19,11 @@ interface Props {
   onView: (row: CrmRecord, kind: EntityKind, customerId?: string) => void;
   onEditContact: (row: CrmRecord) => void;
   onCreate: (kind: 'contact' | 'project') => void;
+  followupView: FollowupView;
+  onFollowupViewChange: (view: FollowupView) => void;
 }
-export function CustomerWorkspace({ kind, row, busy, tab, onTabChange, onView, onEditContact, onCreate }: Props) {
+export function CustomerWorkspace({ kind, row, busy, tab, onTabChange, onView, onEditContact, onCreate,
+  followupView, onFollowupViewChange }: Props) {
   const parents: string[] = linkIds(row.record['所属企业']);
   const customerId: string | undefined = kind === 'customer' ? row.id : parents.length === 1 ? parents[0] : undefined;
   const blocked: boolean = row.record['已归档'] === true;
@@ -37,7 +41,8 @@ export function CustomerWorkspace({ kind, row, busy, tab, onTabChange, onView, o
         {kind === 'customer' && <TabsTrigger value="projects">关联项目</TabsTrigger>}
         <TabsTrigger value="details">资料详情</TabsTrigger>
       </TabsList>
-      <TabsContent value="followups"><FollowupFeed kind={kind} id={row.id} busy={busy} onView={view} /></TabsContent>
+      <TabsContent value="followups"><FollowupFeed kind={kind} id={row.id} busy={busy} onView={view}
+        view={followupView} onViewChange={onFollowupViewChange} /></TabsContent>
       <TabsContent value="contacts">{customerId ? <CustomerContacts key={customerId} customerId={customerId}
         busy={busy} createBlocked={blocked} onView={(record: CrmRecord) => view(record, 'contact')}
         onEdit={onEditContact} onCreate={kind === 'customer' ? () => onCreate('contact') : undefined} />

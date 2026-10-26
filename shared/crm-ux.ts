@@ -1,7 +1,8 @@
-import type { CrmRecord } from './api.interface';
+import type { CrmRecord, EntityKind } from './api.interface';
 import type { Draft } from './crm';
 import { textValue } from './crm';
 import { contactLifecycleProblem } from './crm-review';
+import { advancementBlocked, followupTarget } from './crm-workflow';
 
 /** Change only the requested filter; keep independent filters and scope. */
 export function changeFilter(params: URLSearchParams, key: string, value: string): string {
@@ -12,7 +13,10 @@ export function changeFilter(params: URLSearchParams, key: string, value: string
 
 export function followupTime(value: Draft[string] | undefined): number {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(value)) return NaN;
-  return Date.parse(value + '+08:00');
+  const time: number = Date.parse(value + '+08:00');
+  if (!Number.isFinite(time)) return NaN;
+  const normalized: string = new Date(time + 8 * 3600000).toISOString().slice(0, value.length);
+  return normalized === value ? time : NaN;
 }
 
 export function contactChoiceProblem(row: CrmRecord, occurred: number): string {
@@ -44,4 +48,26 @@ export function suggestedPlan(record: CrmRecord['record']): Draft | null {
     下次跟进日期: typeof date === 'number' && Number.isFinite(date)
       ? new Date(date + 8 * 3600000).toISOString().slice(0, 10) : '',
   };
+}
+
+/** A revised suggestion can be adopted again; unrelated record edits do not reset it. */
+export function suggestionKey(row: CrmRecord): string {
+  const plan: Draft | null = suggestedPlan(row.record);
+  return JSON.stringify([row.id, followupTarget(row), plan && {
+    ...plan, 行动执行人: [...plan['行动执行人'] as string[]].sort(),
+  }]);
+}
+
+/** Re-read both ends before preparing a plan. This function never writes business data. */
+export async function readPlanSuggestion(
+  id: string, get: (kind: EntityKind, id: string) => Promise<CrmRecord>,
+) {
+  const followup: CrmRecord = await get('followup', id);
+  const target = followupTarget(followup);
+  const preset: Draft | null = suggestedPlan(followup.record);
+  if (!target || !preset) throw new Error('这条跟进已没有可采用的下一步建议，请重新打开跟进查看最新内容');
+  const row: CrmRecord = await get(target.kind, target.id);
+  const blocked: string = advancementBlocked(target.kind, row);
+  if (blocked) throw new Error(blocked);
+  return { followup, target, preset, row, key: suggestionKey(followup) };
 }

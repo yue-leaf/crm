@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { MessageSquareText, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,31 +9,33 @@ import { textValue } from '@shared/crm';
 import { Cell } from './Fields';
 import { useRelatedPage } from './useRelatedPage';
 
+export interface FollowupView { scope: FollowupScope; search: string; query: string }
+export const defaultFollowupView: FollowupView = { scope: 'all', search: '', query: '' };
 interface Props {
   kind: 'customer' | 'project';
   id: string;
   busy: boolean;
   onView: (row: CrmRecord, kind: EntityKind) => void;
+  view: FollowupView;
+  onViewChange: (view: FollowupView) => void;
 }
-export function FollowupFeed({ kind, id, busy, onView }: Props) {
-  const [scope, setScope] = useState<FollowupScope>('all');
-  const [search, setSearch] = useState('');
-  const [query, setQuery] = useState('');
+export function FollowupFeed({ kind, id, busy, onView, view, onViewChange }: Props) {
+  const { scope, search, query } = view;
   const load = useCallback((cursor?: string): Promise<FollowupPage> =>
     api.relatedFollowups(kind, id, { cursor, search: query, scope }), [kind, id, query, scope]);
-  const { page, loading, error, more, retry } = useRelatedPage(load);
+  const { page, loading, error, more, retry, refresh } = useRelatedPage(load);
   return <section className="related-panel" aria-label="跟进记录">
     <div className="related-panel-heading"><div><h3>跟进记录{page && <span>{page.total} 条</span>}</h3>
       <p>{kind === 'customer' ? '汇总客户直接跟进及全部关联项目的跟进，包含历史记录。' : '按实际发生时间查看项目的全部跟进。'}</p></div></div>
-    <form className="related-search" onSubmit={(event: React.FormEvent) => { event.preventDefault(); const value: string = search.trim(); if (value === query) retry(); else setQuery(value); }}>
-      {kind === 'customer' && <Select value={scope} onValueChange={(value: FollowupScope) => setScope(value)}>
+    <form className="related-search" onSubmit={(event: React.FormEvent) => { event.preventDefault(); const value: string = search.trim(); if (value === query) refresh(); else onViewChange({ ...view, query: value }); }}>
+      {kind === 'customer' && <Select value={scope} onValueChange={(value: FollowupScope) => onViewChange({ ...view, scope: value })}>
         <SelectTrigger aria-label="跟进记录范围" className="w-36"><SelectValue /></SelectTrigger>
         <SelectContent><SelectItem value="all">全部跟进</SelectItem><SelectItem value="direct">客户跟进</SelectItem><SelectItem value="project">项目跟进</SelectItem></SelectContent>
       </Select>}
       <div><Input aria-label="搜索跟进记录" placeholder="搜索主题或推进结论" value={search}
-        onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearch(event.target.value)} /></div>
+        onChange={(event: React.ChangeEvent<HTMLInputElement>) => onViewChange({ ...view, search: event.target.value })} /></div>
       <Button type="submit" variant="outline" size="sm">搜索</Button>
-      {(search || query) && <Button type="button" variant="ghost" size="sm" onClick={() => { setSearch(''); if (query) setQuery(''); else retry(); }}>清空</Button>}
+      {(search || query) && <Button type="button" variant="ghost" size="sm" onClick={() => { onViewChange({ ...view, search: '', query: '' }); if (!query) refresh(); }}>清空</Button>}
     </form>
     <div className="followup-timeline">
       {page?.records.map((row: CrmRecord) => {
