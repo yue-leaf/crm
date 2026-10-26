@@ -23,8 +23,8 @@ export function FollowupFeed({ kind, id, busy, onView, view, onViewChange }: Pro
   const { scope, search, query } = view;
   const load = useCallback((cursor?: string): Promise<FollowupPage> =>
     api.relatedFollowups(kind, id, { cursor, search: query, scope }), [kind, id, query, scope]);
-  const { page, loading, error, more, retry, refresh } = useRelatedPage(load);
-  return <section className="related-panel" aria-label="跟进记录">
+  const { page, loading, error, more, retry, refresh } = useRelatedPage(load, JSON.stringify(['followups', kind, id, query, scope]));
+  return <section className="related-panel" aria-label="跟进记录" data-page-loading={loading}>
     <div className="related-panel-heading"><div><h3>跟进记录{page && <span>{page.total} 条</span>}</h3>
       <p>{kind === 'customer' ? '汇总客户直接跟进及全部关联项目的跟进，包含历史记录。' : '按实际发生时间查看项目的全部跟进。'}</p></div></div>
     <form className="related-search" onSubmit={(event: React.FormEvent) => { event.preventDefault(); const value: string = search.trim(); if (value === query) refresh(); else onViewChange({ ...view, query: value }); }}>

@@ -80,6 +80,9 @@ import { numberValue, detailFieldLabel } from '@shared/crm-presentation';
 import { projectFilterLabels } from '@shared/crm-dashboard';
 import { changeFilter, actionDraft, suggestedPlan, followupTime, suggestionKey, readPlanSuggestion } from '@shared/crm-ux';
 import { defaultFollowupView, type FollowupView } from './FollowupFeed';
+import { RelatedPageMemory } from './RelatedPageMemory';
+import type { RelatedPosition } from '@shared/crm-navigation';
+import { restoreDetailScroll } from './restoreDetailScroll';
 import {
   FOLLOWUP_CUSTOMER, followupCreateFields, changeFollowupTarget, followupWriteDraft,
 } from '@shared/crm-followup-target';
@@ -168,6 +171,8 @@ const CrmPage: React.FC = () => {
   const [selectionKind, setSelectionKind] = useState<EntityKind>('customer');
   const [detailTrail, setDetailTrail] = useState<DetailLocation[]>([]);
   const [followupViews, setFollowupViews] = useState<Record<string, FollowupView>>({});
+  const relatedMemory = useRef(new Map<string, RelatedPosition>());
+  const [scrollRequest, setScrollRequest] = useState<{ key: string; tab: string; top: number } | null>(null);
   const editorOrigin = useRef<DetailLocation | null>(null);
   const suspendedEditor = useRef<SuspendedEditor | null>(null);
   const [receipt, setReceipt] = useState<{ kind: EntityKind; row: CrmRecord } | null>(null);
@@ -218,8 +223,21 @@ const CrmPage: React.FC = () => {
   } : null;
   const restoreLocation = (location: DetailLocation, row: CrmRecord = location.row) => {
     setSelection(row); setSelectionKind(location.kind); setDetailTab(location.tab); setCustomerContext(location.customer);
-    requestAnimationFrame(() => { const body = document.querySelector('.crm-detail-dialog .crm-dialog-body'); if (body) body.scrollTop = location.scroll; });
+    setScrollRequest({ key: `${location.kind}:${row.id}`, tab: location.tab, top: location.scroll });
   };
+  useEffect(() => {
+    if (!scrollRequest || scrollRequest.key !== `${selectionKind}:${selection?.id}` || scrollRequest.tab !== detailTab) return;
+    let stop: (() => void) | undefined;
+    let frame: number;
+    let attempts: number = 0;
+    const attach = () => {
+      const body = document.querySelector<HTMLElement>('.crm-detail-dialog .crm-dialog-body');
+      if (body) stop = restoreDetailScroll(body, scrollRequest.top);
+      else if (++attempts < 60) frame = requestAnimationFrame(attach);
+    };
+    frame = requestAnimationFrame(attach);
+    return () => { cancelAnimationFrame(frame); stop?.(); };
+  }, [scrollRequest, selection?.id, selectionKind, detailTab]);
   useEffect(() => {
     let canceled = false;
     api
@@ -384,6 +402,7 @@ const CrmPage: React.FC = () => {
         const previous = currentLocation();
         if (previous && (previous.row.id !== next.id || previous.kind !== kind)) setDetailTrail((trail) => [...trail, previous]);
         if (!previous) setDetailTrail([]);
+        setScrollRequest(null);
         setReceipt(null);
         setSelectionKind(kind);
         setDetailTab(initialTab);
@@ -591,7 +610,7 @@ const CrmPage: React.FC = () => {
     return true;
   };
   return (
-    <div className="crm-shell">
+    <RelatedPageMemory.Provider value={relatedMemory.current}><div className="crm-shell">
       <aside className="crm-sidebar">
         <div className="brand">
           <span>
@@ -936,7 +955,7 @@ const CrmPage: React.FC = () => {
                     followupView={followupViews[`${selectionKind}:${selection.id}`] || defaultFollowupView}
                     onFollowupViewChange={(view) => setFollowupViews((previous) => ({ ...previous,
                       [`${selectionKind}:${selection.id}`]: view }))}
-                    tab={detailTab} onTabChange={setDetailTab}
+                    tab={detailTab} onTabChange={(tab) => { setScrollRequest(null); setDetailTab(tab); }}
                     busy={!!openingId || !!detailLoadingId}
                     onView={(row: CrmRecord, kind: EntityKind, customerId?: string) => void detail(row, kind, customerId)}
                     onEditContact={(row: CrmRecord) => void edit(row, 'contact')}
@@ -1066,7 +1085,7 @@ const CrmPage: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </div></RelatedPageMemory.Provider>
   );
 };
 export default CrmPage;

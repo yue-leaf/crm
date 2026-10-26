@@ -1,0 +1,63 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const http = require('node:http');
+const { readRelatedPages } = require('../../dist/shared/crm-navigation.js');
+
+const page = (n, last = false) => ({ records: [{ id: `r${n}`, record: { name: `fresh-${n}` } }],
+  sources: { [`r${n}`]: { id: 'customer', kind: 'customer', name: '客户' } },
+  hasMore: !last, ...(!last ? { pageToken: String(n + 1) } : {}) });
+const state = () => ({ page: null, depth: 0, targetDepth: 3, canceled: () => false,
+  onPage(next, depth) { this.page = next; this.depth = depth; } });
+
+test('return restores all loaded pages with fresh values, source labels and no duplicate rows', async () => {
+  const progress = state();
+  const requests = [];
+  progress.load = async cursor => { const n = Number(cursor || 1); requests.push(n); return page(n, n === 3); };
+  await readRelatedPages(progress);
+  assert.deepEqual(requests, [1, 2, 3]);
+  assert.deepEqual(progress.page.records.map(r => r.id), ['r1', 'r2', 'r3']);
+  assert.equal(Object.keys(progress.page.sources).length, 3);
+  assert.equal(progress.depth, 3);
+});
+
+test('real HTTP connection failure keeps first page and retries from failed cursor', async t => {
+  const requested = [];
+  let fail = true;
+  const server = http.createServer((req, res) => {
+    const n = Number(new URL(req.url, 'http://localhost').searchParams.get('cursor') || 1);
+    requested.push(n);
+    if (n === 2 && fail) { req.socket.destroy(); return; }
+    res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(page(n, n === 3)));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); }));
+  const progress = state();
+  progress.load = async cursor => (await fetch(`http://127.0.0.1:${server.address().port}/?cursor=${cursor || ''}`)).json();
+  await assert.rejects(readRelatedPages(progress), /fetch failed/);
+  assert.equal(progress.depth, 1);
+  assert.deepEqual(progress.page.records.map(r => r.id), ['r1']);
+  fail = false;
+  await readRelatedPages(progress);
+  assert.deepEqual(requested, [1, 2, 2, 3]);
+  assert.equal(progress.depth, 3);
+  assert.deepEqual(progress.page.records.map(r => r.id), ['r1', 'r2', 'r3']);
+});
+
+test('deleted records can shorten the range without endless reads; malformed cursors stop', async () => {
+  const progress = state();
+  progress.load = async () => page(1, true);
+  await readRelatedPages(progress);
+  assert.equal(progress.depth, 1);
+  await assert.rejects(readRelatedPages({ ...state(), load: async () => ({ records: [], hasMore: true }) }), /分页信息异常/);
+  await assert.rejects(readRelatedPages({ ...state(), load: async () => page(1) }), /分页信息异常/);
+});
+
+test('late response after navigation cannot update the new location', async () => {
+  let canceled = false;
+  const progress = state();
+  progress.canceled = () => canceled;
+  progress.load = async () => { canceled = true; return page(1); };
+  await readRelatedPages(progress);
+  assert.equal(progress.page, null);
+  assert.equal(progress.depth, 0);
+});
