@@ -77,6 +77,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { FollowupFilter } from '@shared/api.interface';
 import { projectFacts, validProjectFilter } from '@shared/crm-dashboard';
 import { numberValue } from '@shared/crm-presentation';
+import {
+  FOLLOWUP_CUSTOMER, followupCreateFields, changeFollowupTarget, followupWriteDraft,
+} from '@shared/crm-followup-target';
 import './crm.css';
 
 const icons = {
@@ -106,7 +109,6 @@ const columns: Record<EntityKind, string[]> = {
   ],
   followup: [
     '跟进主题',
-    '跟进归属',
     '实际发生时间',
     '实际跟进人',
     '记录类型',
@@ -129,7 +131,7 @@ const specs = (editor: Editor): FieldSpec[] =>
       ? planFields
       : editor.operation === 'suggest-end'
         ? endFields
-        : forms[editor.kind];
+        : editor.kind === 'followup' ? followupCreateFields : forms[editor.kind];
 const CrmPage: React.FC = () => {
   const navigate = useNavigate();
   const { section } = useParams();
@@ -376,7 +378,7 @@ const CrmPage: React.FC = () => {
                 draft,
                 Number(editor.row.record['修改时间']),
               )
-            : await api.create(editor.kind, draft);
+            : await api.create(editor.kind, editor.kind === 'followup' ? followupWriteDraft(draft) : draft);
       toast.success(r.message);
       setEditor(null);
       setSelection(null);
@@ -411,10 +413,15 @@ const CrmPage: React.FC = () => {
     if (savingRef.current) return;
     setFieldErrors((previous) => {
       const next = { ...previous }; delete next[key];
+      if (key === FOLLOWUP_CUSTOMER) { delete next['关联项目']; delete next['客户联系人']; }
+      if (key === '关联项目') delete next['客户联系人'];
       if (key === '电话' || key === '邮箱') { delete next['电话']; delete next['邮箱']; }
       return next;
     });
-    setDraft((previous) => changeDraft(previous, key, value, initialDraft.current, editor?.operation === 'edit'));
+    setDraft((previous) => editor?.kind === 'followup' && editor.operation === 'create' &&
+      [FOLLOWUP_CUSTOMER, '关联项目'].includes(key) && Array.isArray(value)
+      ? changeFollowupTarget(previous, key, value)
+      : changeDraft(previous, key, value, initialDraft.current, editor?.operation === 'edit'));
   };
   const showField = (f: FieldSpec) => {
     if (editor?.kind === 'contact' && f.key === '停用原因') return draft['联系人状态'] === '停用';
@@ -430,7 +437,7 @@ const CrmPage: React.FC = () => {
       return draft['项目类型'] === '销售机会';
     if (editor?.kind === 'followup') {
       if (f.key === '直接客户') return draft['跟进归属'] === '客户直接跟进';
-      if (f.key === '关联项目') return draft['跟进归属'] === '项目跟进';
+      if (f.key === '关联项目') return true;
       if (f.key === '客户联系人') return draft['记录类型'] === '外部沟通';
       if (['建议下一步行动', '建议处理人', '建议日期'].includes(f.key))
         return draft['后续安排'] === '有下一步行动';
@@ -842,8 +849,11 @@ const CrmPage: React.FC = () => {
                       field={requiredField(f, editor.kind, editor.operation, draft)}
                       error={fieldErrors[f.key]}
                       draft={draft}
+                      customerId={editor.kind === 'followup' && editor.operation === 'create' && f.key === '关联项目'
+                        ? (Array.isArray(draft[FOLLOWUP_CUSTOMER]) ? draft[FOLLOWUP_CUSTOMER][0] : '') : undefined}
                       onChange={set}
-                      disabled={saving || uncertain}
+                      disabled={saving || uncertain || (editor.kind === 'followup' && editor.operation === 'create' && f.key === '关联项目' &&
+                        (!Array.isArray(draft[FOLLOWUP_CUSTOMER]) || !draft[FOLLOWUP_CUSTOMER].length))}
                     />
                   ))}
             </fieldset>
