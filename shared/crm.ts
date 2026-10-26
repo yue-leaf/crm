@@ -49,7 +49,7 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
       key: '行业',
       type: 'select',
       required: true,
-      options: ['制造业', '信息技术', '服务业', '其他'],
+      options: ['医药中间体', '大宗原料药', '特色原料药', '化学药品制剂', '化学创新药', 'CDMO/CMO', '其他化学制药'],
     },
     { key: '地区', type: 'text', required: true },
     { key: '客户负责人', type: 'person', required: true },

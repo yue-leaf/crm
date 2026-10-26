@@ -7,7 +7,7 @@ const { CrmService } = require('../../dist/server/modules/crm/crm.service.js');
 const { CrmController } = require('../../dist/server/modules/crm/crm.controller.js');
 const { crmSection } = require('../../dist/shared/crm.js');
 const customer = () => ({ id: 'recCompany', record: {
-  企业全称: { text: 'Example' }, 行业: '信息技术', 地区: { text: '上海' },
+  企业全称: { text: 'Example' }, 行业: '其他化学制药', 地区: { text: '上海' },
   客户负责人: [123], 核查标记: '正常', 已归档: false, 修改时间: 1,
 } });
 function fixture(row = customer(), hook = () => {}) {
@@ -58,7 +58,7 @@ test('reject success when update response returns an ID but silently ignores fie
 });
 test('reject success when create response returns an ID but silently ignores fields', async () => {
   const f = fixture(customer(), (kind, action) => action === 'batchAddRecords' ? { records: [{ id: 'recCompany' }] } : undefined);
-  await assert.rejects(() => f.service.create('customer', { 企业全称: 'New', 行业: '信息技术', 地区: '北京', 客户负责人: ['123'] }), /回读/);
+  await assert.rejects(() => f.service.create('customer', { 企业全称: 'New', 行业: '其他化学制药', 地区: '北京', 客户负责人: ['123'] }), /回读/);
 });
 test('query objects and arrays are rejected before calling the SDK', async () => {
   const f = fixture();
