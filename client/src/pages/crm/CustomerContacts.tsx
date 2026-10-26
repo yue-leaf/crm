@@ -53,10 +53,11 @@ export const CustomerContacts: React.FC<{
         <div className="contact-card-identity">
           <div className="contact-card-heading"><button type="button" className="contact-card-name" disabled={busy} onClick={() => onView(row)}>{name}</button>
             <Cell name="联系人状态" value={row.record['联系人状态']} /></div>
+          {textValue(row.record['职务']) && <p className="muted">{textValue(row.record['职务'])}</p>}
         </div>
         <dl className="contact-card-channels">
-          {phone && <div><dt><Phone size={13} aria-hidden="true" /><span>电话</span></dt><dd>{phone}</dd></div>}
-          {email && <div><dt><Mail size={13} aria-hidden="true" /><span>邮箱</span></dt><dd>{email}</dd></div>}
+          {phone && <div><dt><Phone size={13} aria-hidden="true" /><span>电话</span></dt><dd><a href={`tel:${encodeURIComponent(phone)}`}>{phone}</a></dd></div>}
+          {email && <div><dt><Mail size={13} aria-hidden="true" /><span>邮箱</span></dt><dd><a href={`mailto:${encodeURIComponent(email)}`}>{email}</a></dd></div>}
           {!phone && !email && <div className="contact-card-empty"><dt className="sr-only">联系方式</dt><dd>未填写联系方式</dd></div>}
         </dl>
         <div className="contact-card-actions"><Button type="button" variant="ghost" size="sm" disabled={busy} aria-label={`查看${name}`} onClick={() => onView(row)}><Eye size={14} aria-hidden="true" />查看</Button>

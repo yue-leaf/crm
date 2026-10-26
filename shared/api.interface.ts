@@ -16,6 +16,7 @@ export interface CrmPage {
 }
 export interface CustomerContactsQuery {
   cursor?: string;
+  search?: string;
 }
 export type FollowupScope = 'all' | 'direct' | 'project';
 export interface RelatedRecordsQuery {

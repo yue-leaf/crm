@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
-export interface RecordOption { id: string; name: string }
+export interface RecordOption { id: string; name: string; description?: string; disabledReason?: string }
 interface RecordPickerProps {
   label: string;
   multiple?: boolean;
@@ -61,13 +61,15 @@ export const RecordPicker: React.FC<RecordPickerProps> = (props) => {
                   ))}
                   {options.filter((item) => query || !value.includes(item.id)).map((item) => (
                     <CommandItem key={item.id} value={item.id} aria-label={item.name}
+                      disabled={Boolean(item.disabledReason) && !value.includes(item.id)}
                       onSelect={() => {
                         if (multiple) onChange(value.includes(item.id) ? value.filter((id) => id !== item.id) : [...value, item.id]);
                         else if (!value.includes(item.id)) onChange([item.id]);
                         if (!multiple) onOpenChange(false);
                       }}>
                       <Check size={16} aria-hidden="true" className={value.includes(item.id) ? '' : 'picker-unchecked'} />
-                      <span>{item.name}</span>
+                      <span>{item.name}{item.description && <small className="block text-muted-foreground">{item.description}</small>}
+                        {item.disabledReason && <small className="block text-muted-foreground">{item.disabledReason}</small>}</span>
                     </CommandItem>
                   ))}
                   {!options.length && (query || !selected.length) && !error && (

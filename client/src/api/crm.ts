@@ -58,7 +58,7 @@ export const api = {
   relatedFollowups: (kind: 'customer' | 'project', id: string, query: RelatedRecordsQuery = {}) =>
     request<FollowupPage>(`${kind === 'customer' ? 'customers' : 'projects'}/${encodeURIComponent(id)}/followups?${new URLSearchParams({ cursor: query.cursor || '', search: query.search || '', scope: query.scope || 'all' })}`),
   customerContacts: (customerId: string, query: CustomerContactsQuery = {}) =>
-    request<CrmPage>(`customers/${encodeURIComponent(customerId)}/contacts?${new URLSearchParams({ cursor: query.cursor || '' })}`),
+    request<CrmPage>(`customers/${encodeURIComponent(customerId)}/contacts?${new URLSearchParams({ cursor: query.cursor || '', search: query.search || '' })}`),
   session: () => request<CrmSession>('session'),
   summary: () => request<CrmSummary>('summary'),
   overview: (scope: ProjectScope) => request<ProjectOverview>(`overview?scope=${scope}`),

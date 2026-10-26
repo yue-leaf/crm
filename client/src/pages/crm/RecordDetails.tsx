@@ -1,14 +1,16 @@
 import React from 'react';
-import type { CrmRecord } from '@shared/api.interface';
+import type { CrmRecord, EntityKind } from '@shared/api.interface';
 import { detailFieldLabel, detailGroups, displayBoolean, managementLogText, numberValue } from '@shared/crm-presentation';
 import { textValue } from '@shared/crm';
 import { Cell } from './Fields';
+import { projectFacts } from '@shared/crm-dashboard';
 
 const quantityUnits: Record<string, string> = {
   非终局项目数: '个', 未跟进天数: '天', 直接有效次数: '次', 整体有效次数: '次', 有效次数: '次',
 };
 
-export const RecordDetails: React.FC<{ record: CrmRecord['record']; onOpenCustomer?: (id: string) => void }> = ({ record, onOpenCustomer }) => (
+export const RecordDetails: React.FC<{ record: CrmRecord['record']; onOpenCustomer?: (id: string) => void;
+  onOpenRecord?: (id: string, kind: EntityKind) => void }> = ({ record, onOpenCustomer, onOpenRecord }) => (
   <div className="detail-sections">
     {detailGroups(record).map((group) => {
       const content = <dl className={group.title === '业务概况' ? 'detail-grid detail-overview' : 'detail-grid'}>
@@ -20,7 +22,9 @@ export const RecordDetails: React.FC<{ record: CrmRecord['record']; onOpenCustom
             <dd>{quantityUnits[key] ? numberValue(value) !== null ? <div className="detail-quantity"><strong>{numberValue(value)}</strong><span>{quantityUnits[key]}</span>
               {key === '未跟进天数' && displayBoolean('长期未跟进', record['长期未跟进']) === '长期未跟进' && <span className="tag amber">长期未跟进</span>}</div>
               : <span className="muted">暂不可用</span>
-              : <Cell name={key} value={['管理记录', '联系人管理记录'].includes(key) ? managementLogText(value) : value} onOpenCustomer={onOpenCustomer} />}</dd>
+              : <Cell name={key} value={key === '工作状态' ? projectFacts({ id: '', record }, Date.now()).state || '状态异常'
+                : ['管理记录', '联系人管理记录'].includes(key) ? managementLogText(value) : value}
+                onOpenCustomer={onOpenCustomer} onOpenRecord={onOpenRecord} />}</dd>
           </div>
         ))}
       </dl>;

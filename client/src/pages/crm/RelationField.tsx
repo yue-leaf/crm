@@ -5,6 +5,8 @@ import type { FieldSpec } from '@shared/crm';
 import { titles, textValue } from '@shared/crm';
 import { RecordPicker } from './RecordPicker';
 import type { RecordOption } from './RecordPicker';
+import { contactChoiceProblem } from '@shared/crm-ux';
+import { Button } from '@/components/ui/button';
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : '数据加载失败，请重试';
 export const RelationField: React.FC<{
@@ -13,7 +15,9 @@ export const RelationField: React.FC<{
   onChange: (value: string[]) => void;
   disabled?: boolean;
   customerId?: string;
-}> = ({ field, value, onChange, disabled, customerId }) => {
+  occurredAt?: number;
+  onCreateContact?: () => void;
+}> = ({ field, value, onChange, disabled, customerId, occurredAt, onCreateContact }) => {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CrmRecord[]>([]);
   const [known, setKnown] = useState<CrmRecord[]>([]);
@@ -54,7 +58,8 @@ export const RelationField: React.FC<{
     if (!open || disabled || !field.target) return;
     const target = field.target;
     const timer = setTimeout(() => {
-      void (target === 'project' && customerId ? api.customerProjects(customerId, { search: query })
+      void (target === 'contact' && customerId ? api.customerContacts(customerId, { search: query })
+        : target === 'project' && customerId ? api.customerProjects(customerId, { search: query })
         : api.list(target, '', query)).then((result) => {
         if (version !== generation.current) return;
         setItems(result.records);
@@ -69,6 +74,11 @@ export const RelationField: React.FC<{
 
   const option = (row: CrmRecord): RecordOption => ({
     id: row.id, name: textValue(row.record[titles[field.target!]]) || '未命名记录',
+    ...(field.target === 'contact' ? {
+      description: [textValue(row.record['职务']), textValue(row.record['电话']) || textValue(row.record['邮箱']),
+        textValue(row.record['联系人状态']) === '停用' ? '已停用' : ''].filter(Boolean).join(' · '),
+      disabledReason: contactChoiceProblem(row, occurredAt ?? NaN),
+    } : {}),
   });
   return <div className="relation-field">
     <RecordPicker label={field.label || field.key} multiple={field.multiple} disabled={disabled}
@@ -82,7 +92,8 @@ export const RelationField: React.FC<{
         setLoadingMore(true);
         setError('');
         const version = generation.current;
-        void (field.target === 'project' && customerId ? api.customerProjects(customerId, { cursor, search: query })
+        void (field.target === 'contact' && customerId ? api.customerContacts(customerId, { cursor, search: query })
+          : field.target === 'project' && customerId ? api.customerProjects(customerId, { cursor, search: query })
           : api.list(field.target, cursor, query)).then((result) => {
           if (version !== generation.current) return;
           setItems((prev) => [...new Map([...prev, ...result.records].map((row) => [row.id, row])).values()]);
@@ -95,8 +106,15 @@ export const RelationField: React.FC<{
         });
       }} />
     {selectionError && !open && <p className="field-error" role="alert">{selectionError}</p>}
-    <small>{field.multiple ? '可选择多项' : '请选择一项'}；保存时校验所属企业和有效状态。</small>
-    {field.key === '关联项目' && customerId !== undefined && <small>{customerId ? '可不选项目；选择后，这条跟进将记录到该项目。' : '请先选择客户，再选择需要关联的项目。'}</small>}
-    {['跟进客户', '直接客户', '关联项目'].includes(field.key) && <small>更换客户或项目后，需要重新选择客户联系人。</small>}
+    {field.target === 'contact' && known.filter((row) => value.includes(row.id)).map((row) => {
+      const issue = contactChoiceProblem(row, occurredAt ?? NaN);
+      return issue ? <p key={row.id} className="field-error" role="alert">{textValue(row.record['姓名'])}：{issue}</p> : null;
+    })}
+    {field.key === '关联项目' && customerId !== undefined && <small>{customerId ? '选填；只显示该客户的项目。' : '请先选择客户。'}</small>}
+    {field.target === 'contact' && <div className="flex flex-wrap items-center gap-2">
+      <small>{customerId ? '只显示该客户的联系人，可多选。' : '请先选择客户。'}</small>
+      {onCreateContact && <Button type="button" size="sm" variant="ghost" disabled={disabled || !customerId}
+        onClick={onCreateContact}>新建联系人</Button>}
+    </div>}
   </div>;
 };

@@ -46,6 +46,7 @@ export function CustomerWorkspace({ kind, row, busy, tab, onTabChange, onView, o
         busy={busy} createBlocked={blocked} onCreate={() => onCreate('project')}
         onView={(record: CrmRecord) => view(record, 'project')} /></TabsContent>}
       <TabsContent value="details"><RecordDetails record={row.record}
+        onOpenRecord={(id, type) => onView({ id, record: {} }, type, customerId)}
         onOpenCustomer={(id: string) => onView({ id, record: {} }, 'customer', id)} /></TabsContent>
     </Tabs>
   </div>;

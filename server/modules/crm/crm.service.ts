@@ -88,9 +88,9 @@ export class CrmService {
         .map((f) => [f.name, f.enumValues]),
     );
   }
-  async customerContacts(id: string, cursor?: string): Promise<CrmPage> {
+  async customerContacts(id: string, cursor?: string, search?: string): Promise<CrmPage> {
     await this.get('customer', id);
-    return this.list('contact', cursor, undefined, id);
+    return this.list('contact', cursor, search, id);
   }
   async customerProjects(id: string, query: RelatedRecordsQuery): Promise<CrmPage> {
     await this.get('customer', id);

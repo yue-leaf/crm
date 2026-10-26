@@ -76,7 +76,10 @@ import { followupFilterLabels, validFollowupFilter, shanghaiDay } from '@shared/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { FollowupFilter } from '@shared/api.interface';
 import { projectFacts, validProjectFilter } from '@shared/crm-dashboard';
-import { numberValue } from '@shared/crm-presentation';
+import { numberValue, detailFieldLabel } from '@shared/crm-presentation';
+import { projectFilterLabels } from '@shared/crm-dashboard';
+import { changeFilter, actionDraft, suggestedPlan, followupTime } from '@shared/crm-ux';
+import { advancementBlocked } from '@shared/crm-workflow';
 import {
   FOLLOWUP_CUSTOMER, followupCreateFields, changeFollowupTarget, followupWriteDraft,
 } from '@shared/crm-followup-target';
@@ -109,6 +112,8 @@ const columns: Record<EntityKind, string[]> = {
   ],
   followup: [
     '跟进主题',
+    '有效客户名称',
+    '关联项目',
     '实际发生时间',
     '实际跟进人',
     '记录类型',
@@ -120,7 +125,9 @@ interface Editor {
   operation: string;
   row?: CrmRecord;
 }
-const specs = (editor: Editor): FieldSpec[] =>
+interface DetailLocation { row: CrmRecord; kind: EntityKind; tab: string; customer: string | null; scroll: number }
+interface SuspendedEditor { editor: Editor; draft: Draft; initial: Draft; origin: DetailLocation | null }
+const rawSpecs = (editor: Editor): FieldSpec[] =>
   isLifecycle(editor.operation)
     ? lifecycleFields(editor.kind, editor.operation)
     : editor.operation === 'progress'
@@ -132,6 +139,10 @@ const specs = (editor: Editor): FieldSpec[] =>
       : editor.operation === 'suggest-end'
         ? endFields
         : editor.kind === 'followup' ? followupCreateFields : forms[editor.kind];
+const specs = (editor: Editor): FieldSpec[] => rawSpecs(editor)
+  .filter((field: FieldSpec) => !(editor.operation === 'progress' && field.key === '变更说明') &&
+    !(editor.operation === 'confirm-end' && field.key === '操作原因'))
+  .map((field: FieldSpec) => ({ ...field, label: field.label || detailFieldLabel(field.key) }));
 const CrmPage: React.FC = () => {
   const navigate = useNavigate();
   const { section } = useParams();
@@ -155,6 +166,15 @@ const CrmPage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [selection, setSelection] = useState<CrmRecord | null>(null);
   const [selectionKind, setSelectionKind] = useState<EntityKind>('customer');
+  const [detailTrail, setDetailTrail] = useState<DetailLocation[]>([]);
+  const editorOrigin = useRef<DetailLocation | null>(null);
+  const suspendedEditor = useRef<SuspendedEditor | null>(null);
+  const [receipt, setReceipt] = useState<{ kind: EntityKind; row: CrmRecord } | null>(null);
+  const planSuggestion = useRef<string | null>(null);
+  const [adoptedSuggestions, setAdoptedSuggestions] = useState<Set<string>>(new Set());
+  const [followupCustomer, setFollowupCustomer] = useState('');
+  const [customerResolveError, setCustomerResolveError] = useState('');
+  const [customerResolveRetry, setCustomerResolveRetry] = useState(0);
   const [customerContext, setCustomerContext] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState('followups');
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -173,6 +193,28 @@ const CrmPage: React.FC = () => {
   const requestVersion = useRef(0);
   const admin = !!session && crmAdmin(session.roles);
   const authorized = !!session && (active !== 'access' || admin);
+  const draftCustomer = Array.isArray(draft[FOLLOWUP_CUSTOMER]) ? draft[FOLLOWUP_CUSTOMER][0] || '' : '';
+  useEffect(() => {
+    let canceled = false;
+    setFollowupCustomer(''); setCustomerResolveError('');
+    if (editor?.kind !== 'followup') return;
+    if (editor.operation === 'create') { setFollowupCustomer(draftCustomer); return; }
+    const direct = linkIds(editor.row?.record['直接客户'])[0];
+    const project = linkIds(editor.row?.record['关联项目'])[0];
+    if (direct) { setFollowupCustomer(direct); return; }
+    if (project) void api.get('project', project).then((row: CrmRecord) => {
+      if (!canceled) setFollowupCustomer(linkIds(row.record['所属企业'])[0] || '');
+    }).catch((e: unknown) => { if (!canceled) setCustomerResolveError(message(e)); });
+    return () => { canceled = true; };
+  }, [editor, draftCustomer, customerResolveRetry]);
+  const currentLocation = (): DetailLocation | null => selection ? {
+    row: selection, kind: selectionKind, tab: detailTab, customer: customerContext,
+    scroll: document.querySelector('.crm-detail-dialog .crm-dialog-body')?.scrollTop || 0,
+  } : null;
+  const restoreLocation = (location: DetailLocation, row: CrmRecord = location.row) => {
+    setSelection(row); setSelectionKind(location.kind); setDetailTab(location.tab); setCustomerContext(location.customer);
+    requestAnimationFrame(() => { const body = document.querySelector('.crm-detail-dialog .crm-dialog-body'); if (body) body.scrollTop = location.scroll; });
+  };
   useEffect(() => {
     let canceled = false;
     api
@@ -190,7 +232,7 @@ const CrmPage: React.FC = () => {
       canceled = true;
     };
   }, []);
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (keepRows = 0) => {
     if (!authorized) return;
     const version = ++requestVersion.current;
     setDetailLoadingId(null);
@@ -202,7 +244,14 @@ const CrmPage: React.FC = () => {
         const [next, projects] = await Promise.all([api.summary(), api.overview(scope)]);
         if (version === requestVersion.current) { setSummary(next); setOverview(projects); }
       } else {
-        const next = await api.list(active, '', query, active === 'project' ? { scope, projectFilter, followupFilter } : active === 'customer' ? { followupFilter } : undefined);
+        const filters = active === 'project' ? { scope, projectFilter, followupFilter } : active === 'customer' ? { followupFilter } : undefined;
+        let next = await api.list(active, '', query, filters);
+        const cursors = new Set<string>();
+        while (next.records.length < keepRows && next.hasMore && next.pageToken && version === requestVersion.current) {
+          if (cursors.has(next.pageToken)) throw new Error('分页数据重复，请刷新重试');
+          cursors.add(next.pageToken);
+          next = appendPage(next, await api.list(active, next.pageToken, query, filters));
+        }
         if (version === requestVersion.current) setData(next);
       }
     } catch (e: unknown) {
@@ -223,12 +272,19 @@ const CrmPage: React.FC = () => {
     requestVersion.current++;
     setSearch('');
     setQuery('');
+    setDetailTrail([]); setReceipt(null);
     navigate(key === 'home' ? '/' : `/crm/${key}`);
   };
   const openProjectFilter = (filter: ProjectFilter) => {
     requestVersion.current++;
     setSearch(''); setQuery('');
     navigate(`/crm/project?${new URLSearchParams({ scope, projectFilter: filter })}`);
+  };
+  const updateFilter = (key: string, value: string) => {
+    requestVersion.current++;
+    // Read the latest URL so consecutive changes cannot overwrite a pending router render.
+    const next = changeFilter(new URLSearchParams(window.location.search), key, value);
+    navigate(`${active === 'home' ? '/' : '/crm/' + active}?${next}`);
   };
   const openEditor = (
     kind: EntityKind,
@@ -237,6 +293,9 @@ const CrmPage: React.FC = () => {
     preset: Draft = {},
   ) => {
     if (savingRef.current) return;
+    editorOrigin.current = currentLocation();
+    planSuggestion.current = null;
+    setFollowupCustomer(''); setCustomerResolveError('');
     if (kind === 'customer' && operation === 'archive' && row) {
       const blockingProjects = numberValue(row.record['归档阻塞项目数']);
       if (blockingProjects !== null && blockingProjects > 0) {
@@ -257,7 +316,7 @@ const CrmPage: React.FC = () => {
       for (const f of specs(ed)) {
         if (f.type === 'person' && f.required)
           initial[f.key] = session ? [session.userId] : [];
-        if (f.type === 'select' && f.required)
+        if (f.type === 'select' && f.required && !['行业', '项目类型'].includes(f.key))
           initial[f.key] = f.options?.[0] || '';
       }
     if (kind === 'followup' && operation === 'create') {
@@ -309,7 +368,7 @@ const CrmPage: React.FC = () => {
       if (editorRequest === editorRequestVersion.current) setOpeningId(null);
     }
   };
-  const detail = async (row: CrmRecord, kind = active, contextCustomerId?: string, initialTab: 'followups' | 'contacts' = 'followups') => {
+  const detail = async (row: CrmRecord, kind = active, contextCustomerId?: string, initialTab: 'followups' | 'contacts' | 'projects' = 'followups') => {
     if (kind === 'home') return;
     const version = requestVersion.current;
     const detailRequest = ++detailVersion.current;
@@ -317,6 +376,10 @@ const CrmPage: React.FC = () => {
     try {
       const next = await api.get(kind, row.id);
       if (version === requestVersion.current && detailRequest === detailVersion.current) {
+        const previous = currentLocation();
+        if (previous && (previous.row.id !== next.id || previous.kind !== kind)) setDetailTrail((trail) => [...trail, previous]);
+        if (!previous) setDetailTrail([]);
+        setReceipt(null);
         setSelectionKind(kind);
         setDetailTab(initialTab);
         const parents: string[] = linkIds(next.record[kind === 'followup' ? '直接客户' : '所属企业']);
@@ -329,6 +392,23 @@ const CrmPage: React.FC = () => {
       if (detailRequest === detailVersion.current) setDetailLoadingId(null);
     }
   };
+  const resumeFollowup = (contactId?: string) => {
+    const suspended = suspendedEditor.current;
+    if (!suspended) return false;
+    suspendedEditor.current = null;
+    setEditor(suspended.editor); initialDraft.current = suspended.initial; editorOrigin.current = suspended.origin;
+    setDraft(contactId ? { ...suspended.draft, 客户联系人: [...new Set([
+      ...(Array.isArray(suspended.draft['客户联系人']) ? suspended.draft['客户联系人'] : []), contactId,
+    ])] } : suspended.draft);
+    setSaveError(''); setFieldErrors({}); setUncertain(false);
+    return true;
+  };
+  const newContactDuringFollowup = () => {
+    if (!editor || !followupCustomer || savingRef.current) return;
+    const suspended: SuspendedEditor = { editor, draft: structuredClone(draft), initial: initialDraft.current, origin: editorOrigin.current };
+    openEditor('contact', 'create', undefined, { 所属企业: [followupCustomer] });
+    suspendedEditor.current = suspended;
+  };
   const closeEditor = () => {
     if (savingRef.current) return;
     if (!uncertain && editor && (
@@ -337,6 +417,8 @@ const CrmPage: React.FC = () => {
       setDiscardOpen(true);
       return;
     }
+    if (uncertain && suspendedEditor.current) toast.info('联系人保存结果待确认，请先搜索刚才填写的姓名，避免重复新增。');
+    if (resumeFollowup()) return;
     setEditor(null);
     if (uncertain) {
       setSelection(null);
@@ -360,12 +442,13 @@ const CrmPage: React.FC = () => {
     setSaving(true);
     setSaveError('');
     try {
+      const submitted = actionDraft(editor.operation, draft);
       const r =
         editor.operation === 'edit' && editor.row
           ? await api.edit(editor.kind, editor.row.id, {
               changes: changedFields(
                 recordDraft(editor.row.record, specs(editor)),
-                draft,
+                submitted,
                 specs(editor),
               ),
               expectedModifiedAt: Number(editor.row.record['修改时间']),
@@ -375,14 +458,20 @@ const CrmPage: React.FC = () => {
                 editor.kind,
                 editor.row.id,
                 editor.operation,
-                draft,
+                submitted,
                 Number(editor.row.record['修改时间']),
               )
             : await api.create(editor.kind, editor.kind === 'followup' ? followupWriteDraft(draft) : draft);
       toast.success(r.message);
+      if (editor.operation === 'plan' && planSuggestion.current) {
+        const id = planSuggestion.current;
+        setAdoptedSuggestions((previous) => new Set([...previous, id]));
+      }
+      if (suspendedEditor.current) { resumeFollowup(r.id); return; }
+      const origin = editorOrigin.current;
       setEditor(null);
       setSelection(null);
-      const refresh = reload();
+      const refresh = reload(data?.records.length || 0);
       const version = requestVersion.current;
       const detailRequest = ++detailVersion.current;
       await refresh;
@@ -390,6 +479,15 @@ const CrmPage: React.FC = () => {
       try {
         const fresh = await api.get(editor.kind, r.id);
         if (version === requestVersion.current && detailRequest === detailVersion.current) {
+          if (origin) {
+            const parent = origin.kind === editor.kind && origin.row.id === fresh.id ? fresh : await api.get(origin.kind, origin.row.id);
+            if (version !== requestVersion.current || detailRequest !== detailVersion.current) return;
+            restoreLocation(origin, parent);
+            if (editor.operation === 'create') setReceipt({ kind: editor.kind, row: fresh });
+            return;
+          }
+          if (editor.operation !== 'create') return;
+          setReceipt({ kind: editor.kind, row: fresh });
           setSelectionKind(editor.kind);
           const parents: string[] = linkIds(fresh.record[editor.kind === 'followup' ? '直接客户' : '所属企业']);
           const fromProject: boolean = editor.kind === 'followup' && selectionKind === 'project'
@@ -409,6 +507,42 @@ const CrmPage: React.FC = () => {
       setSaving(false);
     }
   };
+  const adoptPlan = async (followup: CrmRecord) => {
+    const target = followupTarget(followup);
+    const preset = suggestedPlan(followup.record);
+    if (!target || !preset || openingId) return;
+    const version = requestVersion.current;
+    const detailRequest = detailVersion.current;
+    setOpeningId(target.id);
+    try {
+      const row = await api.get(target.kind, target.id);
+      if (version !== requestVersion.current || detailRequest !== detailVersion.current) return;
+      const blocked = advancementBlocked(target.kind, row);
+      if (blocked) { toast.info(blocked); return; }
+      openEditor(target.kind, 'plan', row, preset);
+      planSuggestion.current = followup.id;
+    } catch (e: unknown) { toast.error(message(e)); }
+    finally { setOpeningId(null); }
+  };
+  const continueCreate = async () => {
+    if (!receipt || openingId) return;
+    if (receipt.kind !== 'followup') {
+      openEditor(receipt.kind, 'create', undefined, receipt.kind === 'contact' || receipt.kind === 'project'
+        ? { 所属企业: linkIds(receipt.row.record['所属企业']) } : {});
+      return;
+    }
+    const target = followupTarget(receipt.row);
+    if (!target) return;
+    const version = requestVersion.current;
+    const detailRequest = detailVersion.current;
+    setOpeningId(target.id);
+    try {
+      const parent = await api.get(target.kind, target.id);
+      if (version === requestVersion.current && detailRequest === detailVersion.current)
+        openEditor('followup', 'create', undefined, relatedDraft(target.kind, parent, 'followup'));
+    } catch (e: unknown) { toast.error(message(e)); }
+    finally { setOpeningId(null); }
+  };
   const set = (key: string, value: Draft[string]) => {
     if (savingRef.current) return;
     setFieldErrors((previous) => {
@@ -424,6 +558,7 @@ const CrmPage: React.FC = () => {
       : changeDraft(previous, key, value, initialDraft.current, editor?.operation === 'edit'));
   };
   const showField = (f: FieldSpec) => {
+    if (editor?.operation === 'confirm-end' && f.key === '结果说明') return draft['终局确认'] !== '已取消';
     if (editor?.kind === 'contact' && f.key === '停用原因') return draft['联系人状态'] === '停用';
     if (editor?.operation === 'confirm-end' && f.key === '取消原因') return draft['终局确认'] === '已取消';
     if (editor?.operation === 'progress') {
@@ -520,22 +655,16 @@ const CrmPage: React.FC = () => {
             <>
               <div className="page-heading">
                 <div>
-                  {active !== 'home' && <div className="eyebrow">CUSTOMER & PROJECT WORKSPACE</div>}
                   <h1>
                     {active === 'home' ? '工作台' : sectionLabels[active]}
                   </h1>
-                  <p>
-                    {active === 'home'
-                      ? '掌握项目推进情况，把关注变成下一步行动。'
-                      : '与飞书多维表格同步，协作信息集中管理。'}
-                  </p>
+                  {active === 'home' && <p>掌握项目进展，安排下一步行动。</p>}
                 </div>
                 <div className="heading-actions">
-                  {(active === 'home' || active === 'project') && <select className="project-scope" aria-label="项目范围" value={scope} onChange={event => {
-                    requestVersion.current++;
-                    setSearch(''); setQuery('');
-                    navigate(`${active === 'home' ? '/' : '/crm/project'}?${new URLSearchParams({ scope: event.target.value, ...(active === 'project' ? { projectFilter } : {}) })}`);
-                  }}><option value="all">全部项目</option><option value="mine">我负责的</option></select>}
+                  {(active === 'home' || active === 'project') && <Select value={scope} onValueChange={(value: string) => updateFilter('scope', value)}>
+                    <SelectTrigger className="project-scope" aria-label="项目范围"><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="all">全部项目</SelectItem><SelectItem value="mine">我负责的</SelectItem></SelectContent>
+                  </Select>}
                   <Button
                     variant="outline"
                     onClick={() => void reload()}
@@ -588,13 +717,14 @@ const CrmPage: React.FC = () => {
                     <Button type="submit" variant="outline">
                       搜索
                     </Button>
-                    {active === 'project' && projectFilter !== 'all' && <Button type="button" size="sm" variant="ghost" onClick={() => { requestVersion.current++; setQuery(''); setSearch(''); navigate('/crm/project'); }}>清除项目筛选</Button>}
+                    {active === 'project' && projectFilter !== 'all' && <Button type="button" size="sm" variant="secondary"
+                      aria-label={`清除${projectFilterLabels[projectFilter]}筛选`}
+                      onClick={() => updateFilter('projectFilter', 'all')}>{projectFilterLabels[projectFilter]} ×</Button>}
+                    {active === 'project' && scope === 'mine' && <Button type="button" size="sm" variant="secondary"
+                      aria-label="清除我负责的筛选" onClick={() => updateFilter('scope', 'all')}>我负责的 ×</Button>}
                     {(active === 'customer' || active === 'project') && <div className="followup-filter"><span>跟进状态</span>
                       <Select value={followupFilter} onValueChange={(value: string) => {
-                        requestVersion.current++;
-                        const next = new URLSearchParams(params);
-                        if (value === 'all') next.delete('followupFilter'); else next.set('followupFilter', value);
-                        navigate('/crm/' + active + '?' + next.toString());
+                        updateFilter('followupFilter', value);
                       }}><SelectTrigger aria-label="筛选跟进状态"><SelectValue>{followupFilter === 'all' ? '全部' : followupFilterLabels[followupFilter]}</SelectValue></SelectTrigger>
                         <SelectContent>{Object.entries(followupFilterLabels).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent>
                       </Select></div>}
@@ -612,7 +742,7 @@ const CrmPage: React.FC = () => {
                       <thead role="rowgroup">
                         <tr role="row">
                           {columns[active].map((c) => (
-                            <th role="columnheader" key={c}>{c === '所属企业' ? '所属客户' : c === '待配置角色' ? '角色' : c}</th>
+                            <th role="columnheader" key={c}>{detailFieldLabel(c)}</th>
                           ))}
                           <th role="columnheader">操作</th>
                         </tr>
@@ -621,7 +751,7 @@ const CrmPage: React.FC = () => {
                         {data?.records.map((row) => (
                           <tr role="row" key={row.id}>
                             {columns[active].map((c, i) => (
-                              <td role="cell" data-label={c === '所属企业' ? '所属客户' : c === '待配置角色' ? '角色' : c} key={c}>
+                              <td role="cell" data-label={detailFieldLabel(c)} key={c}>
                                 {i === 0 ? (
                                   <button
                                     className="record-title"
@@ -633,7 +763,8 @@ const CrmPage: React.FC = () => {
                                 ) : active === 'project' && c === '工作状态' ? (
                                   <Cell name="工作状态" value={projectFacts(row, Date.now()).state || '状态异常'} />
                                 ) : c === '跟进状态' ? <FollowupBadge record={row.record} /> : (
-                                  <Cell name={c} value={row.record[c]} onOpenCustomer={id => void detail({ id, record: {} }, 'customer', undefined, active === 'contact' ? 'contacts' : 'followups')} />
+                                  <Cell name={c} value={row.record[c]} onOpenCustomer={id => void detail({ id, record: {} }, 'customer', undefined, active === 'contact' ? 'contacts' : 'followups')}
+                                    onOpenRecord={(id, kind) => void detail({ id, record: {} }, kind)} />
                                 )}
                               </td>
                             ))}
@@ -684,7 +815,7 @@ const CrmPage: React.FC = () => {
                     </div>
                   )}
                   <div className="list-footer">
-                    <span>数据来自飞书 · 保存后自动回读</span>
+                    <span>保存后自动更新</span>
                     {data?.hasMore && (
                       <Button
                         variant="outline"
@@ -720,7 +851,6 @@ const CrmPage: React.FC = () => {
                 </section>
               )}
               <footer className="page-footer">
-                <span>客户维护与项目计划各自推进，历史记录完整保留。</span>
                 <a href={BASE_URL} target="_blank" rel="noreferrer">
                   打开飞书原表
                   <ArrowUpRight size={14} />
@@ -737,14 +867,27 @@ const CrmPage: React.FC = () => {
             detailVersion.current++;
             setDetailLoadingId(null);
             setSelection(null);
+            setDetailTrail([]); setReceipt(null);
           }
         }}
       >
         <DialogContent className="crm-dialog crm-detail-dialog" aria-describedby={undefined}>
           <header className="crm-dialog-header">
-          {customerContext && selectionKind !== 'customer' && <Button type="button" variant="ghost" size="sm"
+          {detailTrail.length > 0 ? <Button type="button" variant="ghost" size="sm" disabled={!!detailLoadingId}
+            onClick={async () => {
+              const previous = detailTrail[detailTrail.length - 1];
+              const version = ++detailVersion.current;
+              setDetailLoadingId(previous.row.id);
+              try {
+                const fresh = await api.get(previous.kind, previous.row.id);
+                if (version !== detailVersion.current) return;
+                setDetailTrail((trail) => trail.slice(0, -1)); setReceipt(null); restoreLocation(previous, fresh);
+              } catch (e: unknown) { toast.error(message(e)); }
+              finally { if (version === detailVersion.current) setDetailLoadingId(null); }
+            }}><ArrowLeft size={14} />返回{textValue(detailTrail[detailTrail.length - 1].row.record[titles[detailTrail[detailTrail.length - 1].kind]]) || '上一页'}</Button>
+          : customerContext && selectionKind !== 'customer' && <Button type="button" variant="ghost" size="sm"
             className="detail-customer-back" disabled={!!detailLoadingId}
-            onClick={() => void detail({ id: customerContext, record: {} }, 'customer', undefined, selectionKind === 'contact' ? 'contacts' : 'followups')}>
+            onClick={() => void detail({ id: customerContext, record: {} }, 'customer', undefined, selectionKind === 'contact' ? 'contacts' : selectionKind === 'project' ? 'projects' : 'followups')}>
             <ArrowLeft size={14} />返回客户全览</Button>}
           <DialogTitle>
             {selection
@@ -755,6 +898,16 @@ const CrmPage: React.FC = () => {
           <div className="crm-dialog-body">
           {selection && (
             <>
+              {receipt && <div className="panel-note flex flex-wrap items-center gap-2" role="status">
+                <span>{labels[receipt.kind]}已保存。</span>
+                <Button size="sm" variant="ghost" disabled={!!openingId} onClick={() => void continueCreate()}>继续新增{labels[receipt.kind]}</Button>
+              </div>}
+              {((receipt?.kind === 'followup' && !adoptedSuggestions.has(receipt.row.id) && suggestedPlan(receipt.row.record)) ||
+                (selectionKind === 'followup' && !adoptedSuggestions.has(selection.id) && suggestedPlan(selection.record))) && <div className="panel-note flex flex-wrap items-center gap-2">
+                <span>下一步建议已记录，当前计划需单独确认更新。</span>
+                <Button size="sm" variant="outline" disabled={!!openingId}
+                  onClick={() => void adoptPlan(receipt?.kind === 'followup' ? receipt.row : selection)}>采用建议更新计划</Button>
+              </div>}
               <DetailToolbar kind={selectionKind} row={selection} busy={!!openingId || !!detailLoadingId}
                 onEdit={() => void edit(selection, selectionKind)}
                 onAction={(operation: string) => openEditor(selectionKind, operation, selection)}
@@ -766,7 +919,7 @@ const CrmPage: React.FC = () => {
                 <p className="panel-note" role="status">{recordReviewProblem(selectionKind, selection.record)}</p>
               )}
               {selectionKind === 'project' && textValue(selection.record['结束建议']) && (
-                <p className="panel-note">已有结束建议，可通过“确认项目结束”处理；提出建议不会自动改变终局。</p>
+                <p className="panel-note">已有结束建议，可在“更多操作”中确认完成或取消。</p>
               )}
               {selectionKind === 'customer' || selectionKind === 'project'
                 ? <CustomerWorkspace key={`${selectionKind}:${selection.id}`} kind={selectionKind} row={selection}
@@ -777,13 +930,14 @@ const CrmPage: React.FC = () => {
                     onCreate={(kind: 'contact' | 'project') => openEditor(kind, 'create', undefined,
                       relatedDraft('customer', selection, kind))} />
                 : <RecordDetails key={`${selectionKind}:${selection.id}`} record={selection.record}
+                    onOpenRecord={(id, kind) => void detail({ id, record: {} }, kind, customerContext || undefined)}
                     onOpenCustomer={(id: string) => void detail({ id, record: {} }, 'customer', undefined, selectionKind === 'contact' ? 'contacts' : 'followups')} />}
 
             </>
           )}
           </div>
           <div className="form-actions">
-            <Button variant="outline" onClick={() => { detailVersion.current++; setDetailLoadingId(null); setSelection(null); }}>关闭详情</Button>
+            <Button variant="outline" onClick={() => { detailVersion.current++; setDetailLoadingId(null); setSelection(null); setDetailTrail([]); setReceipt(null); }}>关闭详情</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -819,22 +973,23 @@ const CrmPage: React.FC = () => {
                 ? `编辑${labels[editor.kind]}资料`
                 : editor?.operation === 'access'
                   ? '修改成员信息后保存。'
-                  : '请核对信息后保存，保留历史跟进中的原始建议。'}
+                  : '保存后更新信息，并保留操作历史。'}
           </DialogDescription>
           </header>
           <form className="crm-editor-form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
           <div className="crm-dialog-body">
-          {editor?.kind === 'followup' && (
+          {editor?.kind === 'followup' && shanghaiDay(followupTime(draft['实际发生时间'])) < shanghaiDay(now) && (
             <p className="panel-note">
-              历史补录按实际发生时间填写：结项当天可补录，归档及联系人停用须严格早于对应时刻；新工作请先恢复或重开。
+              正在补录历史跟进，请填写实际发生时间；联系人需在当时有效。
             </p>
           )}
-          {editor?.operation === 'progress' && <p className="panel-note">暂停需填写原因，原计划保留；启动或恢复需确认当前行动与日期。</p>}
+          {editor?.operation === 'progress' && <p className="panel-note">更新进展时可一起调整下一步计划；暂停时保留原计划。</p>}
+          {editor?.operation === 'plan' && editor.row && <p className="panel-note">当前计划：{textValue(editor.row.record['当前下一步行动']) || '尚未安排'}。保存后将采用下方计划。</p>}
           {editor && isLifecycle(editor.operation) && <p className="panel-note">
             {editor.operation === 'confirm-end' ? '确认后项目停止活动推进，可在结束后归档。取消项目必须说明原因。'
               : editor.operation === 'archive' ? '归档保留全部业务和历史，停止新增活动。客户的关联项目必须已结束且资料完整。'
               : editor.operation === 'restore' ? '取消归档保留历史归档时间；项目仍保持原结束状态。客户恢复时请填写新计划。'
-              : '重开会解除项目归档和终局，必须填写新进展与计划。上次结束日期保留为历史时间，不再参与当前终局统计。'}
+              : '重开后项目恢复推进，请填写新的进展和计划。历史记录会保留。'}
           </p>}
           {editor?.operation === 'edit' && editor.kind === 'project' && draft['项目类型'] !== '销售机会' && (
             <p className="panel-note">切换为非销售类型时保留原有商务信息，不新增商务金额；详情仍可查看历史值。</p>
@@ -849,14 +1004,16 @@ const CrmPage: React.FC = () => {
                       field={requiredField(f, editor.kind, editor.operation, draft)}
                       error={fieldErrors[f.key]}
                       draft={draft}
-                      customerId={editor.kind === 'followup' && editor.operation === 'create' && f.key === '关联项目'
-                        ? (Array.isArray(draft[FOLLOWUP_CUSTOMER]) ? draft[FOLLOWUP_CUSTOMER][0] : '') : undefined}
+                      customerId={editor.kind === 'followup' && ['关联项目', '客户联系人'].includes(f.key) ? followupCustomer : undefined}
+                      onCreateContact={editor.kind === 'followup' && f.key === '客户联系人' ? newContactDuringFollowup : undefined}
                       onChange={set}
-                      disabled={saving || uncertain || (editor.kind === 'followup' && editor.operation === 'create' && f.key === '关联项目' &&
-                        (!Array.isArray(draft[FOLLOWUP_CUSTOMER]) || !draft[FOLLOWUP_CUSTOMER].length))}
+                      disabled={saving || uncertain || (editor.kind === 'followup' && ['关联项目', '客户联系人'].includes(f.key) && !followupCustomer) ||
+                        (Boolean(suspendedEditor.current) && f.key === '所属企业')}
                     />
                   ))}
             </fieldset>
+            {customerResolveError && <div role="alert" className="error-banner">{customerResolveError}
+              <Button type="button" size="sm" variant="ghost" onClick={() => setCustomerResolveRetry((n) => n + 1)}>重新加载客户</Button></div>}
             </div>
             {saveError && (
               <div className="error-banner save-error" role="alert">
@@ -870,7 +1027,7 @@ const CrmPage: React.FC = () => {
                 disabled={saving}
                 onClick={closeEditor}
               >
-                取消
+                {suspendedEditor.current ? '返回跟进' : '取消'}
               </Button>
               <Button type="submit" disabled={saving || uncertain}>
                 {saving ? (
@@ -892,7 +1049,7 @@ const CrmPage: React.FC = () => {
           <DialogDescription>刚才填写的内容尚未保存，关闭后将丢失。</DialogDescription>
           <div className="form-actions">
             <Button variant="outline" onClick={() => setDiscardOpen(false)}>继续填写</Button>
-            <Button variant="destructive" onClick={() => { setDiscardOpen(false); setEditor(null); }}>放弃修改</Button>
+            <Button variant="destructive" onClick={() => { setDiscardOpen(false); if (!resumeFollowup()) setEditor(null); }}>放弃修改</Button>
           </div>
         </DialogContent>
       </Dialog>
