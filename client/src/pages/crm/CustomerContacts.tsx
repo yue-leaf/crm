@@ -1,12 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback } from 'react';
 import type { CrmPage, CrmRecord } from '@shared/api.interface';
 import { api } from '@/api/crm';
 import { textValue } from '@shared/crm';
 import { editBlockedReason } from '@shared/crm-edit';
-import { appendPage } from '@shared/crm-interaction';
 import { Eye, Mail, Pencil, Phone, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Cell, message } from './Fields';
+import { Cell } from './Fields';
+import { useRelatedPage } from './useRelatedPage';
 
 export const CustomerContacts: React.FC<{
   customerId: string;
@@ -16,31 +16,9 @@ export const CustomerContacts: React.FC<{
   onView: (row: CrmRecord) => void;
   onEdit: (row: CrmRecord) => void;
 }> = ({ customerId, createBlocked, busy, onCreate, onView, onEdit }) => {
-  const [page, setPage] = useState<CrmPage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [retry, setRetry] = useState(0);
-  const alive = useRef(false);
-  const paging = useRef(false);
-  useEffect(() => {
-    let canceled = false;
-    alive.current = true;
-    setLoading(true); setError(''); setPage(null);
-    void api.customerContacts(customerId).then(next => { if (!canceled) setPage(next); })
-      .catch(e => { if (!canceled) setError(message(e)); })
-      .finally(() => { if (!canceled) setLoading(false); });
-    return () => { canceled = true; alive.current = false; };
-  }, [customerId, retry]);
-  const more = async () => {
-    if (!page?.pageToken || loading || paging.current) return;
-    paging.current = true; setLoading(true); setError('');
-    try {
-      const next = await api.customerContacts(customerId, { cursor: page.pageToken });
-      if (alive.current) setPage(previous => appendPage(previous, next));
-    } catch (e) { if (alive.current) setError(message(e)); }
-    finally { paging.current = false; if (alive.current) setLoading(false); }
-  };
-  return <section className="detail-section customer-contacts" aria-label="客户联系人">
+  const load = useCallback((cursor?: string): Promise<CrmPage> => api.customerContacts(customerId, { cursor }), [customerId]);
+  const { page, loading, error, more, retry } = useRelatedPage(load, JSON.stringify(['contacts', customerId]));
+  return <section className="detail-section customer-contacts" aria-label="客户联系人" data-page-loading={loading}>
     <div className="customer-contacts-heading"><h3>客户联系人{page && <span className="contact-count">{page.hasMore ? '已加载 ' : ''}{page.records.length} 人</span>}</h3>
       {onCreate && <Button type="button" variant="outline" size="sm" disabled={createBlocked || busy} title={createBlocked ? '客户归档后不能新建联系人' : undefined} onClick={onCreate}><Plus size={14} />新建联系人</Button>}
     </div>
@@ -66,7 +44,7 @@ export const CustomerContacts: React.FC<{
     })}</div>
     {!loading && !error && page?.records.length === 0 && <p className="panel-note">{onCreate ? '该客户暂无联系人，可点击“新建联系人”，所属客户会自动带入。' : '所属客户暂无联系人，可返回客户全览新建。'}</p>}
     {loading && <p role="status" className="panel-note">正在读取联系人…</p>}
-    {error && <div role="alert" className="panel-note">{error} <Button variant="ghost" size="sm" onClick={() => page ? void more() : setRetry(n => n + 1)}>重试</Button></div>}
+    {error && <div role="alert" className="panel-note">{error} <Button variant="ghost" size="sm" disabled={loading} onClick={retry}>重试</Button></div>}
     {page?.hasMore && <Button variant="outline" size="sm" disabled={loading} onClick={() => void more()}>加载更多联系人</Button>}
   </section>;
 };

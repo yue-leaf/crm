@@ -12,8 +12,8 @@ export function CustomerProjects({ customerId, busy, createBlocked, onCreate, on
   customerId: string; busy: boolean; createBlocked: boolean; onCreate: () => void; onView: (row: CrmRecord) => void;
 }) {
   const load = useCallback((cursor?: string): Promise<CrmPage> => api.customerProjects(customerId, { cursor }), [customerId]);
-  const { page, loading, error, more, retry } = useRelatedPage(load);
-  return <section className="related-panel" aria-label="客户关联项目">
+  const { page, loading, error, more, retry } = useRelatedPage(load, JSON.stringify(['projects', customerId]));
+  return <section className="related-panel" aria-label="客户关联项目" data-page-loading={loading}>
     <div className="related-panel-heading"><div><h3>关联项目{page && <span>{page.total} 个</span>}</h3><p>集中查看在办、已结束及已归档的全部项目。</p></div>
       <Button size="sm" variant="outline" disabled={busy || createBlocked} onClick={onCreate}><Plus size={14} />新建项目</Button></div>
     <div className="customer-projects">{page?.records.map((row: CrmRecord) => <article className="customer-project-card" key={row.id}>
