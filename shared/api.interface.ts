@@ -34,7 +34,7 @@ export interface FollowupPage extends CrmPage {
 export interface CrmSession {
   userId: string;
   name: string;
-  roles: string[];
+  roles?: string[];
 }
 export interface WriteResult {
   id: string;

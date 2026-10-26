@@ -1,3 +1,4 @@
+const { identityFixture } = require('./helpers/identity.cjs');
 // Adversarial service tests: SDK doubles are isolated here, never used by the app.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -17,7 +18,7 @@ function fixture(row = customer(), hook = () => {}) {
       const result = await hook(kind, action, input, row);
       if (result !== undefined) return result;
       if (action === 'getRecord') return structuredClone(row);
-      if (action === 'searchRecords') return { records: [{ record: { 目录状态: '已激活', 飞书成员: [123] } }], hasMore: false };
+      if (action === 'searchRecords') return { records: [{ record: { 飞书成员: [123] } }], hasMore: false };
       if (action === 'batchUpdateRecords') {
         writes.push(input);
         Object.assign(row.record, input.records[0].record);
@@ -25,23 +26,37 @@ function fixture(row = customer(), hook = () => {}) {
       }
       assert.fail(`Unexpected ${action}`);
     } }),
-  });
+  }, { ...identityFixture(), getBatchLarkUserIds: async (ids) => { await hook('identity', 'validatePeople', {}, row); return identityFixture().getBatchLarkUserIds(ids); } });
   return { service, writes, row };
 }
 const plan = { 当前下一步行动: 'Next', 下次跟进日期: '2026-10-25', 行动执行人: ['123'], expectedModifiedAt: 1 };
 
 test('reject update when Base changes during employee validation, even with same timestamp', async () => {
   const f = fixture(customer(), (kind, action, input, row) => {
-    if (action === 'searchRecords') row.record.已归档 = true;
+    if (action === 'validatePeople') row.record.已归档 = true;
   });
   await assert.rejects(() => f.service.update('customer', 'recCompany', 'plan', plan, 'test'), e => e.getStatus() === 409);
   assert.equal(f.writes.length, 0);
 });
 test('clear access notes explicitly while preserving omitted fields', async () => {
   const f = fixture({ id: 'recAccess', record: { 修改时间: 1, 授权范围说明: { text: 'old' }, 权限核验记录: { text: 'history' } } });
-  await f.service.update('access', 'recAccess', 'access', { expectedModifiedAt: 1, 待配置角色: '未授权', 处理请求: '无', 授权范围说明: '' }, 'test');
+  await f.service.update('access', 'recAccess', 'access', { expectedModifiedAt: 1, 待配置角色: '员工', 授权范围说明: '' }, 'test');
   assert.equal(f.row.record.授权范围说明, '');
   assert.deepEqual(f.row.record.权限核验记录, { text: 'history' });
+});
+
+test('access configuration accepts only employee/admin and rejects removed fields', async () => {
+  for (const role of ['员工', '管理员']) {
+    const f = fixture({ id: 'recAccess', record: { 修改时间: 1 } });
+    await f.service.update('access', 'recAccess', 'access', { expectedModifiedAt: 1, 待配置角色: role }, 'test');
+    assert.equal(f.row.record.待配置角色, role);
+  }
+  for (const patch of [{ 待配置角色: '只读' }, { 待配置角色: '系统管理员' },
+    { 待配置角色: '员工', 处理请求: '申请开通' }, { 待配置角色: '员工', 目录状态: '已激活' }]) {
+    const f = fixture({ id: 'recAccess', record: { 修改时间: 1 } });
+    await assert.rejects(() => f.service.update('access', 'recAccess', 'access', { expectedModifiedAt: 1, ...patch }, 'test'));
+    assert.equal(f.writes.length, 0);
+  }
 });
 test('reject success when update response returns an ID but silently ignores fields', async () => {
   const f = fixture(customer(), (kind, action) => action === 'batchUpdateRecords' ? { records: [{ id: 'recCompany' }] } : undefined);
@@ -60,7 +75,7 @@ test('query objects and arrays are rejected before calling the SDK', async () =>
 });
 test('malformed role contexts fail closed, including substring role strings', () => {
   const c = new CrmController({ summary: () => assert.fail('must not authorize') });
-  for (const req of [{}, { userContext: null }, ...['not_crm_admin', null, {}, ['employee']].map(roles => ({ userContext: { userId: 'test', roles } }))])
+  for (const req of [{}, { userContext: null }, ...['not_crm_admin', null, {}].map(roles => ({ userContext: { userId: 'test', roles } }))])
     assert.throws(() => c.summary(req), e => typeof e.getStatus === 'function' && e.getStatus() === 403);
 });
 test('ambiguous project/contact enterprise links and unknown contact state cannot pass relation checks', async () => {
@@ -79,7 +94,7 @@ test('one process refuses overlapping updates to the same record', async () => {
   const gate = new Promise(resolve => { release = resolve; });
   const ready = new Promise(resolve => { entered = resolve; });
   const f = fixture(customer(), async (kind, action) => {
-    if (action === 'searchRecords') { entered(); await gate; }
+    if (action === 'validatePeople') { entered(); await gate; }
   });
   const first = f.service.update('customer', 'recCompany', 'plan', plan, 'test');
   await ready;

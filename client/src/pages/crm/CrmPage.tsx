@@ -66,7 +66,7 @@ import {
 } from '@shared/crm-workflow';
 import { recordReviewProblem } from '@shared/crm-review';
 import { appendPage, changeDraft, missingFields, requiredField } from '@shared/crm-interaction';
-import { crmAdmin, crmEmployee } from '@shared/crm-access';
+import { crmAdmin } from '@shared/crm-access';
 import { isLifecycle, lifecycleFields, lifecycleTitles } from '@shared/crm-lifecycle';
 
 import { ProjectDashboard } from './ProjectDashboard';
@@ -107,7 +107,7 @@ const columns: Record<EntityKind, string[]> = {
     '记录类型',
     '核查标记',
   ],
-  access: ['姓名', '部门', '目录状态', '待配置角色', '处理请求'],
+  access: ['姓名', '部门', '待配置角色'],
 };
 interface Editor {
   kind: EntityKind;
@@ -165,7 +165,7 @@ const CrmPage: React.FC = () => {
   const [openingId, setOpeningId] = useState<string | null>(null);
   const requestVersion = useRef(0);
   const admin = !!session && crmAdmin(session.roles);
-  const authorized = !!session && crmEmployee(session.roles) && (active !== 'access' || admin);
+  const authorized = !!session && (active !== 'access' || admin);
   useEffect(() => {
     let canceled = false;
     api
@@ -484,11 +484,11 @@ const CrmPage: React.FC = () => {
           {!authorized ? (
             <section className="empty-panel">
               <ShieldCheck size={36} />
-              <h1>{loading ? '正在核验登录身份' : '尚未获得应用权限'}</h1>
+              <h1>{loading ? '正在核验登录身份' : active === 'access' ? '仅管理员可管理配置' : '请登录企业账号'}</h1>
               <p>
-                {error || (active === 'access' && !admin ? '权限配置仅限管理员管理。' : '当前账号尚未获授 CRM 员工或管理员角色，请联系管理员核对。')}
+                {error || (active === 'access' && !admin ? '权限配置仅限管理员管理。' : '请使用本企业飞书账号登录后继续。')}
               </p>
-              <p>授权名单中的角色意向，不等同于妙搭实际角色。</p>
+              <p>本企业成员可直接使用业务功能，无需单独分配员工角色。</p>
               <Button
                 variant="outline"
                 onClick={() => window.location.reload()}

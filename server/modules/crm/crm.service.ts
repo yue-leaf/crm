@@ -7,7 +7,7 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { CapabilityService } from '@lark-apaas/fullstack-nestjs-core';
+import { AuthNPaasService, CapabilityService } from '@lark-apaas/fullstack-nestjs-core';
 import { isDeepStrictEqual } from 'node:util';
 import type {
   CrmPage,
@@ -49,6 +49,7 @@ export class CrmService {
   private readonly updating = new Set<string>();
   constructor(
     @Inject(CapabilityService) private readonly capability: CapabilityService,
+    @Inject(AuthNPaasService) private readonly identities: AuthNPaasService,
   ) {}
 
   private kind(value: string): EntityKind {
@@ -229,24 +230,51 @@ export class CrmService {
   private async people(
     fields: Record<string, unknown>,
     spec: FieldSpec[],
-    includeInactive = false,
+    historical = false,
   ): Promise<void> {
-    const ids = spec
+    const ids = [...new Set(spec
       .filter((f) => f.type === 'person')
       .flatMap((f) =>
         Array.isArray(fields[f.key]) ? (fields[f.key] as number[]) : [],
-      );
+      ))];
     if (!ids.length) return;
+    // Resolve via the app's tenant-scoped employee-ID mapping, then round-trip
+    // to prevent accepting a foreign/global ID or requiring prior roster import.
     const known = new Set<number>();
+    for (let start = 0; start < ids.length; start += 100) {
+      const batch = ids.slice(start, start + 100).map(String);
+      let employees: (string | null)[];
+      let resolved: (string | null)[];
+      try {
+        employees = await this.identities.getBatchLarkUserIds(batch);
+        if (!Array.isArray(employees) || employees.length !== batch.length)
+          throw new Error('Invalid employee mapping');
+        const valid = employees.filter((id): id is string => typeof id === 'string' && !!id.trim());
+        resolved = valid.length ? await this.identities.getBatchMiaodaUserIds(valid) : [];
+        if (!Array.isArray(resolved) || resolved.length !== valid.length)
+          throw new Error('Invalid employee round-trip');
+      } catch {
+        this.logger.warn('Platform employee identity validation failed');
+        throw new BadGatewayException('企业人员校验暂时失败，请稍后重试');
+      }
+      let offset = 0;
+      employees.forEach((employee: string | null, index: number) => {
+        if (typeof employee === 'string' && employee.trim()) {
+          if (resolved[offset] === batch[index]) known.add(ids[start + index]);
+          offset++;
+        }
+      });
+    }
+    if (ids.every((id: number) => known.has(id))) return;
+    if (!historical) reject('人员', '请选择本企业的飞书成员');
+    // Historical review may retain a previously synchronized enterprise member
+    // whose current platform mapping is no longer available.
     let cursor: string | undefined;
     let pages = 0;
     do {
       const page = await this.list('access', cursor);
       for (const r of page.records) {
-        if (
-          (includeInactive || textValue(r.record['目录状态']) === '已激活') &&
-          Array.isArray(r.record['飞书成员'])
-        )
+        if (Array.isArray(r.record['飞书成员']))
           for (const id of r.record['飞书成员'])
             if (typeof id === 'number') known.add(id);
       }
@@ -257,7 +285,7 @@ export class CrmService {
         throw new BadGatewayException('人员范围过大，请联系管理员');
     } while (cursor);
     if (ids.some((id) => !known.has(id)))
-      reject('人员', '请选择已同步且已激活的企业员工');
+      reject('人员', '历史人员未通过企业身份核验');
   }
   private async activeCustomer(id: string): Promise<CrmRecord> {
     const c = await this.get('customer', id);
@@ -501,8 +529,8 @@ export class CrmService {
       this.validateFacts(key, edited.draft, row);
       const peopleFields = { ...edited.validationFields };
       if (key === 'followup') {
-        // Validate the added IDs, not the whole changed array: departed historical
-        // participants must not prevent adding a currently active colleague.
+        // Validate added IDs against the enterprise roster without blocking
+        // unchanged historical participants that are no longer in the roster.
         for (const f of forms[key]) {
           const selected = peopleFields[f.key];
           if (f.type === 'person' && Array.isArray(selected)) {
@@ -575,8 +603,6 @@ export class CrmService {
         if ((f.type === 'date' || f.type === 'datetime') && typeof row.record[f.key] === 'number')
           checked.fields[f.key] = row.record[f.key];
       this.validateFacts(key, checked.draft, row);
-      // The reviewing employee confirms historical participation. Directory existence
-      // is still required, but subsequent deactivation must not erase history.
       await this.people(checked.fields, forms[key], key === 'followup');
       await this.relationChecks(key, checked.draft, checked.fields, row);
       fields['核查标记'] = '正常';

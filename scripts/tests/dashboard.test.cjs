@@ -49,5 +49,5 @@ test('invalid scopes, filters, cursor types and unauthorised dashboards are reje
  await assert.rejects(()=>s.overview('other','123'),/范围/);
  await assert.rejects(()=>s.projectList('all','__proto__','','','123'),/筛选/);
  await assert.rejects(()=>s.projectList('all','all',{},'','123'),/分页/);
- const c=new CrmController(s);assert.throws(()=>c.overview({userContext:{userId:'123',roles:[]}},'all'),e=>e.getStatus()===403);
+ const c=new CrmController(s);assert.throws(()=>c.overview({userContext:{roles:[]}},'all'),e=>e.getStatus()===403);
 });
