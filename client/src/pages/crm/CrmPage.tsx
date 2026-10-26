@@ -127,9 +127,7 @@ const specs = (editor: Editor): FieldSpec[] =>
         ? endFields
         : editor.operation === 'review'
           ? [{ key: '核查说明', type: 'long', required: true }]
-          : editor.operation === 'access'
-            ? forms.access.filter((field) => field.key === '待配置角色')
-            : forms[editor.kind];
+          : forms[editor.kind];
 const CrmPage: React.FC = () => {
   const navigate = useNavigate();
   const { section } = useParams();

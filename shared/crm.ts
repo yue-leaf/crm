@@ -132,8 +132,6 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
       required: true,
       options: ['员工', '管理员'],
     },
-    { key: '授权范围说明', type: 'long' },
-    { key: '权限核验记录', type: 'long' },
   ],
 };
 export const planFields: FieldSpec[] = [
