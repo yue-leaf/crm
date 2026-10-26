@@ -128,7 +128,8 @@ export const FieldInput: React.FC<{
   onChange: (key: string, value: Draft[string]) => void;
   disabled?: boolean;
   error?: string;
-}> = ({ field: f, draft, onChange, disabled, error }) => {
+  customerId?: string;
+}> = ({ field: f, draft, onChange, disabled, error, customerId }) => {
   const fieldId = useId();
   const set = (v: Draft[string]) => onChange(f.key, v);
   const personValue = Array.isArray(draft[f.key]) ? (draft[f.key] as string[]) : [];
@@ -165,6 +166,7 @@ export const FieldInput: React.FC<{
       ) : f.type === 'relation' ? (
         <RelationField
           field={f}
+          customerId={customerId}
           disabled={disabled}
           value={Array.isArray(draft[f.key]) ? (draft[f.key] as string[]) : []}
           onChange={set}

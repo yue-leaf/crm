@@ -68,8 +68,8 @@ export function relatedDraft(parentKind: 'customer' | 'project', parent: CrmReco
     return { 所属企业: [parent.id] };
   if (kind === 'followup') {
     const target: Draft = parentKind === 'customer'
-      ? { 跟进归属: '客户直接跟进', 直接客户: [parent.id], 关联项目: [] }
-      : { 跟进归属: '项目跟进', 关联项目: [parent.id], 直接客户: [] };
+      ? { 跟进归属: '客户直接跟进', 跟进客户: [parent.id], 直接客户: [parent.id], 关联项目: [] }
+      : { 跟进归属: '项目跟进', 跟进客户: linkIds(parent.record['所属企业']), 关联项目: [parent.id], 直接客户: [] };
     // Historical entry must ask for the actual time, never default to "now".
     if (advancementBlocked(parentKind, parent)) {
       target['实际发生时间'] = null;

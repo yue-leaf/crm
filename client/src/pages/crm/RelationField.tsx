@@ -12,7 +12,8 @@ export const RelationField: React.FC<{
   value: string[];
   onChange: (value: string[]) => void;
   disabled?: boolean;
-}> = ({ field, value, onChange, disabled }) => {
+  customerId?: string;
+}> = ({ field, value, onChange, disabled, customerId }) => {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CrmRecord[]>([]);
   const [known, setKnown] = useState<CrmRecord[]>([]);
@@ -53,7 +54,8 @@ export const RelationField: React.FC<{
     if (!open || disabled || !field.target) return;
     const target = field.target;
     const timer = setTimeout(() => {
-      void api.list(target, '', query).then((result) => {
+      void (target === 'project' && customerId ? api.customerProjects(customerId, { search: query })
+        : api.list(target, '', query)).then((result) => {
         if (version !== generation.current) return;
         setItems(result.records);
         setKnown((prev) => [...new Map([...prev, ...result.records].map((row) => [row.id, row])).values()]);
@@ -63,7 +65,7 @@ export const RelationField: React.FC<{
       }).finally(() => { if (version === generation.current) setLoading(false); });
     }, query ? 250 : 0);
     return () => { generation.current++; clearTimeout(timer); };
-  }, [field.target, query, open, disabled, retry]);
+  }, [field.target, customerId, query, open, disabled, retry]);
 
   const option = (row: CrmRecord): RecordOption => ({
     id: row.id, name: textValue(row.record[titles[field.target!]]) || '未命名记录',
@@ -80,7 +82,8 @@ export const RelationField: React.FC<{
         setLoadingMore(true);
         setError('');
         const version = generation.current;
-        void api.list(field.target, cursor, query).then((result) => {
+        void (field.target === 'project' && customerId ? api.customerProjects(customerId, { cursor, search: query })
+          : api.list(field.target, cursor, query)).then((result) => {
           if (version !== generation.current) return;
           setItems((prev) => [...new Map([...prev, ...result.records].map((row) => [row.id, row])).values()]);
           setKnown((prev) => [...new Map([...prev, ...result.records].map((row) => [row.id, row])).values()]);
@@ -93,6 +96,7 @@ export const RelationField: React.FC<{
       }} />
     {selectionError && !open && <p className="field-error" role="alert">{selectionError}</p>}
     <small>{field.multiple ? '可选择多项' : '请选择一项'}；保存时校验所属企业和有效状态。</small>
-    {['直接客户', '关联项目'].includes(field.key) && <small>更换归属后，需要重新选择客户联系人。</small>}
+    {field.key === '关联项目' && customerId !== undefined && <small>{customerId ? '可不选项目；选择后，这条跟进将记录到该项目。' : '请先选择客户，再选择需要关联的项目。'}</small>}
+    {['跟进客户', '直接客户', '关联项目'].includes(field.key) && <small>更换客户或项目后，需要重新选择客户联系人。</small>}
   </div>;
 };
