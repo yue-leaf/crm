@@ -51,8 +51,26 @@
 .crm-workspace .customer-contacts { border: 0; border-radius: 0; padding: 8px 0; }
 .crm-workspace .customer-contacts-heading { margin-bottom: 10px; }
 .crm-workspace .customer-contacts-heading h3 { padding: 0; background: transparent; }
-.crm-workspace .customer-contact-row { padding: 18px 0; }
-.crm-workspace .customer-contact-info { gap: 8px; }
+.customer-contacts-heading h3 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.contact-count { color: #8a9099; font-size: 12px; font-weight: 400; }
+.customer-contact-list { display: grid; gap: 10px; }
+.contact-card { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 1.1fr) auto; align-items: center; gap: 20px; padding: 16px; border: 1px solid #e8ebf0; border-radius: 8px; background: #fff; }
+.contact-card-identity, .contact-card-channels { min-width: 0; }
+.contact-card-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.contact-card-name { color: #1f2329; font-size: 14px; font-weight: 600; line-height: 1.6; text-align: left; overflow-wrap: anywhere; border-radius: 3px; }
+.contact-card-name:hover { color: #245bdb; }
+.contact-card-name:focus-visible { outline: 2px solid #3370ff; outline-offset: 3px; }
+.contact-card-name:disabled { opacity: 0.6; }
+.contact-card-heading .tag { padding: 2px 7px; font-size: 11px; flex-shrink: 0; }
+.contact-card-position { color: #646a73; font-size: 12px; line-height: 1.6; margin-top: 6px; overflow-wrap: anywhere; }
+.contact-card-channels { display: grid; gap: 7px; font-size: 12px; }
+.contact-card-channels > div { display: flex; gap: 12px; align-items: baseline; min-width: 0; }
+.contact-card-channels dt { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; color: #8a9099; }
+.contact-card-channels dd { margin: 0; color: #4e5969; min-width: 0; overflow-wrap: anywhere; line-height: 1.6; }
+.contact-card-channels .contact-card-empty dd { color: #8a9099; }
+.contact-card-actions { display: flex; align-items: center; gap: 4px; }
+.contact-card-actions button { min-height: 32px; padding-inline: 9px; font-size: 12px; gap: 6px; color: #646a73; }
+.contact-card-actions button:hover { color: #245bdb; background: #f4f7fc; }
 .crm-workspace .detail-sections { margin: 4px 0 0; }
 .customer-projects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .customer-project-card { min-width: 0; padding: 16px; text-align: left; border: 1px solid #e5e9f0; border-radius: 8px; background: #fff; transition: border-color 0.15s; }
@@ -75,4 +93,9 @@
   .customer-projects { grid-template-columns: minmax(0, 1fr); }
   .followup-entry { padding-left: 22px; }
   .related-search > div { max-width: none; }
+  .contact-card { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 14px; }
+  .contact-card-identity { grid-column: 1; grid-row: 1; }
+  .contact-card-channels { grid-column: 1 / -1; grid-row: 2; }
+  .contact-card-actions { grid-column: 2; grid-row: 1; }
+  .contact-card-actions button { padding-inline: 6px; }
 }
