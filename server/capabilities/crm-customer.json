@@ -134,30 +134,10 @@
         "writeable": true
       },
       {
-        "id": "fldExample000093",
-        "name": "核查标记",
-        "type": 3,
-        "bizType": "SingleSelect",
-        "readable": true,
-        "writeable": true,
-        "enumValues": [
-          "正常",
-          "待核查"
-        ]
-      },
-      {
         "id": "fldExample000116",
         "name": "已归档",
         "type": 7,
         "bizType": "Checkbox",
-        "readable": true,
-        "writeable": true
-      },
-      {
-        "id": "fldExample000174",
-        "name": "核查说明",
-        "type": 1,
-        "bizType": "Text",
         "readable": true,
         "writeable": true
       },
@@ -399,9 +379,17 @@
         "bizType": "Formula",
         "readable": true,
         "writeable": false
+      },
+      {
+        "id": "fldExample000078",
+        "name": "跟进状态",
+        "type": 20,
+        "bizType": "Formula",
+        "readable": true,
+        "writeable": false
       }
     ]
   },
   "createdAt": 1792795161504,
-  "updatedAt": 1792795161504
+  "updatedAt": 1793030193920
 }

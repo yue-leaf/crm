@@ -6,7 +6,6 @@ import { inactiveAt } from '@shared/crm-lifecycle';
 /** Date-only close boundaries include the entire Shanghai calendar day. */
 export function historicalContext(kind: 'customer' | 'project', row: CrmRecord, occurred: number): void {
   const label = kind === 'customer' ? '所属企业' : '关联项目';
-  if (textValue(row.record['核查标记']) !== '正常') reject(label, '请先核查通过');
   if (!Number.isFinite(occurred) || occurred > Date.now()) reject('实际发生时间', '时间无效或晚于当前时间');
   if (inactiveAt(row.record, occurred)) reject('实际发生时间', '该时间位于已记录的结束或归档区间，请核对真实发生时间');
   if (kind === 'project') {

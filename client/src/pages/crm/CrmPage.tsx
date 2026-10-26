@@ -71,6 +71,10 @@ import { crmAdmin } from '@shared/crm-access';
 import { isLifecycle, lifecycleFields, lifecycleTitles } from '@shared/crm-lifecycle';
 
 import { ProjectDashboard } from './ProjectDashboard';
+import { FollowupBadge, useFollowupClock } from './FollowupStatus';
+import { followupFilterLabels, validFollowupFilter, shanghaiDay } from '@shared/crm-followup-status';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { FollowupFilter } from '@shared/api.interface';
 import { projectFilterLabels, validProjectFilter } from '@shared/crm-dashboard';
 import './crm.css';
 
@@ -87,18 +91,18 @@ const columns: Record<EntityKind, string[]> = {
     '行业',
     '客户关系状态',
     '客户负责人',
+    '跟进状态',
     '下次跟进日期',
-    '核查标记',
   ],
-  contact: ['姓名', '所属企业', '职务', '电话', '邮箱', '联系人状态', '核查标记'],
+  contact: ['姓名', '所属企业', '职务', '电话', '邮箱', '联系人状态'],
   project: [
     '项目名称',
     '项目类型',
     '项目负责人',
     '工作状态',
     '终局确认',
+    '跟进状态',
     '下次跟进日期',
-    '核查标记',
   ],
   followup: [
     '跟进主题',
@@ -106,7 +110,6 @@ const columns: Record<EntityKind, string[]> = {
     '实际发生时间',
     '实际跟进人',
     '记录类型',
-    '核查标记',
   ],
   access: ['姓名', '部门', '待配置角色'],
 };
@@ -126,9 +129,7 @@ const specs = (editor: Editor): FieldSpec[] =>
       ? planFields
       : editor.operation === 'suggest-end'
         ? endFields
-        : editor.operation === 'review'
-          ? [{ key: '核查说明', type: 'long', required: true }]
-          : forms[editor.kind];
+        : forms[editor.kind];
 const CrmPage: React.FC = () => {
   const navigate = useNavigate();
   const { section } = useParams();
@@ -137,6 +138,10 @@ const CrmPage: React.FC = () => {
   const rawFilter = params.get('projectFilter') || 'all';
   const projectFilter: ProjectFilter = validProjectFilter(rawFilter) ? rawFilter : 'all';
   const active = crmSection(section);
+  const now = useFollowupClock();
+  const currentDay = shanghaiDay(now);
+  const rawFollowupFilter = params.get('followupFilter') || 'all';
+  const followupFilter: FollowupFilter = validFollowupFilter(rawFollowupFilter) ? rawFollowupFilter : 'all';
   const profile = useCurrentUserProfile();
   const [session, setSession] = useState<CrmSession | null>(null);
   const [summary, setSummary] = useState<CrmSummary | null>(null);
@@ -195,7 +200,7 @@ const CrmPage: React.FC = () => {
         const [next, projects] = await Promise.all([api.summary(), api.overview(scope)]);
         if (version === requestVersion.current) { setSummary(next); setOverview(projects); }
       } else {
-        const next = await api.list(active, '', query, active === 'project' ? { scope, projectFilter } : undefined);
+        const next = await api.list(active, '', query, active === 'project' ? { scope, projectFilter, followupFilter } : active === 'customer' ? { followupFilter } : undefined);
         if (version === requestVersion.current) setData(next);
       }
     } catch (e: unknown) {
@@ -203,7 +208,7 @@ const CrmPage: React.FC = () => {
     } finally {
       if (version === requestVersion.current) setLoading(false);
     }
-  }, [active, authorized, query, scope, projectFilter]);
+  }, [active, authorized, query, scope, projectFilter, followupFilter, currentDay]);
   useEffect(() => {
     setData(null);
     setSelection(null);
@@ -236,7 +241,7 @@ const CrmPage: React.FC = () => {
     setDetailLoadingId(null);
     const ed = { kind, operation, row };
     const initial: Draft =
-      row && operation !== 'review' ? recordDraft(row.record, specs(ed)) : {};
+      row ? recordDraft(row.record, specs(ed)) : {};
     if (operation === 'create')
       for (const f of specs(ed)) {
         if (f.type === 'person' && f.required)
@@ -548,6 +553,15 @@ const CrmPage: React.FC = () => {
                 <section className="panel list-panel">
                   {active === 'project' && <div className="project-list-filter"><span>项目范围：{scope === 'mine' ? '我负责的' : '全部项目'}</span><span>筛选：{projectFilterLabels[projectFilter]}</span>
                     {(projectFilter !== 'all' || scope !== 'all') && <Button size="sm" variant="ghost" onClick={() => { requestVersion.current++; setQuery(''); setSearch(''); navigate('/crm/project'); }}>清除筛选</Button>}</div>}
+                  {(active === 'customer' || active === 'project') && <div className="followup-filter"><span>跟进状态</span>
+                    <Select value={followupFilter} onValueChange={(value: string) => {
+                      requestVersion.current++;
+                      const next = new URLSearchParams(params);
+                      if (value === 'all') next.delete('followupFilter'); else next.set('followupFilter', value);
+                      navigate('/crm/' + active + '?' + next.toString());
+                    }}><SelectTrigger aria-label="筛选跟进状态"><SelectValue /></SelectTrigger>
+                      <SelectContent>{Object.entries(followupFilterLabels).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent>
+                    </Select></div>}
                   <form
                     className="list-toolbar"
                     onSubmit={(e) => {
@@ -600,7 +614,7 @@ const CrmPage: React.FC = () => {
                                   >
                                     {textValue(row.record[c]) || '未命名'}
                                   </button>
-                                ) : (
+                                ) : c === '跟进状态' ? <FollowupBadge record={row.record} /> : (
                                   <Cell name={c} value={row.record[c]} onOpenCustomer={id => void detail({ id, record: {} }, 'customer')} />
                                 )}
                               </td>
@@ -667,7 +681,7 @@ const CrmPage: React.FC = () => {
                               active,
                               data.pageToken,
                               query,
-                              active === 'project' ? { scope, projectFilter } : undefined,
+                              active === 'project' ? { scope, projectFilter, followupFilter } : active === 'customer' ? { followupFilter } : undefined,
                             );
                             if (version === requestVersion.current)
                               setData((previous) => appendPage(previous, next));
@@ -731,9 +745,6 @@ const CrmPage: React.FC = () => {
                   selectionKind as 'customer' | 'project', selection, 'followup'))}
                 onTarget={() => { const target = followupTarget(selection); if (target) void detail(
                   { id: target.id, record: {} }, target.kind, customerContext || undefined); }} />
-              {selectionKind !== 'access' && textValue(selection.record['核查标记']) === '待核查' && (
-                <p className="panel-note" role="status">当前记录待核查。请先核对资料并点击“核查通过”，再继续关联业务。</p>
-              )}
               {selectionKind !== 'access' && recordReviewProblem(selectionKind, selection.record) && (
                 <p className="panel-note" role="status">{recordReviewProblem(selectionKind, selection.record)}</p>
               )}
@@ -779,8 +790,6 @@ const CrmPage: React.FC = () => {
                     ? '更新项目进展'
                   : editor.operation === 'plan'
                     ? '调整当前计划'
-                    : editor.operation === 'review'
-                      ? '核查通过'
                       : editor.operation === 'access'
                         ? '编辑权限配置'
                         : '提出结束建议'
@@ -788,7 +797,7 @@ const CrmPage: React.FC = () => {
           </DialogTitle>
           <DialogDescription className={editor?.operation === 'edit' ? 'sr-only' : undefined}>
             {editor?.operation === 'create'
-              ? '保存后写入飞书多维表格，并进入待核查。'
+              ? '填写信息后保存。'
               : editor?.operation === 'edit'
                 ? `编辑${labels[editor.kind]}资料`
                 : editor?.operation === 'access'
@@ -803,15 +812,15 @@ const CrmPage: React.FC = () => {
               历史补录按实际发生时间填写：结项当天可补录，归档及联系人停用须严格早于对应时刻；新工作请先恢复或重开。
             </p>
           )}
-          {editor?.operation === 'progress' && <p className="panel-note">暂停需填写原因，原计划保留；启动或恢复需确认当前行动与日期。更新后进入待核查。</p>}
+          {editor?.operation === 'progress' && <p className="panel-note">暂停需填写原因，原计划保留；启动或恢复需确认当前行动与日期。</p>}
           {editor && isLifecycle(editor.operation) && <p className="panel-note">
-            {editor.operation === 'confirm-end' ? '确认后项目停止活动推进，需核查通过后再归档。取消项目必须说明原因。'
-              : editor.operation === 'archive' ? '归档保留全部业务和历史，停止新增活动。客户的关联项目必须已结束且核查通过。'
+            {editor.operation === 'confirm-end' ? '确认后项目停止活动推进，可在结束后归档。取消项目必须说明原因。'
+              : editor.operation === 'archive' ? '归档保留全部业务和历史，停止新增活动。客户的关联项目必须已结束且资料完整。'
               : editor.operation === 'restore' ? '取消归档保留历史归档时间；项目仍保持原结束状态。客户恢复时请填写新计划。'
               : '重开会解除项目归档和终局，必须填写新进展与计划。上次结束日期保留为历史时间，不再参与当前终局统计。'}
           </p>}
           {editor?.operation === 'edit' && editor.kind === 'project' && draft['项目类型'] !== '销售机会' && (
-            <p className="panel-note">切换为非销售类型时保留原有商务信息供核查，不新增商务金额；详情仍可查看历史值。</p>
+            <p className="panel-note">切换为非销售类型时保留原有商务信息，不新增商务金额；详情仍可查看历史值。</p>
           )}
             <fieldset className="form-grid" disabled={saving || uncertain}>
               {editor &&

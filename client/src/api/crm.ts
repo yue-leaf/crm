@@ -10,7 +10,7 @@ import type {
   CrmEditRequest,
   ProjectOverview,
   ProjectScope,
-  ProjectFilter,
+  BusinessListQuery,
   CustomerContactsQuery,
   RelatedRecordsQuery,
   FollowupPage,
@@ -62,7 +62,7 @@ export const api = {
   session: () => request<CrmSession>('session'),
   summary: () => request<CrmSummary>('summary'),
   overview: (scope: ProjectScope) => request<ProjectOverview>(`overview?scope=${scope}`),
-  list: (kind: EntityKind, cursor = '', search = '', project?: { scope: ProjectScope; projectFilter: ProjectFilter }) =>
+  list: (kind: EntityKind, cursor = '', search = '', project?: BusinessListQuery) =>
     request<CrmPage>(
       `records/${kind}?${new URLSearchParams({ cursor, search, ...project })}`,
     ),

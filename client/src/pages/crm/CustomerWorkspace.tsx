@@ -6,6 +6,7 @@ import { RecordDetails } from './RecordDetails';
 import { CustomerContacts } from './CustomerContacts';
 import { CustomerProjects } from './CustomerProjects';
 import { FollowupFeed } from './FollowupFeed';
+import { FollowupBadge } from './FollowupStatus';
 import { Cell } from './Fields';
 
 interface Props {
@@ -21,11 +22,12 @@ interface Props {
 export function CustomerWorkspace({ kind, row, busy, tab, onTabChange, onView, onEditContact, onCreate }: Props) {
   const parents: string[] = linkIds(row.record['所属企业']);
   const customerId: string | undefined = kind === 'customer' ? row.id : parents.length === 1 ? parents[0] : undefined;
-  const blocked: boolean = row.record['已归档'] === true || textValue(row.record['核查标记']) !== '正常';
+  const blocked: boolean = row.record['已归档'] === true;
   const view = (record: CrmRecord, type: EntityKind) => onView(record, type, customerId);
   const action: string = textValue(row.record['当前下一步行动']);
   const inactive: boolean = row.record['已归档'] === true || ['已完成', '已取消'].includes(textValue(row.record['终局确认']));
   return <div className="crm-workspace">
+    <div className="workspace-followup-status"><span>跟进状态</span><FollowupBadge record={row.record} /></div>
     {!inactive && action && <div className="workspace-plan"><div><span>当前下一步</span><p>{action}</p></div>
       <div><Cell name="下次跟进日期" value={row.record['下次跟进日期']} /></div></div>}
     <Tabs value={tab} onValueChange={onTabChange}>

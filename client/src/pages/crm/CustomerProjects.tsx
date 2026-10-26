@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import type { CrmPage, CrmRecord } from '@shared/api.interface';
 import { textValue } from '@shared/crm';
 import { useRelatedPage } from './useRelatedPage';
+import { FollowupBadge } from './FollowupStatus';
 import { Cell } from './Fields';
 
 export function CustomerProjects({ customerId, busy, createBlocked, onCreate, onView }: {
@@ -19,7 +20,7 @@ export function CustomerProjects({ customerId, busy, createBlocked, onCreate, on
       <div className="project-card-title"><FolderKanban size={18} /><button className="record-title" disabled={busy}
         onClick={() => onView(row)}>{textValue(row.record['项目名称']) || '未命名项目'}</button></div>
       <div className="project-card-status"><Cell name="工作状态" value={textValue(row.record['终局确认']) === '未确认' ? row.record['工作状态'] : row.record['终局确认']} />
-        <Cell name="核查标记" value={row.record['核查标记']} />{row.record['已归档'] === true && <span className="tag neutral">已归档</span>}</div>
+        <FollowupBadge record={row.record} />{row.record['已归档'] === true && <span className="tag neutral">已归档</span>}</div>
       <p>{textValue(row.record['当前进展']) || textValue(row.record['目标 / 需求摘要']) || '暂无进展说明'}</p>
       <div className="project-card-footer"><Cell name="项目负责人" value={row.record['项目负责人']} /><Button variant="ghost" size="sm" disabled={busy} onClick={() => onView(row)}>查看项目 →</Button></div>
     </article>)}</div>

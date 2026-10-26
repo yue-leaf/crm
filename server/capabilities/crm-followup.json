@@ -39,14 +39,6 @@
         "writeable": true
       },
       {
-        "id": "fldExample000067",
-        "name": "核查说明",
-        "type": 1,
-        "bizType": "Text",
-        "readable": true,
-        "writeable": true
-      },
-      {
         "id": "fldExample000121",
         "name": "作废原因",
         "type": 1,
@@ -105,18 +97,6 @@
         "bizType": "Text",
         "readable": true,
         "writeable": true
-      },
-      {
-        "id": "fldExample000188",
-        "name": "核查标记",
-        "type": 3,
-        "bizType": "SingleSelect",
-        "readable": true,
-        "writeable": true,
-        "enumValues": [
-          "正常",
-          "待核查"
-        ]
       },
       {
         "id": "fldExample000052",
@@ -313,9 +293,17 @@
         "bizType": "Text",
         "readable": true,
         "writeable": true
+      },
+      {
+        "id": "fldExample000061",
+        "name": "管理记录",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
       }
     ]
   },
   "createdAt": 1792795161508,
-  "updatedAt": 1792795161508
+  "updatedAt": 1793030197824
 }
