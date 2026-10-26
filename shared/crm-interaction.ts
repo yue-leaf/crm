@@ -1,6 +1,7 @@
 import type { Draft, FieldSpec } from './crm';
 import type { CrmPage } from './api.interface';
 import { commerceKeys } from './crm-workflow';
+import { followupTime } from './crm-ux';
 
 /** Ignore equivalent selections before clearing their dependent fields. */
 export function changeDraft(previous: Draft, key: string, value: Draft[string], initial: Draft, editing: boolean): Draft {
@@ -54,6 +55,9 @@ export function missingFields(fields: FieldSpec[], draft: Draft): Record<string,
     const value = draft[field.key];
     if (field.type === 'datetime' && typeof value === 'string' && value && !/T\d{2}:\d{2}(?::\d{2})?$/.test(value))
       errors[field.key] = `请完整选择${field.label || field.key}的日期和时间`;
+    else if ((field.type === 'date' || field.type === 'datetime') && typeof value === 'string' && value &&
+      !Number.isFinite(followupTime(field.type === 'date' ? `${value}T00:00` : value)))
+      errors[field.key] = `请为${field.label || field.key}选择有效的日期${field.type === 'datetime' ? '和时间' : ''}`;
   }
   if (['电话', '邮箱'].every((key) => fields.some((field) => field.key === key)) &&
     !String(draft['电话'] || '').trim() && !String(draft['邮箱'] || '').trim()) {

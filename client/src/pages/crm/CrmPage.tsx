@@ -78,8 +78,8 @@ import type { FollowupFilter } from '@shared/api.interface';
 import { projectFacts, validProjectFilter } from '@shared/crm-dashboard';
 import { numberValue, detailFieldLabel } from '@shared/crm-presentation';
 import { projectFilterLabels } from '@shared/crm-dashboard';
-import { changeFilter, actionDraft, suggestedPlan, followupTime } from '@shared/crm-ux';
-import { advancementBlocked } from '@shared/crm-workflow';
+import { changeFilter, actionDraft, suggestedPlan, followupTime, suggestionKey, readPlanSuggestion } from '@shared/crm-ux';
+import { defaultFollowupView, type FollowupView } from './FollowupFeed';
 import {
   FOLLOWUP_CUSTOMER, followupCreateFields, changeFollowupTarget, followupWriteDraft,
 } from '@shared/crm-followup-target';
@@ -167,6 +167,7 @@ const CrmPage: React.FC = () => {
   const [selection, setSelection] = useState<CrmRecord | null>(null);
   const [selectionKind, setSelectionKind] = useState<EntityKind>('customer');
   const [detailTrail, setDetailTrail] = useState<DetailLocation[]>([]);
+  const [followupViews, setFollowupViews] = useState<Record<string, FollowupView>>({});
   const editorOrigin = useRef<DetailLocation | null>(null);
   const suspendedEditor = useRef<SuspendedEditor | null>(null);
   const [receipt, setReceipt] = useState<{ kind: EntityKind; row: CrmRecord } | null>(null);
@@ -203,8 +204,12 @@ const CrmPage: React.FC = () => {
     const project = linkIds(editor.row?.record['关联项目'])[0];
     if (direct) { setFollowupCustomer(direct); return; }
     if (project) void api.get('project', project).then((row: CrmRecord) => {
-      if (!canceled) setFollowupCustomer(linkIds(row.record['所属企业'])[0] || '');
+      if (canceled) return;
+      const customers: string[] = linkIds(row.record['所属企业']);
+      if (customers.length === 1) setFollowupCustomer(customers[0]);
+      else setCustomerResolveError('项目所属客户信息不完整，请先核对项目资料');
     }).catch((e: unknown) => { if (!canceled) setCustomerResolveError(message(e)); });
+    else setCustomerResolveError('这条跟进缺少所属客户或项目，请先核对跟进资料');
     return () => { canceled = true; };
   }, [editor, draftCustomer, customerResolveRetry]);
   const currentLocation = (): DetailLocation | null => selection ? {
@@ -430,7 +435,7 @@ const CrmPage: React.FC = () => {
     const errors = missingFields(specs(editor).filter(showField).map((field) => requiredField(field, editor.kind, editor.operation, draft)), draft);
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
-      setSaveError('请补全标记的必填项后再保存');
+      setSaveError('请检查标记的字段后再保存');
       requestAnimationFrame(() => {
         const first = document.querySelector<HTMLElement>('.crm-editor-form [data-invalid="true"]');
         first?.scrollIntoView({ block: 'center' });
@@ -484,6 +489,8 @@ const CrmPage: React.FC = () => {
             if (version !== requestVersion.current || detailRequest !== detailVersion.current) return;
             restoreLocation(origin, parent);
             if (editor.operation === 'create') setReceipt({ kind: editor.kind, row: fresh });
+            else setReceipt((previous) => previous?.kind === editor.kind && previous.row.id === fresh.id
+              ? { kind: editor.kind, row: fresh } : previous);
             return;
           }
           if (editor.operation !== 'create') return;
@@ -508,21 +515,24 @@ const CrmPage: React.FC = () => {
     }
   };
   const adoptPlan = async (followup: CrmRecord) => {
-    const target = followupTarget(followup);
-    const preset = suggestedPlan(followup.record);
-    if (!target || !preset || openingId) return;
+    if (openingId || savingRef.current) return;
     const version = requestVersion.current;
     const detailRequest = detailVersion.current;
-    setOpeningId(target.id);
+    const editorRequest = ++editorRequestVersion.current;
+    setOpeningId(followup.id);
     try {
-      const row = await api.get(target.kind, target.id);
-      if (version !== requestVersion.current || detailRequest !== detailVersion.current) return;
-      const blocked = advancementBlocked(target.kind, row);
-      if (blocked) { toast.info(blocked); return; }
-      openEditor(target.kind, 'plan', row, preset);
-      planSuggestion.current = followup.id;
-    } catch (e: unknown) { toast.error(message(e)); }
-    finally { setOpeningId(null); }
+      const next = await readPlanSuggestion(followup.id, api.get);
+      if (version !== requestVersion.current || detailRequest !== detailVersion.current ||
+        editorRequest !== editorRequestVersion.current) return;
+      setReceipt((previous) => previous?.kind === 'followup' && previous.row.id === next.followup.id
+        ? { kind: 'followup', row: next.followup } : previous);
+      if (selectionKind === 'followup' && selection?.id === next.followup.id) setSelection(next.followup);
+      openEditor(next.target.kind, 'plan', next.row, next.preset);
+      planSuggestion.current = next.key;
+    } catch (e: unknown) {
+      if (version === requestVersion.current && detailRequest === detailVersion.current &&
+        editorRequest === editorRequestVersion.current) toast.error(message(e));
+    } finally { setOpeningId((current) => current === followup.id ? null : current); }
   };
   const continueCreate = async () => {
     if (!receipt || openingId) return;
@@ -902,8 +912,8 @@ const CrmPage: React.FC = () => {
                 <span>{labels[receipt.kind]}已保存。</span>
                 <Button size="sm" variant="ghost" disabled={!!openingId} onClick={() => void continueCreate()}>继续新增{labels[receipt.kind]}</Button>
               </div>}
-              {((receipt?.kind === 'followup' && !adoptedSuggestions.has(receipt.row.id) && suggestedPlan(receipt.row.record)) ||
-                (selectionKind === 'followup' && !adoptedSuggestions.has(selection.id) && suggestedPlan(selection.record))) && <div className="panel-note flex flex-wrap items-center gap-2">
+              {((receipt?.kind === 'followup' && !adoptedSuggestions.has(suggestionKey(receipt.row)) && suggestedPlan(receipt.row.record)) ||
+                (selectionKind === 'followup' && !adoptedSuggestions.has(suggestionKey(selection)) && suggestedPlan(selection.record))) && <div className="panel-note flex flex-wrap items-center gap-2">
                 <span>下一步建议已记录，当前计划需单独确认更新。</span>
                 <Button size="sm" variant="outline" disabled={!!openingId}
                   onClick={() => void adoptPlan(receipt?.kind === 'followup' ? receipt.row : selection)}>采用建议更新计划</Button>
@@ -923,6 +933,9 @@ const CrmPage: React.FC = () => {
               )}
               {selectionKind === 'customer' || selectionKind === 'project'
                 ? <CustomerWorkspace key={`${selectionKind}:${selection.id}`} kind={selectionKind} row={selection}
+                    followupView={followupViews[`${selectionKind}:${selection.id}`] || defaultFollowupView}
+                    onFollowupViewChange={(view) => setFollowupViews((previous) => ({ ...previous,
+                      [`${selectionKind}:${selection.id}`]: view }))}
                     tab={detailTab} onTabChange={setDetailTab}
                     busy={!!openingId || !!detailLoadingId}
                     onView={(row: CrmRecord, kind: EntityKind, customerId?: string) => void detail(row, kind, customerId)}

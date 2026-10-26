@@ -32,5 +32,8 @@ export function useRelatedPage<T extends CrmPage>(load: (cursor?: string) => Pro
     } catch (e: unknown) { if (request === generation.current) setError(message(e)); }
     finally { if (request === generation.current) { paging.current = false; setLoading(false); } }
   }, [page, load]);
-  return { page, loading, error, more, retry: () => setRetryVersion((version: number) => version + 1) };
+  const refresh = () => setRetryVersion((version: number) => version + 1);
+  // A failed next page must retry the same cursor, preserving the records already read.
+  const retry = () => { if (page?.hasMore && page.pageToken) void more(); else refresh(); };
+  return { page, loading, error, more, retry, refresh };
 }
