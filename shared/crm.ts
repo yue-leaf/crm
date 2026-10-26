@@ -127,6 +127,7 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
   access: [
     {
       key: '待配置角色',
+      label: '角色',
       type: 'select',
       required: true,
       options: ['员工', '管理员'],

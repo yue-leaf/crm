@@ -551,11 +551,6 @@ const CrmPage: React.FC = () => {
                 <section className="panel list-panel">
                   {active === 'project' && <div className="project-list-filter"><span>项目范围：{scope === 'mine' ? '我负责的' : '全部项目'}</span><span>筛选：{projectFilterLabels[projectFilter]}</span>
                     {(projectFilter !== 'all' || scope !== 'all') && <Button size="sm" variant="ghost" onClick={() => { requestVersion.current++; setQuery(''); setSearch(''); navigate('/crm/project'); }}>清除筛选</Button>}</div>}
-                  {active === 'access' && (
-                    <div className="panel-note">
-                      这里维护成员资料与授权意向。实际访问由妙搭角色控制，修改本表不会自动授予角色。
-                    </div>
-                  )}
                   <form
                     className="list-toolbar"
                     onSubmit={(e) => {
@@ -590,7 +585,7 @@ const CrmPage: React.FC = () => {
                       <thead role="rowgroup">
                         <tr role="row">
                           {columns[active].map((c) => (
-                            <th role="columnheader" key={c}>{c === '所属企业' ? '所属客户' : c}</th>
+                            <th role="columnheader" key={c}>{c === '所属企业' ? '所属客户' : c === '待配置角色' ? '角色' : c}</th>
                           ))}
                           <th role="columnheader">操作</th>
                         </tr>
@@ -599,7 +594,7 @@ const CrmPage: React.FC = () => {
                         {data?.records.map((row) => (
                           <tr role="row" key={row.id}>
                             {columns[active].map((c, i) => (
-                              <td role="cell" data-label={c} key={c}>
+                              <td role="cell" data-label={c === '待配置角色' ? '角色' : c} key={c}>
                                 {i === 0 ? (
                                   <button
                                     className="record-title"
@@ -626,8 +621,8 @@ const CrmPage: React.FC = () => {
                                     : void detail(row)
                                 }
                               >
-                                {active === 'access' ? <ShieldCheck size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
-                                {detailLoadingId === row.id ? '读取中…' : active === 'access' ? '维护意向' : '查看'}
+                                {active === 'access' ? <Pencil size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
+                                {detailLoadingId === row.id ? '读取中…' : active === 'access' ? '编辑' : '查看'}
                               </Button>
                               {active !== 'access' && (
                                 <Button
@@ -790,7 +785,7 @@ const CrmPage: React.FC = () => {
                     : editor.operation === 'review'
                       ? '核查通过'
                       : editor.operation === 'access'
-                        ? '维护授权意向'
+                        ? '编辑权限配置'
                         : '提出结束建议'
               : ''}
           </DialogTitle>
@@ -800,7 +795,7 @@ const CrmPage: React.FC = () => {
               : editor?.operation === 'edit'
                 ? '修改已有资料，保存后重新核查；只更新本次改动，不覆盖历史建议或当前计划。'
                 : editor?.operation === 'access'
-                  ? '保存意向不会自动修改实际角色。'
+                  ? '修改成员信息后保存。'
                   : '请核对信息后保存，保留历史跟进中的原始建议。'}
           </DialogDescription>
           </header>
