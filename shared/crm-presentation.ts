@@ -30,6 +30,38 @@ function scalar(value: unknown): unknown {
   return value;
 }
 
+export function numberValue(value: unknown): number | null {
+  const raw = scalar(value);
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+  if (typeof raw !== 'string' || !/^-?\d+(\.\d+)?$/.test(raw.trim())) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** Formula booleans may arrive as strings or wrapped singleton arrays. */
+export function displayBoolean(name: string, value: unknown): string | null {
+  const raw = scalar(value);
+  const text = textValue(raw).trim().toLowerCase();
+  const known = ['已归档', '有效', '存在当前计划', '长期未跟进', '归档就绪', '归属正确'];
+  if (typeof raw !== 'boolean' && (!known.includes(name) || !['true', 'false'].includes(text))) return null;
+  const enabled = typeof raw === 'boolean' ? raw : text === 'true';
+  if (name === '已归档') return enabled ? '已归档' : '未归档';
+  if (name === '有效') return enabled ? '有效' : '无效';
+  if (name === '存在当前计划') return enabled ? '已安排' : '未安排';
+  if (name === '长期未跟进') return enabled ? '长期未跟进' : '跟进正常';
+  return enabled ? '是' : '否';
+}
+
+export function detailFieldLabel(name: string): string {
+  const labels: Record<string, string> = {
+    非终局项目数: '在办项目', 未跟进天数: '未跟进时长', 已归档: '归档状态',
+    修改人: '最近修改人', 修改时间: '最近修改时间', 待配置角色: '角色',
+    直接有效次数: '客户直接跟进次数', 整体有效次数: '累计跟进次数', 有效次数: '项目跟进次数',
+    客户关系状态: '客户状态', 所属企业: '所属客户',
+  };
+  return labels[name] || name;
+}
+
 /** Display only: always Shanghai time, never changes the stored timestamp. */
 export function displayDate(name: string, value: unknown): string | null {
   const dateOnly = dateFields.has(name);
@@ -53,6 +85,15 @@ export function statusTone(name: string, value: string): string | null {
 }
 
 interface DetailGroup { title: string; collapsed: boolean; fields: [string, unknown][] }
+function hasDetailValue(value: unknown): boolean {
+  if (value == null) return false;
+  if (typeof value === 'string') return !!value.trim();
+  if (Array.isArray(value)) return value.some(hasDetailValue);
+  if (typeof value === 'object' && 'value' in value) return hasDetailValue(value.value);
+  if (typeof value === 'object' && 'text' in value) return hasDetailValue(value.text);
+  if (typeof value === 'object' && 'link_record_ids' in value) return hasDetailValue(value.link_record_ids);
+  return true;
+}
 const sections: [string, boolean, string[]][] = [
   ['基本资料', false, ['企业全称', '简称', '客户编号', '统一社会信用代码', '行业', '地区', '网站', '客户关系状态',
     '客户负责人', '客户备注', '姓名', '联系人编号', '部门', '职务', '所属企业', '电话', '邮箱', '客户侧业务角色',
@@ -60,6 +101,7 @@ const sections: [string, boolean, string[]][] = [
     '目标 / 需求摘要', '目标完成日期', '通用状态', '工作状态', '终局确认', '跟进主题', '跟进编号', '跟进归属',
     '直接客户', '关联项目', '有效客户名称', '实际发生时间', '实际跟进人', '记录类型', '记录状态',
     '飞书成员', '通讯录姓名', '目录状态', '待配置角色']],
+  ['业务概况', false, ['非终局项目数', '未跟进天数']],
   ['当前计划', false, ['当前下一步行动', '行动执行人', '有效执行人', '下次跟进日期']],
   ['推进与结果', false, ['当前进展', '暂停原因', '结束建议', '建议说明', '结束日期', '结果说明', '取消原因']],
   ['跟进内容', false, ['沟通 / 推进方式', '客户联系人', '内容 / 推进结论', '附件', '后续安排',
@@ -69,19 +111,21 @@ const sections: [string, boolean, string[]][] = [
     '最近直接跟进', '最近整体互动', '最近有效跟进', '直接有效次数', '整体有效次数', '有效次数']],
   ['管理记录', true, ['数据检查', '身份检查', '已归档', '归档时间', '归档原因',
     '停用时间', '停用原因', '作废原因', '管理记录', '联系人管理记录', '最近重开原因']],
+  ['操作信息', true, ['创建人', '创建时间', '修改人', '修改时间']],
 ];
 
-/** Every returned field stays accessible, including future fields not in our map. */
+/** Only deliberately selected business fields are shown; new system fields stay hidden. */
 export function detailGroups(record: CrmRecord['record']): DetailGroup[] {
-  const hidden = new Set(['核查标记', '核查说明', '跟进排序', '跟进状态', '今日到期', '逾期', '逾期天数', '缺计划']);
-  const remaining = new Set(Object.keys(record).filter(key => !hidden.has(key)));
   const groups: DetailGroup[] = [];
   for (const [title, collapsed, keys] of sections) {
     const fields: [string, unknown][] = [];
-    for (const key of keys) if (remaining.delete(key)) fields.push([key, record[key]]);
+    for (const key of keys) {
+      if (!Object.prototype.hasOwnProperty.call(record, key)) continue;
+      const value = record[key];
+      if (!hasDetailValue(value)) continue;
+      fields.push([key, value]);
+    }
     if (fields.length) groups.push({ title, collapsed, fields });
   }
-  if (remaining.size) groups.push({ title: '其他与系统信息', collapsed: true,
-    fields: [...remaining].map((key) => [key, record[key]]) });
   return groups;
 }

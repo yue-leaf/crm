@@ -23,7 +23,7 @@ import type { Draft, FieldSpec } from '@shared/crm';
 import { textValue, linkIds } from '@shared/crm';
 import { RelationField } from './RelationField';
 import { CustomerLink } from './CustomerLink';
-import { displayDate, statusTone } from '@shared/crm-presentation';
+import { displayBoolean, displayDate, statusTone } from '@shared/crm-presentation';
 
 export const message = (e: unknown) =>
   e instanceof Error ? e.message : '操作未完成，请稍后重试';
@@ -46,6 +46,8 @@ export const Cell: React.FC<{ name: string; value: unknown; onOpenCustomer?: (id
   value,
   onOpenCustomer,
 }) => {
+  const booleanLabel = displayBoolean(name, value);
+  if (booleanLabel !== null) return <span className={name === '已归档' ? 'tag neutral' : undefined}>{booleanLabel}</span>;
   if (personKeys.has(name) && Array.isArray(value))
     return (
       <div className="people">

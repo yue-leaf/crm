@@ -76,6 +76,7 @@ import { followupFilterLabels, validFollowupFilter, shanghaiDay } from '@shared/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { FollowupFilter } from '@shared/api.interface';
 import { projectFilterLabels, validProjectFilter } from '@shared/crm-dashboard';
+import { numberValue } from '@shared/crm-presentation';
 import './crm.css';
 
 const icons = {
@@ -235,6 +236,15 @@ const CrmPage: React.FC = () => {
     preset: Draft = {},
   ) => {
     if (savingRef.current) return;
+    if (kind === 'customer' && operation === 'archive' && row) {
+      const blockingProjects = numberValue(row.record['归档阻塞项目数']);
+      if (blockingProjects !== null && blockingProjects > 0) {
+        toast.warning(`还有 ${blockingProjects} 个项目未满足归档条件`, {
+          action: { label: '查看项目', onClick: () => setDetailTab('projects') },
+        });
+        return;
+      }
+    }
     editorRequestVersion.current++;
     detailVersion.current++;
     setOpeningId(null);
