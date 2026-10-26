@@ -83,7 +83,11 @@ export class CrmService {
         .map((f) => [f.name, f.enumValues]),
     );
   }
-  async list(kind: string, cursor?: string, search?: string): Promise<CrmPage> {
+  async customerContacts(id: string, cursor?: string): Promise<CrmPage> {
+    await this.get('customer', id);
+    return this.list('contact', cursor, undefined, id);
+  }
+  async list(kind: string, cursor?: string, search?: string, customerId?: string): Promise<CrmPage> {
     const key = this.kind(kind);
     if (cursor !== undefined && (typeof cursor !== 'string' || cursor.length > 2048))
       throw new BadRequestException('分页标记无效');
@@ -92,16 +96,17 @@ export class CrmService {
     const result = await this.call(key, 'searchRecords', {
       pageSize: 50,
       ...(cursor ? { pageToken: cursor } : {}),
-      ...(search
+      ...(search || customerId
         ? {
             filter: {
               conjunction: 'and',
               conditions: [
-                {
+                ...(customerId ? [{ fieldName: '所属企业', operator: 'contains', value: [customerId] }] : []),
+                ...(search ? [{
                   fieldName: titles[key],
                   operator: 'contains',
                   value: [search],
-                },
+                }] : []),
               ],
             },
           }
@@ -116,7 +121,12 @@ export class CrmService {
       typeof result.hasMore !== 'boolean'
     )
       throw new Error('插件响应格式不符合合同');
-    return result as CrmPage;
+    const page = result as CrmPage;
+    if (page.hasMore && (!page.pageToken || page.pageToken === cursor))
+      throw new BadGatewayException('分页信息不完整，请刷新重试');
+    if (customerId && page.records.some(row => !linkIds(row.record['所属企业']).includes(customerId)))
+      throw new BadGatewayException('联系人归属筛选异常，请刷新重试');
+    return page;
   }
 
   async get(kind: string, id: string): Promise<CrmRecord> {

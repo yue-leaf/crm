@@ -56,6 +56,7 @@ import {
 } from '@shared/crm-edit';
 import { Cell, FieldInput, message } from './Fields';
 import { RecordDetails } from './RecordDetails';
+import { CustomerContacts } from './CustomerContacts';
 import {
   advancementBlocked, followupTarget, progressFields, relatedDraft,
 } from '@shared/crm-workflow';
@@ -84,7 +85,7 @@ const columns: Record<EntityKind, string[]> = {
     '下次跟进日期',
     '核查标记',
   ],
-  contact: ['姓名', '职务', '电话', '邮箱', '联系人状态', '核查标记'],
+  contact: ['姓名', '所属企业', '职务', '电话', '邮箱', '联系人状态', '核查标记'],
   project: [
     '项目名称',
     '项目类型',
@@ -575,7 +576,7 @@ const CrmPage: React.FC = () => {
                       <thead role="rowgroup">
                         <tr role="row">
                           {columns[active].map((c) => (
-                            <th role="columnheader" key={c}>{c}</th>
+                            <th role="columnheader" key={c}>{c === '所属企业' ? '所属客户' : c}</th>
                           ))}
                           <th role="columnheader">操作</th>
                         </tr>
@@ -594,11 +595,12 @@ const CrmPage: React.FC = () => {
                                     {textValue(row.record[c]) || '未命名'}
                                   </button>
                                 ) : (
-                                  <Cell name={c} value={row.record[c]} />
+                                  <Cell name={c} value={row.record[c]} onOpenCustomer={id => void detail({ id, record: {} }, 'customer')} />
                                 )}
                               </td>
                             ))}
                             <td role="cell" data-label="操作" className="record-actions">
+                              {active === 'customer' && <Button variant="ghost" size="sm" disabled={detailLoadingId === row.id} onClick={() => void detail(row, 'customer')}><Users size={14} />联系人</Button>}
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -780,7 +782,7 @@ const CrmPage: React.FC = () => {
                   )}
                 {(selectionKind === 'customer' || selectionKind === 'project') && (
                   <>
-                    {selectionKind === 'customer' && (['contact', 'project'] as const).map((kind) => (
+                    {selectionKind === 'customer' && (['project'] as const).map((kind) => (
                       <Button key={kind} variant="outline"
                         disabled={selection.record['已归档'] === true || textValue(selection.record['核查标记']) !== '正常'}
                         title="先核查客户，通过后可创建联系人和项目"
@@ -814,7 +816,12 @@ const CrmPage: React.FC = () => {
               {selectionKind === 'project' && textValue(selection.record['结束建议']) && (
                 <p className="panel-note">已有结束建议，可通过“确认项目结束”处理；提出建议不会自动改变终局。</p>
               )}
-              <RecordDetails key={`${selectionKind}:${selection.id}`} record={selection.record} />
+              {selectionKind === 'customer' && <CustomerContacts key={selection.id} customerId={selection.id}
+                createBlocked={selection.record['已归档'] === true || textValue(selection.record['核查标记']) !== '正常'}
+                busy={!!openingId || !!detailLoadingId}
+                onCreate={() => openEditor('contact', 'create', undefined, relatedDraft('customer', selection, 'contact'))}
+                onView={row => void detail(row, 'contact')} onEdit={row => void edit(row, 'contact')} />}
+              <RecordDetails key={`${selectionKind}:${selection.id}`} record={selection.record} onOpenCustomer={id => void detail({ id, record: {} }, 'customer')} />
               {(selectionKind === 'customer' || selectionKind === 'project') && <p className="panel-note">
                 生命周期操作会保留历史与原因。项目取消归档后仍保持结束状态，继续新工作请使用“重开项目”。
               </p>}

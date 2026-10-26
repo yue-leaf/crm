@@ -11,6 +11,7 @@ import type {
   ProjectOverview,
   ProjectScope,
   ProjectFilter,
+  CustomerContactsQuery,
 } from '@shared/api.interface';
 import type { Draft } from '@shared/crm';
 export class SaveOutcomeUnknown extends Error {}
@@ -50,6 +51,8 @@ async function request<T>(
   }
 }
 export const api = {
+  customerContacts: (customerId: string, query: CustomerContactsQuery = {}) =>
+    request<CrmPage>(`customers/${encodeURIComponent(customerId)}/contacts?${new URLSearchParams({ cursor: query.cursor || '' })}`),
   session: () => request<CrmSession>('session'),
   summary: () => request<CrmSummary>('summary'),
   overview: (scope: ProjectScope) => request<ProjectOverview>(`overview?scope=${scope}`),

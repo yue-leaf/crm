@@ -14,6 +14,9 @@ export interface CrmPage {
   pageToken?: string;
   total?: number;
 }
+export interface CustomerContactsQuery {
+  cursor?: string;
+}
 export interface CrmSession {
   userId: string;
   name: string;

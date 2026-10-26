@@ -971,3 +971,37 @@
     font-size: 12px;
   }
 }
+.customer-contacts-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.customer-contact-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid #edf0f5;
+}
+.customer-contact-info {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 200px;
+  overflow-wrap: anywhere;
+}
+.customer-contact-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  color: #646a73;
+}
+.customer-links {
+  display: grid;
+  gap: 4px;
+}
