@@ -70,7 +70,7 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
       key: '项目类型',
       type: 'select',
       required: true,
-      options: ['销售机会', '技术验证', '合作推进', '服务支持', '其他'],
+      options: ['MRT', 'PAT', 'automation'],
     },
     { key: '所属企业', type: 'relation', required: true, target: 'customer' },
     { key: '项目负责人', type: 'person', required: true },
