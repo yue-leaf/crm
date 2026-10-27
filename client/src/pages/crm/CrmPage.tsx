@@ -758,23 +758,23 @@ const CrmPage: React.FC = () => {
                         aria-label={`搜索${titles[active]}`}
                       />
                     </div>
-                    <Button type="submit" variant="outline">
-                      搜索
-                    </Button>
-                    {active === 'project' && projectFilter !== 'all' && <Button type="button" size="sm" variant="secondary"
-                      aria-label={`清除${projectFilterLabels[projectFilter]}筛选`}
-                      onClick={() => updateFilter('projectFilter', 'all')}>{projectFilterLabels[projectFilter]} ×</Button>}
-                    {active === 'project' && scope === 'mine' && <Button type="button" size="sm" variant="secondary"
-                      aria-label="清除我负责的筛选" onClick={() => updateFilter('scope', 'all')}>我负责的 ×</Button>}
                     {(active === 'customer' || active === 'project') && <div className="followup-filter"><span>跟进状态</span>
                       <Select value={followupFilter} onValueChange={(value: string) => {
                         updateFilter('followupFilter', value);
                       }}><SelectTrigger aria-label="筛选跟进状态"><SelectValue>{followupFilter === 'all' ? '全部' : followupFilterLabels[followupFilter]}</SelectValue></SelectTrigger>
                         <SelectContent>{Object.entries(followupFilterLabels).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent>
                       </Select></div>}
+                    <Button type="submit" variant="outline">
+                      搜索
+                    </Button>
                     {(search || query) && <Button type="button" variant="ghost" onClick={() => {
                       setSearch(''); if (query) setQuery(''); else void reload();
                     }}>清空搜索</Button>}
+                    {active === 'project' && projectFilter !== 'all' && <Button type="button" size="sm" variant="secondary"
+                      aria-label={`清除${projectFilterLabels[projectFilter]}筛选`}
+                      onClick={() => updateFilter('projectFilter', 'all')}>{projectFilterLabels[projectFilter]} ×</Button>}
+                    {active === 'project' && scope === 'mine' && <Button type="button" size="sm" variant="secondary"
+                      aria-label="清除我负责的筛选" onClick={() => updateFilter('scope', 'all')}>我负责的 ×</Button>}
                     <span className="toolbar-count" role="status" aria-live="polite">
                       {loading
                         ? '加载中…'
