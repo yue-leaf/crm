@@ -44,27 +44,9 @@ test('cancellation and reopening through the same entry preserve lifecycle audit
  await h.update({项目状态:'暂停',当前进展:'等客户排期',暂停原因:'客户延期'});assert.equal(h.current().record.工作状态,'暂停');
  await h.update({...signed,项目状态:'待启动'});assert.equal(h.current().record.暂停原因,'');
 });
-test('invalid states, incomplete conditional fields, stale writes and archived status updates never write',async()=>{
+test('invalid states, incomplete conditional fields, stale writes never write',async()=>{
  for(const input of [{...signed,项目状态:'已完成'},{...signed,签约日期:'2099-01-01'},{...signed,签约日期:''},{项目状态:'已取消',结束日期:today},
  {项目状态:'暂停',当前进展:'等待'}, {...signed,下次跟进日期:''}]){const h=harness();await assert.rejects(()=>h.update(input));assert.equal(h.writes.length,0);}
  const h=harness();await assert.rejects(()=>h.service.update('project','recProject','status',{...signed,expectedModifiedAt:0},'123'),/记录已变化/);assert.equal(h.writes.length,0);
- const archived=row();archived.record.已归档=true;const a=harness(archived);await assert.rejects(()=>a.update(signed),/取消归档/);assert.equal(a.writes.length,0);
-});
-test('signed projects can archive, but customers cannot archive while their signed projects still have after-sales work',async()=>{
- const h=harness();await h.update(signed);const p=h.current();assert.equal(lifecycleBlocked('project','archive',p),'');
- const c=structuredClone(customer);c.record.项目={link_record_ids:[p.id]};c.record.归档阻塞项目数=0;
- const context={get:async()=>p,people:async()=>{}};
- await assert.rejects(()=>prepareLifecycle('customer',c,'archive',{操作原因:'归档'},'123',context),/仍有未结束/);
- const archived=await prepareLifecycle('project',p,'archive',{操作原因:'售后已完成'},'123',context);
- Object.assign(p.record,archived.fields);assert.equal(projectFacts(p,Date.now()).followup.key,'none');assert.equal(projectReviewProblem(p.record),'');
- assert.doesNotThrow(()=>historicalContext('project',p,date));
- const result=await prepareLifecycle('customer',c,'archive',{操作原因:'合作结束'},'123',context);assert.equal(result.fields.已归档,true);
-});
 
-test('restoring a signed project cannot restart after-sales under an archived customer',async()=>{
- const h=harness();await h.update(signed);const p=h.current();Object.assign(p.record,{已归档:true,归档时间:Date.now()-1000,归档原因:'结束'});
- const archivedCustomer={...customer,record:{...customer.record,已归档:true}};
- await assert.rejects(()=>prepareLifecycle('project',p,'restore',{操作原因:'继续售后'},'123',{get:async()=>archivedCustomer,people:async()=>{}}),/先取消客户归档/);
- const result=await prepareLifecycle('project',p,'restore',{操作原因:'继续售后'},'123',{get:async()=>customer,people:async()=>{}});
- assert.equal(result.fields.已归档,false);assert.equal(result.related[0].row.id,customer.id);
 });

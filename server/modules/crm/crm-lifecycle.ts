@@ -28,16 +28,14 @@ export async function prepareLifecycle(
     related.push({ kind: key, row: record });
     return record;
   };
-  if (operation === 'confirm-end' || operation === 'archive') {
+  if (operation === 'confirm-end') {
     const issue = recordReviewProblem(kind, row.record);
     if (issue) reject('资料', issue);
   }
-  if (kind === 'project' && (operation === 'confirm-end' || operation === 'reopen' ||
-      (operation === 'restore' && textValue(row.record['工作状态']) === '已签合同' && textValue(row.record['终局确认']) === '未确认'))) {
+  if (kind === 'project' && (operation === 'confirm-end' || operation === 'reopen')) {
     const parents = linkIds(row.record['所属企业']);
     if (parents.length !== 1) reject('所属企业', '项目必须关联唯一企业');
     const customer = await load('customer', parents[0]);
-    if (customer.record['已归档'] === true) reject('所属企业', '请先取消客户归档，再操作项目');
     if (recordReviewProblem('customer', customer.record))
       reject('所属企业', '客户资料不完整，请先修正');
   }
@@ -58,28 +56,6 @@ export async function prepareLifecycle(
         reject('结束日期', '结束日期不能早于已有跟进；异常跟进需先核对');
     }
     Object.assign(fields, { 结束建议: '', 建议说明: '', 取消原因: fields['取消原因'] || '' });
-  } else if (operation === 'archive') {
-    if (kind === 'customer') {
-      const projects = linkIds(row.record['项目']);
-      if (projects.length > 500) reject('关联项目', '项目过多，请先分批核对后归档');
-      for (const id of projects) {
-        const project = await load('project', id);
-        if ((!['已完成', '已取消'].includes(textValue(project.record['终局确认'])) && !(textValue(project.record['工作状态']) === '已签合同' && project.record['已归档'] === true)) ||
-          recordReviewProblem('project', project.record))
-          reject('归档', '仍有未结束或信息不完整的项目');
-      }
-      if (textValue(row.record['归档阻塞项目数']) !== '0') reject('归档', '关联项目计算尚未就绪，请刷新核对');
-    }
-    Object.assign(fields, { 已归档: true, 归档时间: now, 归档原因: fields['操作原因'] });
-  } else if (operation === 'restore') {
-    const archivedAt = row.record['归档时间'];
-    if (typeof archivedAt !== 'number' || !Number.isFinite(archivedAt) || archivedAt > now)
-      reject('归档时间', '历史边界无效，请先在原表核对');
-    Object.assign(fields, { 已归档: false, 归档原因: '' });
-    if (kind === 'customer') {
-      fields['行动执行人'] ||= [];
-      await context.people(fields);
-    }
   } else {
     const closed = row.record['结束日期'];
     if (typeof closed !== 'number' || !Number.isFinite(closed) || day(closed) > day(now))
@@ -90,11 +66,7 @@ export async function prepareLifecycle(
       if (!fields['暂停原因']) reject('暂停原因', '暂停时必填');
       fields['当前下一步行动'] = ''; fields['下次跟进日期'] = null;
     } else if (!fields['当前下一步行动'] || !fields['下次跟进日期']) reject('当前计划', '恢复项目时请确认下一步行动和日期');
-    if (row.record['已归档'] === true) {
-      const at = row.record['归档时间'];
-      if (typeof at !== 'number' || !Number.isFinite(at) || at > now) reject('归档时间', '历史归档边界无效');
-    }
-    Object.assign(fields, { 终局确认: '未确认', 已归档: false, 归档原因: '', 结果说明: '', 取消原因: '',
+    Object.assign(fields, { 终局确认: '未确认', 结果说明: '', 取消原因: '',
       暂停原因: fields['工作状态'] === '暂停' ? fields['暂停原因'] : '', 结束建议: '', 建议说明: '', 最近重开原因: fields['操作原因'] });
     fields['行动执行人'] ||= [];
     await context.people(fields);
@@ -102,14 +74,13 @@ export async function prepareLifecycle(
   const event: LifecycleEvent = {
     version: 1, operation, at: now, actor, reason: String(fields['操作原因']),
     previous: {
-      terminal: textValue(row.record['终局确认']), archived: row.record['已归档'] === true,
+      terminal: textValue(row.record['终局确认']), archived: false,
       ...(typeof row.record['结束日期'] === 'number' ? { endDate: row.record['结束日期'] } : {}),
-      ...(typeof row.record['归档时间'] === 'number' ? { archiveTime: row.record['归档时间'] } : {}),
       action: textValue(row.record['当前下一步行动']),
       ...(typeof row.record['下次跟进日期'] === 'number' ? { dueDate: row.record['下次跟进日期'] } : {}),
       result: textValue(row.record['结果说明']), suggestion: textValue(row.record['结束建议']),
       suggestionNote: textValue(row.record['建议说明']), cancelReason: textValue(row.record['取消原因']),
-      archiveReason: textValue(row.record['归档原因']),
+      archiveReason: '',
     },
   };
   const note = [textValue(row.record['管理记录']),

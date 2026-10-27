@@ -1,11 +1,9 @@
 import type { CrmRecord } from '@shared/api.interface';
-import { statusFields, statusBlocked } from '@shared/crm-status';
+import { statusFields } from '@shared/crm-status';
 import { textValue } from '@shared/crm';
 import { parseDraft, reject } from './crm-validation';
 /** Resolve one user-facing state change into the existing audited workflows. */
 export function statusInput(row: CrmRecord, input: Record<string, unknown>) {
-  const blocked = statusBlocked(row);
-  if (blocked) reject('项目状态', blocked);
   const { draft } = parseDraft(input, statusFields, {});
   const state = String(draft['项目状态']);
   if (state === '已取消') return { operation: 'confirm-end', input: {

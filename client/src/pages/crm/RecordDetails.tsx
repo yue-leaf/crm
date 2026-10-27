@@ -17,8 +17,7 @@ export const RecordDetails: React.FC<{ record: CrmRecord['record']; onOpenCustom
         {group.fields.map(([key, value]) => (
           <div key={key} className={/备注|说明|原因|内容|摘要|记录|行动|进展|附件/.test(key) || textValue(value).length > 70 ? 'detail-wide' : undefined}>
             <dt>{key === '结束日期' && textValue(record['终局确认']) === '未确认' ? '上次结束日期（历史）'
-              : key === '归档时间' && record['已归档'] !== true ? '上次归档时间（历史）'
-              : key === '下次跟进日期' && (record['已归档'] === true || ['已完成', '已取消'].includes(textValue(record['终局确认']))) ? '上次计划日期（已停用）' : detailFieldLabel(key)}</dt>
+              : key === '下次跟进日期' && (['已完成', '已取消'].includes(textValue(record['终局确认']))) ? '上次计划日期（已停用）' : detailFieldLabel(key)}</dt>
             <dd>{quantityUnits[key] ? numberValue(value) !== null ? <div className="detail-quantity"><strong>{numberValue(value)}</strong><span>{quantityUnits[key]}</span>
               {key === '未跟进天数' && displayBoolean('长期未跟进', record['长期未跟进']) === '长期未跟进' && <span className="tag amber">长期未跟进</span>}</div>
               : <span className="muted">暂不可用</span>

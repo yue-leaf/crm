@@ -20,7 +20,7 @@ export interface WorkspaceData {
   scope: ProjectScope; generatedAt: number;
   counts: { overdue: number; today: number; tomorrow: number; missing: number };
   totals: Record<WorkspaceKind, { total: number; monthNew: number }>;
-  project: { active: number; monthCompleted: number; archived: number; unknown: number; states: Record<string, number> };
+  project: { active: number; monthCompleted: number; unknown: number; states: Record<string, number> };
   tasks: WorkspaceTask[]; recent: WorkspaceActivity[]; attention: WorkspaceAttention[]; attentionTotal: number;
 }
 export interface WorkspaceSource { customer: CrmRecord[]; project: CrmRecord[]; followup: CrmRecord[] }
@@ -29,7 +29,6 @@ const people = (v: unknown): string[] => Array.isArray(v) ? v.map(String) : [];
 const mine = (row: CrmRecord, keys: string[], id: string): boolean => keys.some(key => people(row.record[key]).includes(id));
 const inMonth = (v: unknown, now: number): boolean => validWorkspaceTime(v) && v <= now &&
   new Date(v + 28800000).toISOString().slice(0, 7) === new Date(now + 28800000).toISOString().slice(0, 7);
-const activeCustomer = (row: CrmRecord): boolean => row.record['已归档'] !== true;
 
 export function workspaceModel(source: WorkspaceSource, scope: ProjectScope, userId: string, now = Date.now()) {
   const customers = new Map(source.customer.map(row => [row.id, row]));
@@ -57,7 +56,7 @@ export function workspaceModel(source: WorkspaceSource, scope: ProjectScope, use
   const tasks: WorkspaceTask[] = [];
   for (const kind of ['customer', 'project'] as const) for (const row of records[kind]) {
     const fact = kind === 'project' ? projectFacts(row, now) : null;
-    if (fact ? !fact.active : !activeCustomer(row)) continue;
+    if (fact && !fact.active) continue;
     const status = followupStatus(row.record, now);
     const action = textValue(row.record['当前下一步行动']).trim();
     const customerId = customerOf(row, kind);
@@ -77,7 +76,7 @@ export function workspaceModel(source: WorkspaceSource, scope: ProjectScope, use
   const activeProjects = new Map<string, number>();
   for (const row of source.project) if (projectFacts(row, now).active) for (const id of linkIds(row.record['所属企业']))
     activeProjects.set(id, (activeProjects.get(id) || 0) + 1);
-  const attention = scopedCustomers.filter(activeCustomer).flatMap(row => {
+  const attention = scopedCustomers.flatMap(row => {
     const last = latest.get(row.id);
     const baseline = last ?? row.record['创建时间'];
     if (!validWorkspaceTime(baseline) || baseline > now) return [];
@@ -94,18 +93,17 @@ export function workspaceModel(source: WorkspaceSource, scope: ProjectScope, use
   const totals = Object.fromEntries((['customer', 'project', 'followup'] as const).map(kind => [kind,
     { total: records[kind].length, monthNew: records[kind].filter(row => inMonth(row.record['创建时间'], now)).length }])) as WorkspaceData['totals'];
   const states: Record<string, number> = Object.fromEntries(projectStates.map(state => [state, 0]));
-  let archived = 0; let unknown = 0; let active = 0;
+  let unknown = 0; let active = 0;
   for (const row of scopedProjects) {
     const fact = projectFacts(row, now);
     if (fact.active) active++;
-    if (fact.archived) archived++;
-    else if (fact.state) states[fact.state]++; else unknown++;
+    if (fact.state) states[fact.state]++; else unknown++;
   }
   const monthCompleted = scopedProjects.filter(row => projectFacts(row, now).state === '已签合同' && inMonth(row.record['签约日期'], now));
   const data: WorkspaceData = { scope, generatedAt: now, counts: {
     overdue: tasks.filter(row => row.status === 'overdue').length, today: tasks.filter(row => row.status === 'today').length,
     tomorrow: tasks.filter(row => row.status === 'tomorrow').length, missing: tasks.filter(row => row.missing).length,
-  }, totals, project: { active, monthCompleted: monthCompleted.length, archived, unknown, states }, tasks, recent, attention: attention.slice(0, 5), attentionTotal: attention.length };
+  }, totals, project: { active, monthCompleted: monthCompleted.length, unknown, states }, tasks, recent, attention: attention.slice(0, 5), attentionTotal: attention.length };
   return { data, records, attentionIds: new Set(attention.map(row => row.id)), monthCompleted, now };
 }
 
@@ -117,9 +115,8 @@ export function workspaceRecords(model: ReturnType<typeof workspaceModel>, kind:
   if (kind === 'project') {
     if (filter === 'completed-month') return model.monthCompleted;
     if (filter === 'active') return rows.filter(row => projectFacts(row, model.now).active);
-    if (filter === 'archived') return rows.filter(row => row.record['已归档'] === true);
-    if ((projectStates as readonly string[]).includes(filter)) return rows.filter(row => row.record['已归档'] !== true && projectFacts(row, model.now).state === filter);
-    if (filter === 'unknown') return rows.filter(row => row.record['已归档'] !== true && !projectFacts(row, model.now).state);
+    if ((projectStates as readonly string[]).includes(filter)) return rows.filter(row => projectFacts(row, model.now).state === filter);
+    if (filter === 'unknown') return rows.filter(row => !projectFacts(row, model.now).state);
   }
   throw new Error('工作台筛选无效');
 }

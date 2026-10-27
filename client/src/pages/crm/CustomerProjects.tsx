@@ -14,13 +14,13 @@ export function CustomerProjects({ customerId, busy, createBlocked, onCreate, on
   const load = useCallback((cursor?: string): Promise<CrmPage> => api.customerProjects(customerId, { cursor }), [customerId]);
   const { page, loading, error, more, retry } = useRelatedPage(load, JSON.stringify(['projects', customerId]));
   return <section className="related-panel" aria-label="客户关联项目" data-page-loading={loading}>
-    <div className="related-panel-heading"><div><h3>关联项目{page && <span>{page.total} 个</span>}</h3><p>集中查看在办、已结束及已归档的全部项目。</p></div>
+    <div className="related-panel-heading"><div><h3>关联项目{page && <span>{page.total} 个</span>}</h3><p>查看客户的全部项目。</p></div>
       <Button size="sm" variant="outline" disabled={busy || createBlocked} onClick={onCreate}><Plus size={14} />新建项目</Button></div>
     <div className="customer-projects">{page?.records.map((row: CrmRecord) => <article className="customer-project-card" key={row.id}>
       <div className="project-card-title"><FolderKanban size={18} /><button className="record-title" disabled={busy}
         onClick={() => onView(row)}>{textValue(row.record['项目名称']) || '未命名项目'}</button></div>
       <div className="project-card-status"><Cell name="工作状态" value={textValue(row.record['终局确认']) === '未确认' ? row.record['工作状态'] : row.record['终局确认']} />
-        <FollowupBadge record={row.record} />{row.record['已归档'] === true && <span className="tag neutral">已归档</span>}</div>
+        <FollowupBadge record={row.record} /></div>
       <p>{textValue(row.record['当前进展']) || textValue(row.record['目标 / 需求摘要']) || '暂无进展说明'}</p>
       <div className="project-card-footer"><Cell name="项目负责人" value={row.record['项目负责人']} /><Button variant="ghost" size="sm" disabled={busy} onClick={() => onView(row)}>查看项目 →</Button></div>
     </article>)}</div>

@@ -86,7 +86,7 @@ export interface BusinessListQuery {
   projectFilter?: ProjectFilter;
   followupFilter?: FollowupFilter;
 }
-export type ProjectFilter = FollowupFilter | 'active' | 'attention' | 'month-completed' | 'missing-plan' | '待启动' | '进行中' | '暂停' | '已签合同' | '已取消' | 'archived';
+export type ProjectFilter = FollowupFilter | 'active' | 'attention' | 'month-completed' | 'missing-plan' | '待启动' | '进行中' | '暂停' | '已签合同' | '已取消';
 export interface ProjectOverview {
   scope: ProjectScope;
   generatedAt: number;
@@ -98,7 +98,6 @@ export interface ProjectOverview {
   missingPlan: number;
   today: number;
   tomorrow: number;
-  archived: number;
   unknown: number;
   states: Record<'待启动' | '进行中' | '暂停' | '已签合同' | '已取消', number>;
   projects: CrmRecord[];

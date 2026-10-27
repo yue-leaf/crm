@@ -12,7 +12,7 @@ export function validFollowupFilter(value: string): value is FollowupFilter {
 export function followupStatus(record: CrmRecord['record'], now = Date.now()): {
   key: FollowupStatus; label: string; tone: string; priority: number; due: number;
 } {
-  if (record['已归档'] === true || ['已完成', '已取消'].includes(textValue(record['终局确认'])))
+  if (['已完成', '已取消'].includes(textValue(record['终局确认'])))
     return { key: 'none', label: '无需跟进', tone: 'neutral', priority: 5, due: Infinity };
   const due = record['下次跟进日期'];
   if (typeof due !== 'number' || !Number.isFinite(due) || !Number.isFinite(new Date(due).getTime()))

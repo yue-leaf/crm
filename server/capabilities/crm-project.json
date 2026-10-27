@@ -79,14 +79,6 @@
         ]
       },
       {
-        "id": "fldgxM6Eda",
-        "name": "已归档",
-        "type": 7,
-        "bizType": "Checkbox",
-        "readable": true,
-        "writeable": true
-      },
-      {
         "id": "fld7Y5as6m",
         "name": "目标 / 需求摘要",
         "type": 1,
@@ -196,14 +188,6 @@
         "writeable": false
       },
       {
-        "id": "fld5Vmz2r0",
-        "name": "归档时间",
-        "type": 5,
-        "bizType": "DateTime",
-        "readable": true,
-        "writeable": true
-      },
-      {
         "id": "fld4cHbz9g",
         "name": "终局确认",
         "type": 3,
@@ -246,14 +230,6 @@
         "bizType": "SingleLink",
         "readable": true,
         "writeable": true
-      },
-      {
-        "id": "fld6CqaAup",
-        "name": "归档就绪",
-        "type": 20,
-        "bizType": "Formula",
-        "readable": true,
-        "writeable": false
       },
       {
         "id": "fldV4Oztaw",
@@ -346,14 +322,6 @@
         "bizType": "Formula",
         "readable": true,
         "writeable": false
-      },
-      {
-        "id": "fldRDRf0c8",
-        "name": "归档原因",
-        "type": 1,
-        "bizType": "Text",
-        "readable": true,
-        "writeable": true
       },
       {
         "id": "fld1KRTNhT",
