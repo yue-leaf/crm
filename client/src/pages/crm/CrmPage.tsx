@@ -1024,9 +1024,6 @@ const CrmPage: React.FC = () => {
               : editor.operation === 'restore' ? '取消归档保留历史归档时间；项目仍保持原结束状态。客户恢复时请填写新计划。'
               : '重开后项目恢复推进，请填写新的进展和计划。历史记录会保留。'}
           </p>}
-          {editor?.operation === 'edit' && editor.kind === 'project' && draft['项目类型'] !== '销售机会' && (
-            <p className="panel-note">切换为非销售类型时保留原有商务信息，不新增商务金额；详情仍可查看历史值。</p>
-          )}
             <fieldset className="form-grid" disabled={saving || uploading || uncertain}>
               {editor &&
                 specs(editor)

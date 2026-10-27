@@ -11,7 +11,7 @@ function fixture(kind, patch={}) {
  const customer={id:'recCustomer',record:{企业全称:'Example',行业:'其他化学制药',地区:'上海',客户负责人:[123],客户关系状态:'待建立',核查标记:'正常',已归档:false,修改时间:1}};
  const data={customer:customer.record,
   contact:{姓名:'Contact',职务:'Engineer',所属企业:{link_record_ids:['recCustomer']},电话:'123',维护人:[123],联系人状态:'有效'},
-  project:{项目名称:'Project',项目类型:'技术验证',所属企业:{link_record_ids:['recCustomer']},项目负责人:[123],'目标 / 需求摘要':'Goal',工作状态:'待启动',终局确认:'未确认',当前下一步行动:'Plan',下次跟进日期:old},
+  project:{项目名称:'Project',项目类型:'PAT',所属企业:{link_record_ids:['recCustomer']},项目负责人:[123],'目标 / 需求摘要':'Goal',工作状态:'待启动',终局确认:'未确认',当前下一步行动:'Plan',下次跟进日期:old},
   followup:{跟进主题:'History',跟进归属:'客户直接跟进',直接客户:{link_record_ids:['recCustomer']},记录类型:'内部推进',实际发生时间:old,实际跟进人:[123],'内容 / 推进结论':'Done',后续安排:'无后续动作',无后续动作结论:'Done',记录状态:'正常'}};
  const row={id:kind==='customer'?'recCustomer':'recTarget',record:{...data[kind],核查标记:'待核查',修改时间:1,...patch}};
  const writes=[]; const directory=[{record:{飞书成员:[123,456]}}];
@@ -54,7 +54,7 @@ test('terminal project review remains possible under archived customer while new
  const f=fixture('project',{终局确认:'已完成',结束日期:old,结果说明:'Done'});
  Object.assign(f.customer.record,{已归档:true,归档时间:old+86400000,归档原因:'Done'});
  await f.review();assert.equal(f.row.record.核查标记,'正常');
- await assert.rejects(()=>f.service.create('project',{项目名称:'New',项目类型:'技术验证',所属企业:['recCustomer'],项目负责人:['123'],'目标 / 需求摘要':'Goal',当前下一步行动:'Next',下次跟进日期:'2026-10-25'}),/归档/);
+ await assert.rejects(()=>f.service.create('project',{项目名称:'New',项目类型:'PAT',所属企业:['recCustomer'],项目负责人:['123'],'目标 / 需求摘要':'Goal',当前下一步行动:'Next',下次跟进日期:'2026-10-25'}),/归档/);
 });
 test('invalid project work state does not permit ordinary edits',()=>{
  const f=fixture('project',{工作状态:'未知'});assert.ok(editBlockedReason('project',f.row));

@@ -435,11 +435,9 @@
         "readable": true,
         "writeable": true,
         "enumValues": [
-          "销售机会",
-          "技术验证",
-          "合作推进",
-          "服务支持",
-          "其他"
+          "MRT",
+          "PAT",
+          "automation"
         ]
       },
       {

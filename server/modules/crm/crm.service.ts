@@ -87,11 +87,13 @@ export class CrmService {
     const fields = this.capability.getCapability(`crm-${kind}`)?.formValue
       .fields;
     if (!Array.isArray(fields)) throw new BadGatewayException('表结构配置缺失');
-    return Object.fromEntries(
+    const enums = Object.fromEntries(
       fields
         .filter((f) => typeof f === 'object' && f && 'enumValues' in f)
         .map((f) => [f.name, f.enumValues]),
     );
+    if (kind === 'project') enums['项目类型'] = forms.project.find((f) => f.key === '项目类型')!.options!;
+    return enums;
   }
   async customerContacts(id: string, cursor?: string, search?: string): Promise<CrmPage> {
     await this.get('customer', id);

@@ -37,7 +37,7 @@ test('related actions prefill one parent only and followups navigate to their ow
 });
 function fixture() {
   const row = { id: 'recProject', record: {
-    项目名称: 'Example', 项目类型: '技术验证', 所属企业: { link_record_ids: ['recCustomer'] },
+    项目名称: 'Example', 项目类型: 'PAT', 所属企业: { link_record_ids: ['recCustomer'] },
     项目负责人: [123], '目标 / 需求摘要': 'Goal', 工作状态: '待启动', 终局确认: '未确认',
     当前下一步行动: 'Old plan', 下次跟进日期: closed, 行动执行人: [123], 管理记录: { text: 'old history' }, 核查标记: '正常', 修改时间: 1,
   } };

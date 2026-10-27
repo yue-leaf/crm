@@ -162,7 +162,7 @@ test('unsupported date clearing fails before writing and leaves unchanged dates 
     id: 'recProject',
     record: {
       项目名称: { text: 'Project' },
-      项目类型: '技术验证',
+      项目类型: 'PAT',
       所属企业: { link_record_ids: ['recCompany'] },
       项目负责人: [123],
       '目标 / 需求摘要': { text: 'Goal' },
