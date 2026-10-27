@@ -16,6 +16,7 @@ import type {
   FollowupPage,
 } from '@shared/api.interface';
 import type { Draft } from '@shared/crm';
+import type { WorkspaceData, WorkspaceKind } from '@shared/crm-workspace';
 export class SaveOutcomeUnknown extends Error {}
 async function request<T>(
   url: string,
@@ -53,6 +54,9 @@ async function request<T>(
   }
 }
 export const api = {
+  workspace: (scope: ProjectScope) => request<WorkspaceData>(`workspace?scope=${scope}`),
+  workspaceRecords: (scope: ProjectScope, kind: WorkspaceKind, filter: string, cursor = '', search = '') =>
+    request<CrmPage>(`workspace/records?${new URLSearchParams({ scope, kind, filter, cursor, search })}`),
   customerProjects: (customerId: string, query: RelatedRecordsQuery = {}) =>
     request<CrmPage>(`customers/${encodeURIComponent(customerId)}/projects?${new URLSearchParams({ cursor: query.cursor || '', search: query.search || '' })}`),
   relatedFollowups: (kind: 'customer' | 'project', id: string, query: RelatedRecordsQuery = {}) =>

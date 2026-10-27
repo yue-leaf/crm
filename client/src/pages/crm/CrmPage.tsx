@@ -32,8 +32,6 @@ import type {
   CrmPage as PageData,
   CrmRecord,
   CrmSession,
-  CrmSummary,
-  ProjectOverview,
   ProjectScope,
   ProjectFilter,
   EntityKind,
@@ -50,6 +48,8 @@ import {
   sectionLabels,
   linkIds,
 } from '@shared/crm';
+import type { WorkspaceData } from '@shared/crm-workspace';
+import { advancementBlocked } from '@shared/crm-workflow';
 import type { Draft, FieldSpec } from '@shared/crm';
 import {
   editFields,
@@ -160,8 +160,7 @@ const CrmPage: React.FC = () => {
   const followupFilter: FollowupFilter = validFollowupFilter(rawFollowupFilter) ? rawFollowupFilter : 'all';
   const profile = useCurrentUserProfile();
   const [session, setSession] = useState<CrmSession | null>(null);
-  const [summary, setSummary] = useState<CrmSummary | null>(null);
-  const [overview, setOverview] = useState<ProjectOverview | null>(null);
+  const [overview, setOverview] = useState<WorkspaceData | null>(null);
   const [data, setData] = useState<PageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -267,8 +266,8 @@ const CrmPage: React.FC = () => {
     try {
       if (active === 'home') {
         setOverview(null);
-        const [next, projects] = await Promise.all([api.summary(), api.overview(scope)]);
-        if (version === requestVersion.current) { setSummary(next); setOverview(projects); }
+        const next = await api.workspace(scope);
+        if (version === requestVersion.current) setOverview(next);
       } else {
         const filters = active === 'project' ? { scope, projectFilter, followupFilter } : active === 'customer' ? { followupFilter } : undefined;
         let next = await api.list(active, '', query, filters);
@@ -300,11 +299,6 @@ const CrmPage: React.FC = () => {
     setQuery('');
     setDetailTrail([]); setReceipt(null);
     navigate(key === 'home' ? '/' : `/crm/${key}`);
-  };
-  const openProjectFilter = (filter: ProjectFilter) => {
-    requestVersion.current++;
-    setSearch(''); setQuery('');
-    navigate(`/crm/project?${new URLSearchParams({ scope, projectFilter: filter })}`);
   };
   const updateFilter = (key: string, value: string) => {
     requestVersion.current++;
@@ -418,6 +412,22 @@ const CrmPage: React.FC = () => {
     } finally {
       if (detailRequest === detailVersion.current) setDetailLoadingId(null);
     }
+  };
+  const workspaceAction = async (kind: 'customer' | 'project', id: string, operation: 'followup' | 'plan') => {
+    if (openingId || savingRef.current || uploadingRef.current) return;
+    const version = requestVersion.current;
+    const editorRequest = ++editorRequestVersion.current;
+    setOpeningId(id);
+    try {
+      const row = await api.get(kind, id);
+      if (version !== requestVersion.current || editorRequest !== editorRequestVersion.current) return;
+      const blocked = advancementBlocked(kind, row);
+      if (blocked) { toast.error(blocked); return; }
+      if (operation === 'followup') openEditor('followup', 'create', undefined, relatedDraft(kind, row, 'followup'));
+      else openEditor(kind, 'plan', row, recordDraft(row.record, planFields));
+    } catch (e: unknown) {
+      if (version === requestVersion.current && editorRequest === editorRequestVersion.current) toast.error(message(e));
+    } finally { if (editorRequest === editorRequestVersion.current) setOpeningId(null); }
   };
   const resumeFollowup = (contactId?: string) => {
     const suspended = suspendedEditor.current;
@@ -690,12 +700,11 @@ const CrmPage: React.FC = () => {
                   <h1>
                     {active === 'home' ? '工作台' : sectionLabels[active]}
                   </h1>
-                  {active === 'home' && <p>掌握项目进展，安排下一步行动。</p>}
                 </div>
                 <div className="heading-actions">
                   {(active === 'home' || active === 'project') && <Select value={scope} onValueChange={(value: string) => updateFilter('scope', value)}>
-                    <SelectTrigger className="project-scope" aria-label="项目范围"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="all">全部项目</SelectItem><SelectItem value="mine">我负责的</SelectItem></SelectContent>
+                    <SelectTrigger className="project-scope" aria-label={active === 'home' ? '工作台范围' : '项目范围'}><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="all">{active === 'home' ? '全部' : '全部项目'}</SelectItem><SelectItem value="mine">{active === 'home' ? '与我相关' : '我负责的'}</SelectItem></SelectContent>
                   </Select>}
                   <Button
                     variant="outline"
@@ -708,25 +717,25 @@ const CrmPage: React.FC = () => {
                   {active !== 'access' && (
                     <Button
                       onClick={() =>
-                        openEditor(active === 'home' ? 'project' : active)
+                        openEditor(active === 'home' ? 'followup' : active)
                       }
                     >
                       <Plus size={16} />
-                      {active === 'home' ? '新建项目' : `新建${labels[active]}`}
+                      {active === 'home' ? '记录跟进' : `新建${labels[active]}`}
                     </Button>
                   )}
                 </div>
               </div>
-              {error && (
+              {error && active !== 'home' && (
                 <div className="error-banner" role="alert">
                   {error}
                 </div>
               )}
               {active === 'home' ? (
-                <ProjectDashboard data={overview} summary={summary} loading={loading}
-                  onFilter={openProjectFilter} onNavigate={changePage}
-                  onOpen={row => void detail(row, 'project')} onEdit={row => void edit(row, 'project')}
-                  onFollowup={row => openEditor('followup', 'create', undefined, relatedDraft('project', row, 'followup'))} />
+                <ProjectDashboard data={overview} loading={loading} error={error} busy={!!openingId || saving || uploading}
+                  onRetry={() => void reload()} onOpen={(row, kind) => void detail(row, kind)}
+                  onAction={(kind, id, operation) => void workspaceAction(kind, id, operation)}
+                  onCreate={() => openEditor('followup', 'create')} />
               ) : (
                 <section className="panel list-panel">
                   <form

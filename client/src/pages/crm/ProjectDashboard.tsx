@@ -1,76 +1,104 @@
-import React from 'react';
-import { ArrowRight, Clock3, CircleAlert, FileCheck2, Eye, Pencil, MessageSquarePlus } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowRight, CalendarDays, Clock3, CircleAlert, ListTodo, Paperclip, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { CrmRecord, CrmSummary, ProjectFilter, ProjectOverview } from '@shared/api.interface';
-import { projectFacts, projectStates } from '@shared/crm-dashboard';
-import { sectionLabels, textValue } from '@shared/crm';
+import type { CrmRecord } from '@shared/api.interface';
+import { taskLabels, taskMatches } from '@shared/crm-workspace';
+import type { WorkspaceData, WorkspaceKind, TaskFilter } from '@shared/crm-workspace';
+import { projectStates } from '@shared/crm-dashboard';
+import { Cell } from './Fields';
 import { displayDate } from '@shared/crm-presentation';
-import { editBlockedReason } from '@shared/crm-edit';
-import { FollowupBadge, useFollowupClock } from './FollowupStatus';
+import { WorkspaceRecords } from './WorkspaceRecords';
+import type { WorkspaceDrilldown } from './WorkspaceRecords';
 import './project-overview.css';
+import './workspace.css';
 interface Props {
-  data: ProjectOverview | null; summary: CrmSummary | null; loading: boolean;
-  onFilter: (filter: ProjectFilter) => void; onNavigate: (kind: 'customer' | 'contact' | 'followup') => void;
-  onOpen: (row: CrmRecord) => void; onEdit: (row: CrmRecord) => void; onFollowup: (row: CrmRecord) => void;
+  data: WorkspaceData | null; loading: boolean; error: string; busy: boolean; onRetry: () => void;
+  onOpen: (row: CrmRecord, kind: WorkspaceKind) => void;
+  onAction: (kind: 'customer' | 'project', id: string, action: 'followup' | 'plan') => void;
+  onCreate: () => void;
 }
-export const ProjectDashboard: React.FC<Props> = ({ data, summary, loading, onFilter, onNavigate, onOpen, onEdit, onFollowup }) => {
-  const now = useFollowupClock();
-  const count = (value: number | undefined) => loading || value === undefined ? '—' : value;
-  const max = Math.max(1, ...projectStates.slice(0, 3).map(state => data?.states[state] || 0));
+export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, onRetry, onOpen, onAction, onCreate }) => {
+  const [filter, setFilter] = useState<TaskFilter>('priority');
+  const [limit, setLimit] = useState(8);
+  const [drilldown, setDrilldown] = useState<WorkspaceDrilldown | null>(null);
+  const taskPanel = useRef<HTMLElement>(null);
+  useEffect(() => { setLimit(8); setDrilldown(null); }, [data?.scope]);
+  const select = (next: TaskFilter, scroll = false) => {
+    setFilter(next); setLimit(8);
+    if (scroll) taskPanel.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  };
+  const show = (kind: WorkspaceKind, recordFilter: string, title: string) => setDrilldown({ kind, filter: recordFilter, title });
+  const open = (kind: WorkspaceKind, id: string) => onOpen({ id, record: {} }, kind);
+  const tasks = data?.tasks.filter(row => taskMatches(row, filter, data.generatedAt)) || [];
+  const count = (n: number | undefined) => loading || n === undefined ? '—' : n;
+  const disabled = loading || !data;
   const metrics = [
-    { key: 'active', label: '在办项目', value: data?.active, note: '待启动、进行中及暂停', icon: Clock3 },
-    { key: 'attention', label: '需要关注', value: data?.attention, note: '逾期、今日、明日及未安排 · 按项目去重', icon: CircleAlert },
-    { key: 'month-completed', label: '本月完成', value: data?.monthCompleted, note: '本月结束且已完成', icon: FileCheck2 },
+    { key: 'overdue', label: '已逾期', icon: Clock3, tone: 'red', hint: '已超过跟进日期的客户和项目' },
+    { key: 'today', label: '今日待跟进', icon: CalendarDays, tone: 'orange', hint: '今天需要跟进的客户和项目' },
+    { key: 'tomorrow', label: '明日待跟进', icon: CalendarDays, tone: 'blue', hint: '明天需要跟进的客户和项目' },
+    { key: 'missing', label: '待完善计划', icon: ListTodo, tone: 'neutral', hint: '缺少下一步行动或有效跟进日期，按业务记录去重' },
   ] as const;
-  return <div className="project-dashboard" aria-busy={loading}>
-    <section className="project-metrics" aria-label="项目关键指标">
-      {metrics.map(metric => <button key={metric.key} className={`project-metric metric-${metric.key}`} disabled={loading || !data} onClick={() => onFilter(metric.key)}>
-        <div className="metric-label"><span>{metric.label}</span><metric.icon size={19} /></div>
-        <strong>{count(metric.value)}</strong><small>{metric.note}</small>
-      </button>)}
-    </section>
-    <div className="project-overview-grid">
-      <section className="panel project-distribution">
-        <div className="dashboard-panel-heading"><div><h2>项目推进情况</h2><p>未归档项目 {count(data?.total)} 个</p></div>
-          <Button variant="ghost" size="sm" disabled={loading || !data} onClick={() => onFilter('all')}>查看全部<ArrowRight size={14} /></Button></div>
-        <div className="project-bars">
-          {projectStates.slice(0, 3).map(state => <button className={`project-state state-${state}`} key={state} disabled={loading || !data} onClick={() => onFilter(state)}>
-            <span>{state}</span><div className="project-bar-track" aria-hidden="true"><div style={{ width: `${(data?.states[state] || 0) / max * 100}%` }} /></div><strong>{count(data?.states[state])}</strong>
-          </button>)}
+  const empty = (label: string) => <div className="workspace-empty" role="status">{loading ? '正在加载…' : data ? label : '数据暂不可用'}</div>;
+  return <div className="workspace-dashboard" aria-busy={loading}>
+    {error && <div className="error-banner" role="alert">{error}<Button variant="ghost" onClick={onRetry}>重试</Button></div>}
+    <div className="workspace-metrics">{metrics.map(metric => <button key={metric.key} disabled={disabled} title={metric.hint}
+      className={`workspace-metric tone-${metric.tone}`} aria-pressed={filter === metric.key} onClick={() => select(metric.key, true)}>
+      <span>{metric.label}<metric.icon size={18} /></span><strong>{count(data?.counts[metric.key])}</strong><ArrowRight size={15} className="metric-arrow" />
+    </button>)}</div>
+    <div className="workspace-main-grid">
+      <section className="panel workspace-tasks" ref={taskPanel}>
+        <div className="workspace-heading"><h2>待处理事项</h2><Button size="sm" variant="ghost" disabled={disabled} onClick={() => { select('all'); setLimit(data?.tasks.length || 8); }}>查看全部<ArrowRight size={14} /></Button></div>
+        <div className="workspace-tabs" role="group" aria-label="待办时间筛选">
+          {(['priority', 'overdue', 'today', 'tomorrow', 'week', 'missing', 'all'] as const).map(key => <button key={key} disabled={disabled} aria-pressed={filter === key} onClick={() => select(key)}>{taskLabels[key]}</button>)}
         </div>
-        <div className="project-outcomes">
-          {(['已完成', '已取消'] as const).map(state => <button key={state} disabled={loading || !data} onClick={() => onFilter(state)}><span className={`outcome-dot outcome-${state}`} />{state}<strong>{count(data?.states[state])}</strong></button>)}
-          <button disabled={loading || !data} onClick={() => onFilter('archived')}>已归档<strong>{count(data?.archived)}</strong><ArrowRight size={13} /></button>
-        </div>
-        {!!data?.unknown && <p className="dashboard-status-note">另有 {data.unknown} 个项目状态异常，请打开项目修正资料。</p>}
+        {!disabled && tasks.length > 0 ? <><div className="workspace-table-scroll"><table className="workspace-task-table"><thead><tr><th>客户 / 项目</th><th>下一步行动</th><th>执行人</th><th>计划日期</th><th>操作</th></tr></thead>
+          <tbody>{tasks.slice(0, limit).map(row => <tr key={`${row.kind}:${row.id}`}>
+            <td data-label="客户 / 项目"><button className="workspace-name" onClick={() => open(row.kind, row.id)}>{row.name}</button>
+              {row.kind === 'project' && <button className="workspace-subname" disabled={!row.customerId} onClick={() => row.customerId && open('customer', row.customerId)}>{row.customerName}</button>}
+              {row.state === '暂停' && <small className="workspace-muted">项目已暂停</small>}</td>
+            <td data-label="下一步行动"><span className="workspace-clamp" title={row.action}>{row.action || '待补充下一步行动'}</span></td>
+            <td data-label="执行人">{row.people.length ? <Cell name="行动执行人" value={row.people} /> : <span className="workspace-muted">未指定</span>}</td>
+            <td data-label="计划日期"><span className={`workspace-due due-${row.status}`}>{row.status === 'today' ? '今日' : row.status === 'tomorrow' ? '明日' : row.status === 'overdue'
+              ? `逾期 ${Math.floor((data.generatedAt + 28800000) / 86400000) - Math.floor((row.due! + 28800000) / 86400000)} 天` : row.due ? displayDate('下次跟进日期', row.due) : '待安排'}</span>
+              {row.due && ['today', 'tomorrow', 'overdue'].includes(row.status) && <small className="workspace-muted">{displayDate('下次跟进日期', row.due)}</small>}</td>
+            <td data-label="操作"><div className="workspace-row-actions"><Button variant="ghost" size="sm" disabled={busy} onClick={() => onAction(row.kind, row.id, 'followup')}>记录跟进</Button>
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => onAction(row.kind, row.id, 'plan')}>调整计划</Button></div></td>
+          </tr>)}</tbody></table></div><div className="workspace-list-end"><span>共 {tasks.length} 项</span>{limit < tasks.length && <Button size="sm" variant="ghost" onClick={() => setLimit(n => n + 8)}>加载更多</Button>}</div></>
+          : empty(filter === 'priority' ? '暂无逾期、今日或明日待跟进事项' : `暂无${taskLabels[filter]}事项`)}
       </section>
-      <section className="panel priority-panel">
-        <div className="dashboard-panel-heading"><div><h2>优先处理</h2><p>从需要处理的事项开始</p></div><span className="priority-mark"><CircleAlert size={19} /></span></div>
-        <div className="priority-list">{[
-          { filter: 'overdue', label: '项目已逾期', value: data?.overdue, tone: 'urgent' },
-          { filter: 'missing-plan', label: '项目缺少下一步计划', value: data?.missingPlan, tone: 'warning' },
-          { filter: 'today', label: '项目今日需跟进', value: data?.today, tone: 'urgent' },
-          { filter: 'tomorrow', label: '项目明日需跟进', value: data?.tomorrow, tone: 'warning' },
-        ].map(item => <button key={item.filter} disabled={loading || !data} onClick={() => onFilter(item.filter as ProjectFilter)}><span className={`priority-dot ${item.tone}`} /><span><strong>{count(item.value)}</strong> 个{item.label}</span><ArrowRight size={16} /></button>)}</div>
-        <p className="dashboard-status-note">已结束和已归档项目不参与提醒。</p>
+      <section className="panel workspace-recent"><div className="workspace-heading"><h2>最近跟进</h2><Button size="sm" variant="ghost" disabled={disabled} onClick={() => show('followup', 'all', '全部有效跟进')}>查看全部<ArrowRight size={14} /></Button></div>
+        {!disabled && data.recent.length ? <div className="workspace-feed">{data.recent.map(row => <article key={row.id}>
+          <div className="workspace-feed-meta"><Cell name="实际跟进人" value={row.people} /><time>{displayDate('实际发生时间', row.occurredAt)}</time></div>
+          <div className="workspace-feed-target"><button disabled={!row.customerId} onClick={() => row.customerId && open('customer', row.customerId)}>{row.customerName}</button>
+            {row.projectId && <button onClick={() => open('project', row.projectId!)}>{row.projectName || '查看项目'}</button>}</div>
+          <button className="workspace-feed-content" aria-label={`查看跟进：${row.subject}`} onClick={() => open('followup', row.id)}><span className="workspace-clamp">{row.conclusion || row.subject}</span></button>
+          {row.nextAction && <p className="workspace-next workspace-clamp">后续：{row.nextAction}</p>}
+          {row.attachmentCount > 0 && <button className="workspace-attachment" onClick={() => open('followup', row.id)}><Paperclip size={13} />{row.attachmentCount} 个附件</button>}
+        </article>)}</div> : <>{empty('暂无有效跟进记录')}{data && <Button className="workspace-empty-action" variant="outline" onClick={onCreate}><Plus size={14} />记录跟进</Button>}</>}
       </section>
     </div>
-    <section className="panel project-tracking">
-      <div className="dashboard-panel-heading"><div><h2>项目跟踪</h2><p>优先展示逾期、今日及明日需跟进项目 · 最多 8 条</p></div><Button variant="ghost" size="sm" disabled={loading || !data} onClick={() => onFilter('all')}>查看全部<ArrowRight size={14} /></Button></div>
-      <div className="project-tracking-scroll"><table aria-label="项目跟踪"><thead><tr><th>项目名称</th><th>状态</th><th>当前进展</th><th>下一步 / 截止日期</th><th>操作</th></tr></thead><tbody>
-        {!loading && data?.projects.map(row => {
-          const fact = projectFacts(row, now);
-          const inactive = ['已完成', '已取消'].includes(fact.state);
-          return <tr key={row.id}><td data-label="项目名称"><button className="record-title" onClick={() => onOpen(row)}>{textValue(row.record['项目名称']) || '未命名项目'}</button></td>
-            <td data-label="状态"><span className={`project-status status-${fact.state || '异常'}`}>{fact.state || '状态异常'}</span></td>
-            <td data-label="当前进展"><span className="tracking-text" title={textValue(row.record['当前进展'])}>{textValue(row.record['当前进展']) || '暂无进展'}</span></td>
-            <td data-label="下一步 / 截止日期"><span className="tracking-text">{!fact.state ? '请先核对项目状态' : inactive ? '项目已结束' : fact.state === '暂停' ? '已暂停推进' : textValue(row.record['当前下一步行动']) || '尚未安排下一步'}</span>
-              {!inactive && <small className={fact.overdue ? 'tracking-overdue' : 'tracking-date'}>{displayDate('下次跟进日期', row.record['下次跟进日期']) || '—'}</small>} <FollowupBadge record={row.record} /></td>
-            <td data-label="操作"><div className="tracking-actions"><Button variant="ghost" size="sm" onClick={() => onOpen(row)}><Eye size={14} />查看</Button><Button variant="ghost" size="sm" disabled={!!editBlockedReason('project', row)} title={editBlockedReason('project', row) || '编辑项目'} onClick={() => onEdit(row)}><Pencil size={14} />编辑</Button><Button variant="ghost" size="sm" title={inactive ? '补录历史跟进' : '记录项目跟进'} onClick={() => onFollowup(row)}><MessageSquarePlus size={14} />{inactive ? '补录' : '跟进'}</Button></div></td></tr>;
-        })}
-      </tbody></table></div>
-      {(loading || !data?.projects.length) && <div className="dashboard-empty" role="status">{loading ? '正在读取项目概览…' : data ? '当前范围暂无未归档项目' : '项目概览尚未加载，请刷新重试'}</div>}
+    <section className="workspace-summary" aria-label="业务总览"><div className="workspace-section-title"><h2>业务总览</h2></div>
+      <div className="workspace-totals">{([{ kind: 'customer', label: '总客户数', unit: '家', hint: '包含已归档客户' }, { kind: 'project', label: '总项目数', unit: '个', hint: '包含已结束和已归档项目' },
+        { kind: 'followup', label: '总跟进数', unit: '条', hint: '有效跟进，已作废或数据异常的记录不计入' }] as const).map(item => <div className="panel workspace-total" key={item.kind}>
+          <button disabled={disabled} title={item.hint} className="workspace-total-main" onClick={() => show(item.kind, 'all', item.label)}><span>{item.label}</span><div><strong>{count(data?.totals[item.kind].total)}</strong><small>{item.unit}</small><ArrowRight size={15} /></div></button>
+          <div className="workspace-total-details">{item.kind === 'project' ? <><button disabled={disabled} onClick={() => show('project', 'active', '在办项目')}>在办 <b>{count(data?.project.active)}</b></button><button disabled={disabled} onClick={() => show('project', 'completed-month', '本月完成项目')}>本月完成 <b>{count(data?.project.monthCompleted)}</b></button></>
+            : <button disabled={disabled} onClick={() => show(item.kind, 'month', `本月新增${item.kind === 'customer' ? '客户' : '跟进'}`)}>本月新增 <b>{count(data?.totals[item.kind].monthNew)}</b></button>}</div>
+        </div>)}</div>
     </section>
-    <div className="dashboard-footnote"><div>{(['customer', 'contact', 'followup'] as const).map(kind => <button key={kind} onClick={() => onNavigate(kind)}>{sectionLabels[kind]}<strong>{count(summary?.[kind])}</strong><ArrowRight size={12} /></button>)}</div><span>辅助数量为全体记录 · 项目统计{data ? `更新于 ${new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(data.generatedAt)}` : '等待加载'}</span></div>
+    <div className="workspace-bottom-grid">
+      <section className="panel"><div className="workspace-heading"><h2>项目状态分布</h2><small className="workspace-muted">未归档项目</small></div>
+        <div className="workspace-states">{projectStates.map(state => <button key={state} disabled={disabled} onClick={() => show('project', state, `${state}项目`)}><span>{state}</span>
+          <div className="workspace-bar" aria-hidden="true"><i className={`bar-${state}`} style={{ width: data ? `${(data.project.states[state] || 0) / Math.max(1, ...Object.values(data.project.states)) * 100}%` : '0%' }} /></div><strong>{count(data?.project.states[state])}</strong></button>)}</div>
+        <div className="workspace-state-footer"><button disabled={disabled} onClick={() => show('project', 'archived', '已归档项目')}>已归档 <b>{count(data?.project.archived)}</b><ArrowRight size={13} /></button>
+          {!!data?.project.unknown && <button onClick={() => show('project', 'unknown', '待核对状态的项目')}><CircleAlert size={14} />状态待核对 {data.project.unknown}</button>}</div>
+      </section>
+      <section className="panel"><div className="workspace-heading"><h2>需要关注的客户</h2><Button size="sm" variant="ghost" disabled={disabled} onClick={() => show('customer', 'attention', '需要关注的客户')}>查看全部{data ? ` (${data.attentionTotal})` : ''}<ArrowRight size={14} /></Button></div>
+        {!disabled && data.attention.length ? <div className="workspace-attention">{data.attention.map(row => <article key={row.id}>
+          <div><button className="workspace-name" onClick={() => open('customer', row.id)}>{row.name}</button><small>{row.lastAt ? `${row.days} 天未互动 · 最近 ${displayDate('下次跟进日期', row.lastAt)}` : `建档 ${row.days} 天，暂无有效跟进`}</small><small>在办项目 {row.activeProjects} 个</small></div>
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => onAction('customer', row.id, 'followup')}>记录跟进</Button>
+        </article>)}</div> : empty('暂无长期未联系的客户')}
+      </section>
+    </div>
+    {drilldown && data && <WorkspaceRecords key={`${data.scope}:${drilldown.kind}:${drilldown.filter}`} scope={data.scope} selection={drilldown} onClose={() => setDrilldown(null)} onOpen={onOpen} />}
   </div>;
 };
