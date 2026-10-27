@@ -58,6 +58,19 @@ export class CrmController {
     return this.crm.overview(scope, actor.userId);
   }
 
+  @Get('workspace')
+  workspace(@Req() req: Request, @Query('scope') scope = 'all') {
+    const actor = this.session(req);
+    return this.crm.workspace(scope, actor.userId);
+  }
+
+  @Get('workspace/records')
+  workspaceRecords(@Req() req: Request, @Query('scope') scope = 'all', @Query('kind') kind = 'customer',
+    @Query('filter') filter = 'all', @Query('cursor') cursor?: string, @Query('search') search?: string) {
+    const actor = this.session(req);
+    return this.crm.workspaceList(scope, actor.userId, kind, filter, cursor, search);
+  }
+
   @Get('customers/:id/projects')
   customerProjects(@Req() req: Request, @Param('id') id: string, @Query() query: RelatedRecordsQuery) {
     this.session(req);

@@ -45,6 +45,8 @@ import { followupStatus, sortFollowups, validFollowupFilter } from '@shared/crm-
 import { CrmRelations } from './crm-relations';
 import { resolveAttachments, attachmentWriteMatches } from './crm-attachments';
 import { attachmentSignature } from '@shared/crm-attachments';
+import { workspaceModel, workspaceRecords } from '@shared/crm-workspace';
+import type { WorkspaceKind } from '@shared/crm-workspace';
 
 @Injectable()
 export class CrmService {
@@ -196,7 +198,7 @@ export class CrmService {
     if (scope !== 'all' && scope !== 'mine') throw new BadRequestException('项目范围无效');
     return scope;
   }
-  private async allBusiness(key: 'customer' | 'project'): Promise<CrmRecord[]> {
+  private async allBusiness(key: 'customer' | 'project' | 'followup'): Promise<CrmRecord[]> {
     const rows: CrmRecord[] = [];
     const tokens = new Set<string>();
     const ids = new Set<string>();
@@ -205,14 +207,40 @@ export class CrmService {
       const next = await this.list(key, cursor);
       for (const row of next.records) {
         if (!row || typeof row.id !== 'string' || !row.record || ids.has(row.id))
-          throw new BadGatewayException('项目分页数据变化或异常，请刷新后重试');
+          throw new BadGatewayException('业务分页数据变化或异常，请刷新后重试');
         ids.add(row.id); rows.push(row);
       }
       if (!next.hasMore) return rows;
-      if (!next.pageToken || tokens.has(next.pageToken)) throw new BadGatewayException('项目分页不完整，请刷新后重试');
+      if (!next.pageToken || tokens.has(next.pageToken)) throw new BadGatewayException('业务分页不完整，请刷新后重试');
       tokens.add(next.pageToken); cursor = next.pageToken;
     }
-    throw new BadGatewayException('项目数量超出当前统计读取范围，未显示不完整统计，请联系管理员');
+    throw new BadGatewayException('数据数量超出当前统计读取范围，未显示不完整统计，请联系管理员');
+  }
+  private async workspaceModel(scope: string, userId: string) {
+    const checked = this.projectScope(scope);
+    const [customer, project, followup] = await Promise.all([
+      this.allBusiness('customer'), this.allBusiness('project'), this.allBusiness('followup'),
+    ]);
+    return workspaceModel({ customer, project, followup }, checked, userId);
+  }
+  async workspace(scope: string, userId: string) {
+    return (await this.workspaceModel(scope, userId)).data;
+  }
+  async workspaceList(scope: string, userId: string, kind: string, filter: string, cursor?: string, search?: string): Promise<CrmPage> {
+    if (!['customer', 'project', 'followup'].includes(kind)) throw new BadRequestException('工作台数据类型无效');
+    const filters = ['all', 'month', ...(kind === 'customer' ? ['attention'] : kind === 'project'
+      ? ['active', 'completed-month', 'archived', 'unknown', '待启动', '进行中', '暂停', '已完成', '已取消'] : [])];
+    if (!filters.includes(filter)) throw new BadRequestException('工作台筛选无效');
+    if (cursor && !/^offset:\d{1,6}$/.test(cursor)) throw new BadRequestException('分页标记无效');
+    if (search !== undefined && (typeof search !== 'string' || search.length > 200)) throw new BadRequestException('搜索内容过长');
+    const model = await this.workspaceModel(scope, userId);
+    const rows = workspaceRecords(model, kind as WorkspaceKind, filter)
+      .filter(row => !search || textValue(row.record[titles[kind as WorkspaceKind]]).toLocaleLowerCase().includes(search.toLocaleLowerCase()))
+      .sort((a, b) => Number(b.record['创建时间'] || 0) - Number(a.record['创建时间'] || 0) || a.id.localeCompare(b.id));
+    const offset = cursor ? Number(cursor.slice(7)) : 0;
+    if (offset > rows.length) throw new ConflictException('列表已变化，请重新查询');
+    const more = offset + 20 < rows.length;
+    return { records: rows.slice(offset, offset + 20), total: rows.length, hasMore: more, ...(more ? { pageToken: `offset:${offset + 20}` } : {}) };
   }
   async overview(scope: string, userId: string): Promise<ProjectOverview> {
     const checked = this.projectScope(scope);
