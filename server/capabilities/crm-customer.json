@@ -294,21 +294,6 @@
         "writeable": true
       },
       {
-        "id": "fldvN8SQDH",
-        "name": "客户关系状态",
-        "type": 3,
-        "bizType": "SingleSelect",
-        "readable": true,
-        "writeable": true,
-        "enumValues": [
-          "待建立",
-          "接洽中",
-          "合作中",
-          "暂停合作",
-          "结束合作"
-        ]
-      },
-      {
         "id": "fldc2spJh0",
         "name": "统一社会信用代码",
         "type": 1,

@@ -74,7 +74,7 @@
 .workspace-bar i { display: block; height: 100%; background: #aebcd2; border-radius: inherit; }
 .workspace-bar .bar-进行中 { background: #7298e0; }
 .workspace-bar .bar-暂停 { background: #e3b777; }
-.workspace-bar .bar-已完成 { background: #80bba4; }
+.workspace-bar .bar-已签合同 { background: #80bba4; }
 .workspace-state-footer { display: flex; flex-wrap: wrap; gap: 20px; border-top: 1px solid #edf0f5; padding: 14px 24px; }
 .workspace-state-footer button { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #68717d; }
 .workspace-attention { padding: 0 20px; }

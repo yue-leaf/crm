@@ -6,7 +6,7 @@ const { CrmService } = require('../../dist/server/modules/crm/crm.service.js');
 const { CrmController } = require('../../dist/server/modules/crm/crm.controller.js');
 const now = Date.parse('2026-10-27T10:00:00+08:00');
 const t = value => Date.parse(value + 'T00:00:00+08:00');
-const customer = (id, record = {}) => ({ id, record: { 企业全称: id, 客户关系状态: '合作中', 创建时间: t('2026-09-01'),
+const customer = (id, record = {}) => ({ id, record: { 企业全称: id, 创建时间: t('2026-09-01'),
   客户负责人: [1], 当前下一步行动: '联系客户', 下次跟进日期: t('2026-10-27'), ...record } });
 const project = (id, customerId, record = {}) => ({ id, record: { 项目名称: id, 所属企业: { link_record_ids: [customerId] },
   创建时间: t('2026-10-01'), 工作状态: '进行中', 终局确认: '未确认', 当前下一步行动: '确认方案', 下次跟进日期: t('2026-10-28'), 项目负责人: [1], ...record } });
@@ -16,15 +16,15 @@ const followup = (id, kind, target, record = {}) => ({ id, record: { 跟进主�
 
 test('workspace combines customer/project due dates, deduplicates missing plans and excludes terminal/archive tasks', () => {
   const src = { customer: [customer('recToday'), customer('recOverdue', { 下次跟进日期: t('2026-10-26'), 当前下一步行动: '' }),
-    customer('recEnded', { 客户关系状态: '结束合作' }), customer('recArchived', { 已归档: true })],
+    customer('recEnded', { 已归档: true }), customer('recArchived', { 已归档: true })],
     project: [project('recTomorrow', 'recToday'), project('recMissing', 'recToday', { 当前下一步行动: '', 下次跟进日期: null }),
-      project('recClosed', 'recToday', { 终局确认: '已完成', 结束日期: t('2026-10-26'), 已归档: true })], followup: [] };
+      project('recClosed', 'recToday', { 工作状态: '已签合同', 签约日期: t('2026-10-26'), 已归档: true })], followup: [] };
   const { data } = workspaceModel(src, 'all', '1', now);
   assert.deepEqual(data.counts, { today: 1, tomorrow: 1, overdue: 1, missing: 2 });
   assert.equal(data.tasks.length, 4);
   assert.equal(data.totals.customer.total, 4); assert.equal(data.totals.project.total, 3);
   assert.equal(data.project.monthCompleted, 1); assert.equal(data.project.archived, 1);
-  assert.equal(data.project.states.已完成, 0);
+  assert.equal(data.project.states.已签合同, 0);
   assert.deepEqual(data.tasks.filter(row => taskMatches(row, 'priority', now)).map(row => row.id), ['recOverdue', 'recToday', 'recTomorrow']);
 });
 test('personal scope includes collaborators, executors, related customers and participant followups without inflating all-team totals', () => {
@@ -59,8 +59,8 @@ test('recent activity is ordered by occurrence, monthly additions by creation, u
 });
 test('every total and project status drills down with exactly the same scope and filters', () => {
   const src = { customer: [customer('recC')], project: [project('recP', 'recC'),
-    project('recEnded', 'recC', { 终局确认: '已完成', 结束日期: t('2026-10-26') }),
-    project('recArchive', 'recC', { 终局确认: '已完成', 结束日期: t('2026-10-26'), 已归档: true })], followup: [followup('recF', 'customer', 'recC')] };
+    project('recEnded', 'recC', { 工作状态: '已签合同', 签约日期: t('2026-10-26') }),
+    project('recArchive', 'recC', { 工作状态: '已签合同', 签约日期: t('2026-10-26'), 已归档: true })], followup: [followup('recF', 'customer', 'recC')] };
   const m = workspaceModel(src, 'mine', '1', now);
   for (const kind of ['customer', 'project', 'followup']) {
     assert.equal(workspaceRecords(m, kind, 'all').length, m.data.totals[kind].total);

@@ -29,6 +29,14 @@ export function requiredField(field: FieldSpec, kind: string, operation: string,
   if (kind === 'contact' && operation === 'edit' && field.key === '停用原因')
     required = draft['联系人状态'] === '停用';
   if (operation === 'confirm-end' && field.key === '取消原因') required = draft['终局确认'] === '已取消';
+  if (operation === 'status') {
+    const state = draft['项目状态'];
+    if (field.key === '当前进展') required = state !== '已取消';
+    if (field.key === '暂停原因') required = state === '暂停';
+    if (field.key === '签约日期') required = state === '已签合同';
+    if (['结束日期', '取消原因'].includes(field.key)) required = state === '已取消';
+    if (['当前下一步行动', '下次跟进日期'].includes(field.key)) required = !['暂停', '已取消'].includes(String(state));
+  }
   if (operation === 'progress') {
     if (field.key === '暂停原因') required = draft['工作状态'] === '暂停';
     if (['当前下一步行动', '下次跟进日期'].includes(field.key)) required = draft['工作状态'] !== '暂停';

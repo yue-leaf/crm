@@ -60,7 +60,8 @@
         "enumValues": [
           "待启动",
           "进行中",
-          "暂停"
+          "暂停",
+          "已签合同"
         ]
       },
       {
@@ -211,7 +212,6 @@
         "writeable": true,
         "enumValues": [
           "未确认",
-          "已完成",
           "已取消"
         ]
       },
@@ -289,7 +289,7 @@
       },
       {
         "id": "fldino6sza",
-        "name": "本月完成计数",
+        "name": "本月签约计数",
         "type": 20,
         "bizType": "Formula",
         "readable": true,
@@ -492,6 +492,14 @@
         "bizType": "Formula",
         "readable": true,
         "writeable": false
+      },
+      {
+        "id": "fld2Wunhi2",
+        "name": "签约日期",
+        "type": 5,
+        "bizType": "DateTime",
+        "readable": true,
+        "writeable": true
       }
     ]
   },

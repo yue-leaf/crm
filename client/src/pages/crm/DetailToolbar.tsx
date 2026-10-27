@@ -1,3 +1,4 @@
+import { statusBlocked } from '@shared/crm-status';
 import React from 'react';
 import { MoreHorizontal, Pencil, MessageSquarePlus, ArrowUpRight, Archive, ArchiveRestore, RotateCcw, CheckCircle2, TrendingUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -31,7 +32,7 @@ export function DetailToolbar({ kind, row, busy, onEdit, onAction, onFollowup, o
   const business: boolean = kind === 'customer' || kind === 'project';
   const editReason: string = editBlockedReason(kind, row);
   const advanceReason: string = advancementBlocked(kind, row);
-  const lifecycle: CrmLifecycleOperation[] = (['confirm-end', 'archive', 'restore', 'reopen'] as CrmLifecycleOperation[])
+  const lifecycle: CrmLifecycleOperation[] = (['archive', 'restore'] as CrmLifecycleOperation[])
     .filter((op: CrmLifecycleOperation) => !(kind === 'customer' && ['confirm-end', 'reopen'].includes(op)))
     .filter((op: CrmLifecycleOperation) => op === 'restore' ? row.record['已归档'] === true
       : op === 'archive' ? row.record['已归档'] !== true
@@ -48,8 +49,8 @@ export function DetailToolbar({ kind, row, busy, onEdit, onAction, onFollowup, o
     <div className="detail-toolbar-primary">
       {business && <Button size="sm" disabled={busy}
         onClick={onFollowup}><MessageSquarePlus size={15} />{advanceReason ? '补录历史跟进' : '记录跟进'}</Button>}
-      {kind === 'project' && <Button size="sm" variant="outline" disabled={busy || !!advanceReason}
-        title={advanceReason || undefined} onClick={() => onAction('progress')}><TrendingUp size={15} />更新进展</Button>}
+      {kind === 'project' && <Button size="sm" variant="outline" disabled={busy || !!statusBlocked(row)}
+        title={statusBlocked(row) || undefined} onClick={() => onAction('status')}><TrendingUp size={15} />更新状态</Button>}
       {kind === 'customer' && <Button size="sm" variant="outline" disabled={busy || !!advanceReason}
         title={advanceReason || undefined} onClick={() => onAction('plan')}>调整计划</Button>}
       {kind !== 'access' && <Button size="sm" variant="outline" disabled={busy || !!editReason}

@@ -1,3 +1,4 @@
+import { statusFields, statusBlocked, currentProjectStatus } from '@shared/crm-status';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -99,7 +100,6 @@ const columns: Record<EntityKind, string[]> = {
   customer: [
     '企业全称',
     '行业',
-    '客户关系状态',
     '客户负责人',
     '跟进状态',
     '下次跟进日期',
@@ -131,7 +131,7 @@ interface Editor {
 interface DetailLocation { row: CrmRecord; kind: EntityKind; tab: string; customer: string | null; scroll: number }
 interface SuspendedEditor { editor: Editor; draft: Draft; initial: Draft; origin: DetailLocation | null }
 const rawSpecs = (editor: Editor): FieldSpec[] =>
-  isLifecycle(editor.operation)
+  editor.operation === 'status' ? statusFields : isLifecycle(editor.operation)
     ? lifecycleFields(editor.kind, editor.operation)
     : editor.operation === 'progress'
     ? progressFields
@@ -356,6 +356,11 @@ const CrmPage: React.FC = () => {
         initial['行动执行人'] = [];
       }
     }
+    if (operation === 'status' && row) {
+      initial['项目状态'] = currentProjectStatus(row);
+      initial['签约日期'] ||= new Date(Date.now() + 28800000).toISOString().slice(0, 10);
+      if (initial['项目状态'] !== '已取消' || !initial['结束日期']) initial['结束日期'] = new Date(Date.now() + 28800000).toISOString().slice(0, 10);
+    }
     Object.assign(initial, preset);
     initialDraft.current = structuredClone(initial);
     setDraft(initial);
@@ -364,7 +369,7 @@ const CrmPage: React.FC = () => {
     setUncertain(false);
     setEditor(ed);
   };
-  const edit = async (row: CrmRecord, kind = active) => {
+  const edit = async (row: CrmRecord, kind = active, operation = 'edit') => {
     if (kind === 'home' || kind === 'access' || savingRef.current || uploadingRef.current) return;
     detailVersion.current++;
     const version = requestVersion.current;
@@ -373,12 +378,12 @@ const CrmPage: React.FC = () => {
     try {
       const fresh = await api.get(kind, row.id);
       if (version !== requestVersion.current || editorRequest !== editorRequestVersion.current) return;
-      const blocked = editBlockedReason(kind, fresh);
+      const blocked = operation === 'status' ? statusBlocked(fresh) : editBlockedReason(kind, fresh);
       if (blocked) {
         toast.error(blocked);
         return;
       }
-      openEditor(kind, 'edit', fresh);
+      openEditor(kind, operation, fresh);
     } catch (e: unknown) {
       if (version === requestVersion.current && editorRequest === editorRequestVersion.current) toast.error(message(e));
     }
@@ -473,7 +478,9 @@ const CrmPage: React.FC = () => {
     setSaving(true);
     setSaveError('');
     try {
-      const submitted = actionDraft(editor.operation, draft);
+      const submitted = editor.operation === 'status'
+        ? Object.fromEntries(specs(editor).filter(showField).map(f => [f.key, draft[f.key] ?? null]))
+        : actionDraft(editor.operation, draft);
       const r =
         editor.operation === 'edit' && editor.row
           ? await api.edit(editor.kind, editor.row.id, {
@@ -596,6 +603,15 @@ const CrmPage: React.FC = () => {
       : changeDraft(previous, key, value, initialDraft.current, editor?.operation === 'edit'));
   };
   const showField = (f: FieldSpec) => {
+    if (editor?.operation === 'status') {
+      const state = draft['项目状态'];
+      if (f.key === '项目状态') return true;
+      if (state === '已取消') return ['结束日期', '取消原因'].includes(f.key);
+      if (['结束日期', '取消原因'].includes(f.key)) return false;
+      if (f.key === '暂停原因') return state === '暂停';
+      if (f.key === '签约日期') return state === '已签合同';
+      if (planFields.some(field => field.key === f.key)) return state !== '暂停';
+    }
     if (editor?.operation === 'confirm-end' && f.key === '结果说明') return draft['终局确认'] !== '已取消';
     if (editor?.kind === 'contact' && f.key === '停用原因') return draft['联系人状态'] === '停用';
     if (editor?.operation === 'confirm-end' && f.key === '取消原因') return draft['终局确认'] === '已取消';
@@ -806,6 +822,7 @@ const CrmPage: React.FC = () => {
                               </td>
                             ))}
                             <td role="cell" data-label="操作" className="record-actions">
+                              {active === 'project' && <Button variant="ghost" size="sm" disabled={saving || uploading || !!statusBlocked(row)} title={statusBlocked(row) || undefined} onClick={() => edit(row, 'project', 'status')}><RefreshCw size={14} />更新状态</Button>}
                               {active === 'customer' && <Button variant="ghost" size="sm" disabled={saving || uploading} onClick={() => detail(row, 'customer', undefined, 'contacts')}><Users size={14} />联系人</Button>}
                               <Button
                                 variant="ghost"
@@ -990,7 +1007,7 @@ const CrmPage: React.FC = () => {
           <header className="crm-dialog-header">
           <DialogTitle>
             {editor
-              ? isLifecycle(editor.operation)
+              ? editor.operation === 'status' ? '更新项目状态' : isLifecycle(editor.operation)
                 ? lifecycleTitles[editor.operation]
                 : editor.operation === 'create'
                 ? `新建${labels[editor.kind]}`

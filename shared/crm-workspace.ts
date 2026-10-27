@@ -29,7 +29,7 @@ const people = (v: unknown): string[] => Array.isArray(v) ? v.map(String) : [];
 const mine = (row: CrmRecord, keys: string[], id: string): boolean => keys.some(key => people(row.record[key]).includes(id));
 const inMonth = (v: unknown, now: number): boolean => validWorkspaceTime(v) && v <= now &&
   new Date(v + 28800000).toISOString().slice(0, 7) === new Date(now + 28800000).toISOString().slice(0, 7);
-const activeCustomer = (row: CrmRecord): boolean => row.record['已归档'] !== true && ['待建立', '接洽中', '合作中', '暂停合作'].includes(textValue(row.record['客户关系状态']));
+const activeCustomer = (row: CrmRecord): boolean => row.record['已归档'] !== true;
 
 export function workspaceModel(source: WorkspaceSource, scope: ProjectScope, userId: string, now = Date.now()) {
   const customers = new Map(source.customer.map(row => [row.id, row]));
@@ -63,7 +63,7 @@ export function workspaceModel(source: WorkspaceSource, scope: ProjectScope, use
     const customerId = customerOf(row, kind);
     tasks.push({ id: row.id, kind, name: textValue(row.record[titles[kind]]) || '未命名', customerId, customerName: nameOf(customerId),
       action, people: people(row.record['行动执行人']), due: validWorkspaceTime(row.record['下次跟进日期']) ? row.record['下次跟进日期'] : null,
-      status: status.key, state: fact?.state || textValue(row.record['客户关系状态']), missing: !action || status.key === 'unplanned' });
+      status: status.key, state: fact?.state || '', missing: !action || status.key === 'unplanned' });
   }
   const rank: Record<string, number> = { overdue: 0, today: 1, tomorrow: 2, unplanned: 3, waiting: 4 };
   tasks.sort((a, b) => rank[a.status] - rank[b.status] || (a.due ?? Infinity) - (b.due ?? Infinity) || a.id.localeCompare(b.id));
@@ -101,7 +101,7 @@ export function workspaceModel(source: WorkspaceSource, scope: ProjectScope, use
     if (fact.archived) archived++;
     else if (fact.state) states[fact.state]++; else unknown++;
   }
-  const monthCompleted = scopedProjects.filter(row => projectFacts(row, now).state === '已完成' && inMonth(row.record['结束日期'], now));
+  const monthCompleted = scopedProjects.filter(row => projectFacts(row, now).state === '已签合同' && inMonth(row.record['签约日期'], now));
   const data: WorkspaceData = { scope, generatedAt: now, counts: {
     overdue: tasks.filter(row => row.status === 'overdue').length, today: tasks.filter(row => row.status === 'today').length,
     tomorrow: tasks.filter(row => row.status === 'tomorrow').length, missing: tasks.filter(row => row.missing).length,

@@ -42,7 +42,7 @@ export const WorkspaceRecords: React.FC<{ selection: WorkspaceDrilldown; scope: 
       {error && <div className="error-banner" role="alert">{error}<Button variant="ghost" onClick={() => { if (data?.hasMore) void more(); else setRetry(n => n + 1); }}>重试</Button></div>}
       <div className="workspace-records">{data?.records.map(row => <button key={row.id} className="workspace-record" onClick={() => { onClose(); onOpen(row, selection.kind); }}>
         <strong>{textValue(row.record[titles[selection.kind]]) || '未命名记录'}</strong>
-        <span>{selection.kind === 'customer' ? textValue(row.record['客户关系状态']) : selection.kind === 'project'
+        <span>{selection.kind === 'customer' ? '' : selection.kind === 'project'
           ? textValue(row.record['终局确认']) === '未确认' ? textValue(row.record['工作状态']) : textValue(row.record['终局确认']) : textValue(row.record['记录类型'])}
           {row.record['已归档'] === true ? ' · 已归档' : ''}</span>
         <small><Cell name={selection.kind === 'followup' ? '实际发生时间' : '创建时间'} value={row.record[selection.kind === 'followup' ? '实际发生时间' : '创建时间']} /></small>

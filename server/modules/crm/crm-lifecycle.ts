@@ -1,3 +1,4 @@
+import { validateSignedDate } from './crm-status';
 import type { CrmLifecycleOperation, CrmRecord, EntityKind } from '@shared/api.interface';
 import { linkIds, textValue } from '@shared/crm';
 import { EVENT_PREFIX, auditNote, lifecycleBlocked, lifecycleFields, lifecycleEvents, lifecycleTitles } from '@shared/crm-lifecycle';
@@ -40,9 +41,8 @@ export async function prepareLifecycle(
       reject('所属企业', '客户资料不完整，请先修正');
   }
   if (operation === 'confirm-end') {
-    if (!['已完成', '已取消'].includes(String(fields['终局确认']))) reject('终局确认', '请选择完成或取消');
+    if (fields['终局确认'] !== '已取消') reject('终局确认', '请选择已取消');
     if (fields['终局确认'] === '已取消' && !fields['取消原因']) reject('取消原因', '取消项目时必填');
-    if (fields['终局确认'] === '已完成' && fields['取消原因']) reject('取消原因', '完成项目时不填写取消原因');
     const closed = fields['结束日期'] as number;
     if (day(closed) > day(now)) reject('结束日期', '不能晚于今天');
     const reopened = lifecycleEvents(row.record).filter(e => e.operation === 'reopen').at(-1);
@@ -63,7 +63,7 @@ export async function prepareLifecycle(
       if (projects.length > 500) reject('关联项目', '项目过多，请先分批核对后归档');
       for (const id of projects) {
         const project = await load('project', id);
-        if (!['已完成', '已取消'].includes(textValue(project.record['终局确认'])) ||
+        if ((!['已完成', '已取消'].includes(textValue(project.record['终局确认'])) && !(textValue(project.record['工作状态']) === '已签合同' && project.record['已归档'] === true)) ||
           recordReviewProblem('project', project.record))
           reject('归档', '仍有未结束或信息不完整的项目');
       }
@@ -83,13 +83,18 @@ export async function prepareLifecycle(
     const closed = row.record['结束日期'];
     if (typeof closed !== 'number' || !Number.isFinite(closed) || day(closed) > day(now))
       reject('结束日期', '历史结束边界无效，请先核对');
-    if (!['待启动', '进行中'].includes(String(fields['工作状态']))) reject('工作状态', '重开后请选择待启动或进行中');
+    if (!['待启动', '进行中', '暂停', '已签合同'].includes(String(fields['工作状态']))) reject('工作状态', '请选择有效项目状态');
+    validateSignedDate(fields);
+    if (fields['工作状态'] === '暂停') {
+      if (!fields['暂停原因']) reject('暂停原因', '暂停时必填');
+      fields['当前下一步行动'] = ''; fields['下次跟进日期'] = null;
+    } else if (!fields['当前下一步行动'] || !fields['下次跟进日期']) reject('当前计划', '恢复项目时请确认下一步行动和日期');
     if (row.record['已归档'] === true) {
       const at = row.record['归档时间'];
       if (typeof at !== 'number' || !Number.isFinite(at) || at > now) reject('归档时间', '历史归档边界无效');
     }
     Object.assign(fields, { 终局确认: '未确认', 已归档: false, 归档原因: '', 结果说明: '', 取消原因: '',
-      暂停原因: '', 结束建议: '', 建议说明: '', 最近重开原因: fields['操作原因'] });
+      暂停原因: fields['工作状态'] === '暂停' ? fields['暂停原因'] : '', 结束建议: '', 建议说明: '', 最近重开原因: fields['操作原因'] });
     fields['行动执行人'] ||= [];
     await context.people(fields);
   }

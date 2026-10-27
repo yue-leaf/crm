@@ -26,7 +26,7 @@
 .project-outcomes strong { font-size: 15px; color: #303842; }
 .project-outcomes button:last-child { margin-left: auto; }
 .outcome-dot,.priority-dot { width: 7px; height: 7px; border-radius: 50%; background: #a6aeb9; flex-shrink: 0; }
-.outcome-已完成 { background: #55a48c; }
+.outcome-已签合同 { background: #55a48c; }
 .priority-mark { display: grid; place-items: center; color: #c58b36; width: 34px; height: 34px; border-radius: 8px; background: #fff8ec; }
 .priority-list { padding: 0 26px; }
 .priority-list button { display: flex; width: 100%; gap: 12px; align-items: center; padding: 19px 0; text-align: left; font-size: 13px; border-bottom: 1px solid #f0f2f5; }
@@ -50,7 +50,7 @@
 .project-status { display: inline-block; font-size: 12px; padding: 4px 9px; border-radius: 5px; white-space: nowrap; background: #f1f3f5; color: #68717d; }
 .status-进行中 { color: #376bc6; background: #edf3ff; }
 .status-暂停 { color: #9d7026; background: #fff6e7; }
-.status-已完成 { color: #28846b; background: #edf8f3; }
+.status-已签合同 { color: #28846b; background: #edf8f3; }
 .status-状态异常,.status-异常 { color: #b65c51; background: #fff0ec; }
 .tracking-review,.tracking-date,.tracking-overdue { display: block; margin-top: 6px; font-size: 11px; color: #8a929e; }
 .tracking-review { color: #b38439; }
