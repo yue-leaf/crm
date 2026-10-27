@@ -16,8 +16,8 @@ interface Props {
   busy: boolean;
   tab: string;
   onTabChange: (tab: string) => void;
-  onView: (row: CrmRecord, kind: EntityKind, customerId?: string) => void;
-  onEditContact: (row: CrmRecord) => void;
+  onView: (row: CrmRecord, kind: EntityKind, customerId?: string) => void | Promise<void>;
+  onEditContact: (row: CrmRecord) => void | Promise<void>;
   onCreate: (kind: 'contact' | 'project') => void;
   followupView: FollowupView;
   onFollowupViewChange: (view: FollowupView) => void;

@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrentUserProfile } from '@lark-apaas/client-toolkit/hooks/useCurrentUserProfile';
-import { Button } from '@/components/ui/button';
+import { ActionButton as Button } from './ActionButton';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -186,7 +186,6 @@ const CrmPage: React.FC = () => {
   const [draft, setDraft] = useState<Draft>({});
   const [saveError, setSaveError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const uploadingRef = useRef(false);
@@ -197,7 +196,6 @@ const CrmPage: React.FC = () => {
   const editorRequestVersion = useRef(0);
   const initialDraft = useRef<Draft>({});
   const [discardOpen, setDiscardOpen] = useState(false);
-  const [openingId, setOpeningId] = useState<string | null>(null);
   const requestVersion = useRef(0);
   const admin = !!session && crmAdmin(session.roles);
   const authorized = !!session && (active !== 'access' || admin);
@@ -260,7 +258,7 @@ const CrmPage: React.FC = () => {
   const reload = useCallback(async (keepRows = 0) => {
     if (!authorized) return;
     const version = ++requestVersion.current;
-    setDetailLoadingId(null);
+
     setLoading(true);
     setError('');
     try {
@@ -327,8 +325,6 @@ const CrmPage: React.FC = () => {
     }
     editorRequestVersion.current++;
     detailVersion.current++;
-    setOpeningId(null);
-    setDetailLoadingId(null);
     const ed = { kind, operation, row };
     const initial: Draft =
       row ? recordDraft(row.record, specs(ed)) : {};
@@ -369,10 +365,11 @@ const CrmPage: React.FC = () => {
     setEditor(ed);
   };
   const edit = async (row: CrmRecord, kind = active) => {
-    if (kind === 'home' || kind === 'access' || openingId) return;
+    if (kind === 'home' || kind === 'access' || savingRef.current || uploadingRef.current) return;
+    detailVersion.current++;
     const version = requestVersion.current;
     const editorRequest = ++editorRequestVersion.current;
-    setOpeningId(row.id);
+
     try {
       const fresh = await api.get(kind, row.id);
       if (version !== requestVersion.current || editorRequest !== editorRequestVersion.current) return;
@@ -384,15 +381,13 @@ const CrmPage: React.FC = () => {
       openEditor(kind, 'edit', fresh);
     } catch (e: unknown) {
       if (version === requestVersion.current && editorRequest === editorRequestVersion.current) toast.error(message(e));
-    } finally {
-      if (editorRequest === editorRequestVersion.current) setOpeningId(null);
     }
   };
   const detail = async (row: CrmRecord, kind = active, contextCustomerId?: string, initialTab: 'followups' | 'contacts' | 'projects' = 'followups') => {
-    if (kind === 'home') return;
+    if (kind === 'home' || savingRef.current || uploadingRef.current) return;
+    editorRequestVersion.current++;
     const version = requestVersion.current;
     const detailRequest = ++detailVersion.current;
-    setDetailLoadingId(row.id);
     try {
       const next = await api.get(kind, row.id);
       if (version === requestVersion.current && detailRequest === detailVersion.current) {
@@ -409,15 +404,14 @@ const CrmPage: React.FC = () => {
       }
     } catch (e: unknown) {
       if (version === requestVersion.current && detailRequest === detailVersion.current) toast.error(message(e));
-    } finally {
-      if (detailRequest === detailVersion.current) setDetailLoadingId(null);
     }
   };
   const workspaceAction = async (kind: 'customer' | 'project', id: string, operation: 'followup' | 'plan') => {
-    if (openingId || savingRef.current || uploadingRef.current) return;
+    if (savingRef.current || uploadingRef.current) return;
+    detailVersion.current++;
     const version = requestVersion.current;
     const editorRequest = ++editorRequestVersion.current;
-    setOpeningId(id);
+
     try {
       const row = await api.get(kind, id);
       if (version !== requestVersion.current || editorRequest !== editorRequestVersion.current) return;
@@ -427,7 +421,7 @@ const CrmPage: React.FC = () => {
       else openEditor(kind, 'plan', row, recordDraft(row.record, planFields));
     } catch (e: unknown) {
       if (version === requestVersion.current && editorRequest === editorRequestVersion.current) toast.error(message(e));
-    } finally { if (editorRequest === editorRequestVersion.current) setOpeningId(null); }
+    }
   };
   const resumeFollowup = (contactId?: string) => {
     const suspended = suspendedEditor.current;
@@ -547,11 +541,11 @@ const CrmPage: React.FC = () => {
     }
   };
   const adoptPlan = async (followup: CrmRecord) => {
-    if (openingId || savingRef.current) return;
+    if (savingRef.current || uploadingRef.current) return;
     const version = requestVersion.current;
-    const detailRequest = detailVersion.current;
+    const detailRequest = ++detailVersion.current;
     const editorRequest = ++editorRequestVersion.current;
-    setOpeningId(followup.id);
+
     try {
       const next = await readPlanSuggestion(followup.id, api.get);
       if (version !== requestVersion.current || detailRequest !== detailVersion.current ||
@@ -564,10 +558,10 @@ const CrmPage: React.FC = () => {
     } catch (e: unknown) {
       if (version === requestVersion.current && detailRequest === detailVersion.current &&
         editorRequest === editorRequestVersion.current) toast.error(message(e));
-    } finally { setOpeningId((current) => current === followup.id ? null : current); }
+    }
   };
   const continueCreate = async () => {
-    if (!receipt || openingId) return;
+    if (!receipt || savingRef.current || uploadingRef.current) return;
     if (receipt.kind !== 'followup') {
       openEditor(receipt.kind, 'create', undefined, receipt.kind === 'contact' || receipt.kind === 'project'
         ? { 所属企业: linkIds(receipt.row.record['所属企业']) } : {});
@@ -575,15 +569,17 @@ const CrmPage: React.FC = () => {
     }
     const target = followupTarget(receipt.row);
     if (!target) return;
+    const editorRequest = ++editorRequestVersion.current;
     const version = requestVersion.current;
-    const detailRequest = detailVersion.current;
-    setOpeningId(target.id);
+    const detailRequest = ++detailVersion.current;
+
     try {
       const parent = await api.get(target.kind, target.id);
-      if (version === requestVersion.current && detailRequest === detailVersion.current)
+      if (version === requestVersion.current && detailRequest === detailVersion.current && editorRequest === editorRequestVersion.current)
         openEditor('followup', 'create', undefined, relatedDraft(target.kind, parent, 'followup'));
-    } catch (e: unknown) { toast.error(message(e)); }
-    finally { setOpeningId(null); }
+    } catch (e: unknown) {
+      if (version === requestVersion.current && detailRequest === detailVersion.current && editorRequest === editorRequestVersion.current) toast.error(message(e));
+    }
   };
   const set = (key: string, value: Draft[string]) => {
     if (savingRef.current || (uploadingRef.current && key !== '附件')) return;
@@ -732,9 +728,9 @@ const CrmPage: React.FC = () => {
                 </div>
               )}
               {active === 'home' ? (
-                <ProjectDashboard data={overview} loading={loading} error={error} busy={!!openingId || saving || uploading}
-                  onRetry={() => void reload()} onOpen={(row, kind) => void detail(row, kind)}
-                  onAction={(kind, id, operation) => void workspaceAction(kind, id, operation)}
+                <ProjectDashboard data={overview} loading={loading} error={error} busy={saving || uploading}
+                  onRetry={() => void reload()} onOpen={(row, kind) => detail(row, kind)}
+                  onAction={(kind, id, operation) => workspaceAction(kind, id, operation)}
                   onCreate={() => openEditor('followup', 'create')} />
               ) : (
                 <section className="panel list-panel">
@@ -796,34 +792,34 @@ const CrmPage: React.FC = () => {
                                 {i === 0 ? (
                                   <button
                                     className="record-title"
-                                    disabled={detailLoadingId === row.id}
-                                    onClick={() => void detail(row)}
+                                    disabled={saving || uploading}
+                                    onClick={() => detail(row)}
                                   >
                                     {textValue(row.record[c]) || '未命名'}
                                   </button>
                                 ) : active === 'project' && c === '工作状态' ? (
                                   <Cell name="工作状态" value={projectFacts(row, Date.now()).state || '状态异常'} />
                                 ) : c === '跟进状态' ? <FollowupBadge record={row.record} /> : (
-                                  <Cell name={c} value={row.record[c]} onOpenCustomer={id => void detail({ id, record: {} }, 'customer', undefined, active === 'contact' ? 'contacts' : 'followups')}
-                                    onOpenRecord={(id, kind) => void detail({ id, record: {} }, kind)} />
+                                  <Cell name={c} value={row.record[c]} onOpenCustomer={id => detail({ id, record: {} }, 'customer', undefined, active === 'contact' ? 'contacts' : 'followups')}
+                                    onOpenRecord={(id, kind) => detail({ id, record: {} }, kind)} />
                                 )}
                               </td>
                             ))}
                             <td role="cell" data-label="操作" className="record-actions">
-                              {active === 'customer' && <Button variant="ghost" size="sm" disabled={detailLoadingId === row.id} onClick={() => void detail(row, 'customer', undefined, 'contacts')}><Users size={14} />联系人</Button>}
+                              {active === 'customer' && <Button variant="ghost" size="sm" disabled={saving || uploading} onClick={() => detail(row, 'customer', undefined, 'contacts')}><Users size={14} />联系人</Button>}
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="gap-1.5"
-                                disabled={detailLoadingId === row.id}
+                                disabled={saving || uploading}
                                 onClick={() =>
                                   active === 'access'
                                     ? openEditor(active, 'access', row)
-                                    : void detail(row)
+                                    : detail(row)
                                 }
                               >
                                 {active === 'access' ? <Pencil size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
-                                {detailLoadingId === row.id ? '读取中…' : active === 'access' ? '编辑' : '查看'}
+                                {active === 'access' ? '编辑' : '查看'}
                               </Button>
                               {active !== 'access' && (
                                 <Button
@@ -831,16 +827,16 @@ const CrmPage: React.FC = () => {
                                   size="sm"
                                   className="gap-1.5"
                                   disabled={
-                                    !!openingId ||
+                                    saving || uploading ||
                                     !!editBlockedReason(active, row)
                                   }
                                   title={
                                     editBlockedReason(active, row) || '编辑资料'
                                   }
-                                  onClick={() => void edit(row)}
+                                  onClick={() => edit(row)}
                                 >
                                   <Pencil size={14} aria-hidden="true" />
-                                  {openingId === row.id ? '读取中' : '编辑'}
+                                  编辑
                                 </Button>
                               )}
                             </td>
@@ -904,8 +900,9 @@ const CrmPage: React.FC = () => {
         open={!!selection && !editor}
         onOpenChange={(open) => {
           if (!open) {
+            editorRequestVersion.current++;
             detailVersion.current++;
-            setDetailLoadingId(null);
+
             setSelection(null);
             setDetailTrail([]); setReceipt(null);
           }
@@ -913,21 +910,20 @@ const CrmPage: React.FC = () => {
       >
         <DialogContent className="crm-dialog crm-detail-dialog" aria-describedby={undefined}>
           <header className="crm-dialog-header">
-          {detailTrail.length > 0 ? <Button type="button" variant="ghost" size="sm" disabled={!!detailLoadingId}
+          {detailTrail.length > 0 ? <Button type="button" variant="ghost" size="sm" disabled={saving || uploading}
             onClick={async () => {
               const previous = detailTrail[detailTrail.length - 1];
+              editorRequestVersion.current++;
               const version = ++detailVersion.current;
-              setDetailLoadingId(previous.row.id);
               try {
                 const fresh = await api.get(previous.kind, previous.row.id);
                 if (version !== detailVersion.current) return;
                 setDetailTrail((trail) => trail.slice(0, -1)); setReceipt(null); restoreLocation(previous, fresh);
-              } catch (e: unknown) { toast.error(message(e)); }
-              finally { if (version === detailVersion.current) setDetailLoadingId(null); }
+              } catch (e: unknown) { if (version === detailVersion.current) toast.error(message(e)); }
             }}><ArrowLeft size={14} />返回{textValue(detailTrail[detailTrail.length - 1].row.record[titles[detailTrail[detailTrail.length - 1].kind]]) || '上一页'}</Button>
           : customerContext && selectionKind !== 'customer' && <Button type="button" variant="ghost" size="sm"
-            className="detail-customer-back" disabled={!!detailLoadingId}
-            onClick={() => void detail({ id: customerContext, record: {} }, 'customer', undefined, selectionKind === 'contact' ? 'contacts' : selectionKind === 'project' ? 'projects' : 'followups')}>
+            className="detail-customer-back" disabled={saving || uploading}
+            onClick={() => detail({ id: customerContext, record: {} }, 'customer', undefined, selectionKind === 'contact' ? 'contacts' : selectionKind === 'project' ? 'projects' : 'followups')}>
             <ArrowLeft size={14} />返回客户全览</Button>}
           <DialogTitle>
             {selection
@@ -940,20 +936,20 @@ const CrmPage: React.FC = () => {
             <>
               {receipt && <div className="panel-note flex flex-wrap items-center gap-2" role="status">
                 <span>{labels[receipt.kind]}已保存。</span>
-                <Button size="sm" variant="ghost" disabled={!!openingId} onClick={() => void continueCreate()}>继续新增{labels[receipt.kind]}</Button>
+                <Button size="sm" variant="ghost" disabled={saving || uploading} onClick={() => continueCreate()}>继续新增{labels[receipt.kind]}</Button>
               </div>}
               {((receipt?.kind === 'followup' && !adoptedSuggestions.has(suggestionKey(receipt.row)) && suggestedPlan(receipt.row.record)) ||
                 (selectionKind === 'followup' && !adoptedSuggestions.has(suggestionKey(selection)) && suggestedPlan(selection.record))) && <div className="panel-note flex flex-wrap items-center gap-2">
                 <span>下一步建议已记录，当前计划需单独确认更新。</span>
-                <Button size="sm" variant="outline" disabled={!!openingId}
-                  onClick={() => void adoptPlan(receipt?.kind === 'followup' ? receipt.row : selection)}>采用建议更新计划</Button>
+                <Button size="sm" variant="outline" disabled={saving || uploading}
+                  onClick={() => adoptPlan(receipt?.kind === 'followup' ? receipt.row : selection)}>采用建议更新计划</Button>
               </div>}
-              <DetailToolbar kind={selectionKind} row={selection} busy={!!openingId || !!detailLoadingId}
-                onEdit={() => void edit(selection, selectionKind)}
+              <DetailToolbar key={`${selectionKind}:${selection.id}`} kind={selectionKind} row={selection} busy={saving || uploading}
+                onEdit={() => edit(selection, selectionKind)}
                 onAction={(operation: string) => openEditor(selectionKind, operation, selection)}
                 onFollowup={() => openEditor('followup', 'create', undefined, relatedDraft(
                   selectionKind as 'customer' | 'project', selection, 'followup'))}
-                onTarget={() => { const target = followupTarget(selection); if (target) void detail(
+                onTarget={() => { const target = followupTarget(selection); if (target) return detail(
                   { id: target.id, record: {} }, target.kind, customerContext || undefined); }} />
               {selectionKind !== 'access' && recordReviewProblem(selectionKind, selection.record) && (
                 <p className="panel-note" role="status">{recordReviewProblem(selectionKind, selection.record)}</p>
@@ -967,20 +963,20 @@ const CrmPage: React.FC = () => {
                     onFollowupViewChange={(view) => setFollowupViews((previous) => ({ ...previous,
                       [`${selectionKind}:${selection.id}`]: view }))}
                     tab={detailTab} onTabChange={(tab) => { setScrollRequest(null); setDetailTab(tab); }}
-                    busy={!!openingId || !!detailLoadingId}
-                    onView={(row: CrmRecord, kind: EntityKind, customerId?: string) => void detail(row, kind, customerId)}
-                    onEditContact={(row: CrmRecord) => void edit(row, 'contact')}
+                    busy={saving || uploading}
+                    onView={(row: CrmRecord, kind: EntityKind, customerId?: string) => detail(row, kind, customerId)}
+                    onEditContact={(row: CrmRecord) => edit(row, 'contact')}
                     onCreate={(kind: 'contact' | 'project') => openEditor(kind, 'create', undefined,
                       relatedDraft('customer', selection, kind))} />
                 : <RecordDetails key={`${selectionKind}:${selection.id}`} record={selection.record}
-                    onOpenRecord={(id, kind) => void detail({ id, record: {} }, kind, customerContext || undefined)}
-                    onOpenCustomer={(id: string) => void detail({ id, record: {} }, 'customer', undefined, selectionKind === 'contact' ? 'contacts' : 'followups')} />}
+                    onOpenRecord={(id, kind) => detail({ id, record: {} }, kind, customerContext || undefined)}
+                    onOpenCustomer={(id: string) => detail({ id, record: {} }, 'customer', undefined, selectionKind === 'contact' ? 'contacts' : 'followups')} />}
 
             </>
           )}
           </div>
           <div className="form-actions">
-            <Button variant="outline" onClick={() => { detailVersion.current++; setDetailLoadingId(null); setSelection(null); setDetailTrail([]); setReceipt(null); }}>关闭详情</Button>
+            <Button variant="outline" onClick={() => { editorRequestVersion.current++; detailVersion.current++; setSelection(null); setDetailTrail([]); setReceipt(null); }}>关闭详情</Button>
           </div>
         </DialogContent>
       </Dialog>

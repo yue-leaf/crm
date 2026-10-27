@@ -4,7 +4,7 @@ import { api } from '@/api/crm';
 import { textValue } from '@shared/crm';
 import { editBlockedReason } from '@shared/crm-edit';
 import { Eye, Mail, Pencil, Phone, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ActionButton as Button } from './ActionButton';
 import { Cell } from './Fields';
 import { useRelatedPage } from './useRelatedPage';
 
@@ -13,8 +13,8 @@ export const CustomerContacts: React.FC<{
   createBlocked: boolean;
   busy: boolean;
   onCreate?: () => void;
-  onView: (row: CrmRecord) => void;
-  onEdit: (row: CrmRecord) => void;
+  onView: (row: CrmRecord) => void | Promise<void>;
+  onEdit: (row: CrmRecord) => void | Promise<void>;
 }> = ({ customerId, createBlocked, busy, onCreate, onView, onEdit }) => {
   const load = useCallback((cursor?: string): Promise<CrmPage> => api.customerContacts(customerId, { cursor }), [customerId]);
   const { page, loading, error, more, retry } = useRelatedPage(load, JSON.stringify(['contacts', customerId]));
