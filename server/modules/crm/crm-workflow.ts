@@ -11,8 +11,8 @@ export function historicalContext(kind: 'customer' | 'project', row: CrmRecord, 
   if (kind === 'project') {
     const terminal = textValue(row.record['终局确认']);
     if (!['未确认', '已完成', '已取消'].includes(terminal)) reject(label, '终局状态异常，请在原表核对');
-    if (row.record['已归档'] === true && terminal === '未确认') reject(label, '归档项目尚未结项，请在原表核对');
-    if (terminal === '未确认' && !['待启动', '进行中', '暂停'].includes(textValue(row.record['工作状态'])))
+    if (row.record['已归档'] === true && terminal === '未确认' && textValue(row.record['工作状态']) !== '已签合同') reject(label, '归档项目尚未结项，请在原表核对');
+    if (terminal === '未确认' && !['待启动', '进行中', '暂停', '已签合同'].includes(textValue(row.record['工作状态'])))
       reject(label, '工作状态异常，请先更新项目进展');
     if (terminal !== '未确认') {
       const closed = row.record['结束日期'];

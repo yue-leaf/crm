@@ -29,8 +29,6 @@ export function recordReviewProblem(kind: EntityKind, record: CrmRecord['record'
     if (status === '已作废' && !textValue(record['作废原因']).trim()) return '作废原因缺失，请在原表补齐';
   }
   if (kind === 'customer') {
-    if (!['待建立', '接洽中', '合作中', '暂停合作', '结束合作'].includes(textValue(record['客户关系状态'])))
-      return '客户关系状态异常，请在原表核对';
     const action = textValue(record['当前下一步行动']).trim();
     const date = record['下次跟进日期'];
     const hasExecutor = Array.isArray(record['行动执行人']) && record['行动执行人'].length > 0;

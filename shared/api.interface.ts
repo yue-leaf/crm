@@ -47,7 +47,8 @@ export interface CrmEditRequest {
   expectedModifiedAt: number;
 }
 export interface CrmProgressRequest {
-  工作状态: '待启动' | '进行中' | '暂停';
+  工作状态: '待启动' | '进行中' | '暂停' | '已签合同';
+  签约日期?: string;
   当前进展: string;
   暂停原因?: string | null;
   当前下一步行动?: string | null;
@@ -60,11 +61,12 @@ export type CrmLifecycleOperation = 'confirm-end' | 'archive' | 'restore' | 'reo
 export interface CrmLifecycleRequest {
   expectedModifiedAt: number;
   操作原因: string;
-  终局确认?: '已完成' | '已取消';
+  终局确认?: '已取消';
   结束日期?: string;
   结果说明?: string;
   取消原因?: string;
-  工作状态?: '待启动' | '进行中';
+  工作状态?: '待启动' | '进行中' | '暂停' | '已签合同';
+  签约日期?: string;
   当前进展?: string;
   当前下一步行动?: string;
   行动执行人?: string[];
@@ -84,7 +86,7 @@ export interface BusinessListQuery {
   projectFilter?: ProjectFilter;
   followupFilter?: FollowupFilter;
 }
-export type ProjectFilter = FollowupFilter | 'active' | 'attention' | 'month-completed' | 'missing-plan' | '待启动' | '进行中' | '暂停' | '已完成' | '已取消' | 'archived';
+export type ProjectFilter = FollowupFilter | 'active' | 'attention' | 'month-completed' | 'missing-plan' | '待启动' | '进行中' | '暂停' | '已签合同' | '已取消' | 'archived';
 export interface ProjectOverview {
   scope: ProjectScope;
   generatedAt: number;
@@ -98,6 +100,6 @@ export interface ProjectOverview {
   tomorrow: number;
   archived: number;
   unknown: number;
-  states: Record<'待启动' | '进行中' | '暂停' | '已完成' | '已取消', number>;
+  states: Record<'待启动' | '进行中' | '暂停' | '已签合同' | '已取消', number>;
   projects: CrmRecord[];
 }

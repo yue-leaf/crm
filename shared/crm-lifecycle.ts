@@ -11,14 +11,16 @@ export function isLifecycle(operation: string): operation is CrmLifecycleOperati
 export function lifecycleFields(kind: EntityKind, operation: CrmLifecycleOperation): FieldSpec[] {
   const reason: FieldSpec = { key: '操作原因', type: 'long', required: true };
   if (operation === 'confirm-end') return [
-    { key: '终局确认', type: 'select', required: true, options: ['已完成', '已取消'] },
+    { key: '终局确认', type: 'select', required: true, options: ['已取消'] },
     { key: '结束日期', type: 'date', required: true },
     { key: '结果说明', type: 'long', required: true },
     { key: '取消原因', type: 'long' }, reason,
   ];
   if (operation === 'reopen') return [
-    { key: '工作状态', type: 'select', required: true, options: ['待启动', '进行中'] },
-    { key: '当前进展', type: 'long', required: true }, ...planFields, reason,
+    { key: '工作状态', type: 'select', required: true, options: ['待启动', '进行中', '暂停', '已签合同'] },
+    { key: '当前进展', type: 'long', required: true },
+    { key: '暂停原因', type: 'long' }, { key: '签约日期', type: 'date' },
+    ...planFields.map(f => ({ ...f, required: false })), reason,
   ];
   return [...(operation === 'restore' && kind === 'customer' ? planFields : []), reason];
 }
@@ -30,8 +32,8 @@ export function lifecycleBlocked(kind: EntityKind, operation: CrmLifecycleOperat
   if (operation === 'reopen') return kind === 'project' && ['已完成', '已取消'].includes(terminal)
     ? '' : '仅已完成或已取消的项目可以重开';
   if (archived) return '记录已归档，请先取消归档或重开项目';
-  if (operation === 'confirm-end') return kind === 'project' && terminal === '未确认' ? '' : '仅未结项项目可以确认结束';
-  if (kind === 'project' && !['已完成', '已取消'].includes(terminal)) return '项目完成或取消后才能归档';
+  if (operation === 'confirm-end') return kind === 'project' && ['未确认', '已取消'].includes(terminal) ? '' : '仅未结项项目可以确认结束';
+  if (kind === 'project' && !['已完成', '已取消'].includes(terminal) && textValue(row.record['工作状态']) !== '已签合同') return '项目签约或取消后才能归档';
   return '';
 }
 

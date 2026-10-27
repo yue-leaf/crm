@@ -1,3 +1,4 @@
+import { statusInput, validateSignedDate } from './crm-status';
 import {
   BadGatewayException,
   BadRequestException,
@@ -231,7 +232,7 @@ export class CrmService {
   async workspaceList(scope: string, userId: string, kind: string, filter: string, cursor?: string, search?: string): Promise<CrmPage> {
     if (!['customer', 'project', 'followup'].includes(kind)) throw new BadRequestException('工作台数据类型无效');
     const filters = ['all', 'month', ...(kind === 'customer' ? ['attention'] : kind === 'project'
-      ? ['active', 'completed-month', 'archived', 'unknown', '待启动', '进行中', '暂停', '已完成', '已取消'] : [])];
+      ? ['active', 'completed-month', 'archived', 'unknown', '待启动', '进行中', '暂停', '已签合同', '已取消'] : [])];
     if (!filters.includes(filter)) throw new BadRequestException('工作台筛选无效');
     if (cursor && !/^offset:\d{1,6}$/.test(cursor)) throw new BadRequestException('分页标记无效');
     if (search !== undefined && (typeof search !== 'string' || search.length > 200)) throw new BadRequestException('搜索内容过长');
@@ -478,7 +479,7 @@ export class CrmService {
     Object.assign(
       fields,
       key === 'customer'
-        ? { 客户关系状态: '待建立', 已归档: false }
+        ? { 已归档: false }
         : key === 'project'
           ? { 工作状态: '待启动', 终局确认: '未确认', 已归档: false }
           : key === 'contact'
@@ -569,12 +570,18 @@ export class CrmService {
     if (!body || typeof body !== 'object' || Array.isArray(body))
       reject('表单', '格式无效');
     const source = body as Record<string, unknown>;
-    const { expectedModifiedAt, ...input } = source;
+    const { expectedModifiedAt, ...submitted } = source;
+    let input: Record<string, unknown> = submitted;
     if (
       typeof expectedModifiedAt !== 'number' ||
       row.record['修改时间'] !== expectedModifiedAt
     )
       throw new ConflictException('记录已变化，请刷新后重新操作');
+    if (operation === 'status') {
+      if (key !== 'project') reject('操作', '仅项目支持更新状态');
+      const next = statusInput(row, input);
+      operation = next.operation; input = next.input;
+    }
     let fields: Record<string, unknown>;
     let related: RelatedSnapshot[] = [];
     if (isLifecycle(operation)) {
@@ -617,8 +624,9 @@ export class CrmService {
       fields = parseDraft(input, endFields, this.enums(key)).fields;
     } else if (operation === 'progress' && key === 'project') {
       await this.projectAdvancement(row);
-      const parsed = parseDraft(input, progressFields, this.enums(key));
+      const parsed = parseDraft(input, progressFields, {});
       fields = parsed.fields;
+      validateSignedDate(fields);
       if (parsed.draft['工作状态'] === '暂停') {
         if (!parsed.draft['暂停原因']) reject('暂停原因', '暂停时必填');
         for (const f of planFields) delete fields[f.key];

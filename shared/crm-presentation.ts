@@ -22,7 +22,7 @@ export function managementLogText(value: unknown): string {
   }).join('\n');
 }
 
-const dateFields = new Set(['下次跟进日期', '目标完成日期', '结束日期', '预计成交日期', '建议日期']);
+const dateFields = new Set(['下次跟进日期', '目标完成日期', '签约日期', '结束日期', '预计成交日期', '建议日期']);
 const timeFields = new Set(['最近整体互动', '最近直接跟进', '最近有效跟进', '最后目录同步']);
 function scalar(value: unknown): unknown {
   if (Array.isArray(value)) return value.length === 1 ? scalar(value[0]) : null;
@@ -57,7 +57,7 @@ export function detailFieldLabel(name: string): string {
     非终局项目数: '在办项目', 未跟进天数: '未跟进时长', 已归档: '归档状态',
     修改人: '最近修改人', 修改时间: '最近修改时间', 待配置角色: '角色',
     直接有效次数: '客户直接跟进次数', 整体有效次数: '累计跟进次数', 有效次数: '项目跟进次数',
-    客户关系状态: '客户状态', 所属企业: '所属客户',
+    所属企业: '所属客户',
     工作状态: '项目状态', 终局确认: '结束状态', 直接客户: '客户', 关联项目: '项目', 有效客户名称: '客户',
     实际发生时间: '跟进时间', 实际跟进人: '参与员工', '内容 / 推进结论': '跟进内容与结论',
     '沟通 / 推进方式': '沟通方式', 当前下一步行动: '下一步行动', 行动执行人: '执行人',
@@ -80,9 +80,9 @@ export function displayDate(name: string, value: unknown): string | null {
 }
 
 export function statusTone(name: string, value: string): string | null {
-  if (!['工作状态', '通用状态', '客户关系状态', '联系人状态', '终局确认',
+  if (!['工作状态', '通用状态', '联系人状态', '终局确认',
     '记录状态', '待配置角色', '目录状态', '处理请求'].includes(name)) return null;
-  if (['正常', '有效', '已激活', '已完成', '合作中'].includes(value)) return 'green';
+  if (['正常', '有效', '已激活', '已签合同', '已完成', '合作中'].includes(value)) return 'green';
   if (['暂停', '暂停合作', '申请停用'].includes(value)) return 'amber';
   if (['进行中', '接洽中', '申请开通', '申请调整'].includes(value)) return 'blue';
   if (['已取消', '已作废'].includes(value)) return 'red';
@@ -100,10 +100,10 @@ function hasDetailValue(value: unknown): boolean {
   return true;
 }
 const sections: [string, boolean, string[]][] = [
-  ['基本资料', false, ['企业全称', '简称', '客户编号', '统一社会信用代码', '行业', '地区', '网站', '客户关系状态',
+  ['基本资料', false, ['企业全称', '简称', '客户编号', '统一社会信用代码', '行业', '地区', '网站',
     '客户负责人', '客户备注', '姓名', '联系人编号', '部门', '职务', '所属企业', '电话', '邮箱', '客户侧业务角色',
     '技术领域', '维护人', '联系人状态', '备注', '项目名称', '项目编号', '项目类型', '项目负责人', '协同人员',
-    '目标 / 需求摘要', '目标完成日期', '通用状态', '工作状态', '跟进主题', '跟进编号',
+    '目标 / 需求摘要', '目标完成日期', '签约日期', '通用状态', '工作状态', '跟进主题', '跟进编号',
     '直接客户', '关联项目', '有效客户名称', '实际发生时间', '实际跟进人', '记录类型', '记录状态',
     '飞书成员', '通讯录姓名', '目录状态', '待配置角色']],
   ['业务概况', false, ['非终局项目数', '未跟进天数']],
@@ -126,6 +126,7 @@ export function detailGroups(record: CrmRecord['record']): DetailGroup[] {
     const fields: [string, unknown][] = [];
     for (const key of keys) {
       if (!Object.prototype.hasOwnProperty.call(record, key)) continue;
+      if (key === '结束日期' && textValue(record['终局确认']) === '未确认') continue;
       if (key === '有效客户名称' && record['直接客户'] && hasDetailValue(record['直接客户'])) continue;
       const value = record[key];
       if (!hasDetailValue(value)) continue;

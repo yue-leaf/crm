@@ -6,7 +6,7 @@ export const commerceKeys = ['预计金额', '币种', '金额含税口径'];
 
 /** Existing paused/terminal records do not need an active plan. Creation still does. */
 export function existingProjectFields(record: CrmRecord['record']): FieldSpec[] {
-  const noPlan = textValue(record['工作状态']) === '暂停' ||
+  const noPlan = record['已归档'] === true || textValue(record['工作状态']) === '暂停' ||
     ['已完成', '已取消'].includes(textValue(record['终局确认']));
   return forms.project.map((f) => noPlan && planFields.some((p) => p.key === f.key)
     ? { ...f, required: false } : f);
@@ -16,9 +16,9 @@ export function projectReviewProblem(record: CrmRecord['record'], now = Date.now
   const terminal = textValue(record['终局确认']);
   if (!['未确认', '已完成', '已取消'].includes(terminal)) return '终局状态异常，请先在原表核对';
   if (terminal === '未确认') {
-    if (record['已归档'] === true) return '未结项项目不能归档，请先在原表核对';
+    if (record['已归档'] === true && textValue(record['工作状态']) !== '已签合同') return '该状态的项目不能归档，请先在原表核对';
     const work = textValue(record['工作状态']);
-    if (!['待启动', '进行中', '暂停'].includes(work)) return '工作状态异常，请先更新项目进展';
+    if (!['待启动', '进行中', '暂停', '已签合同'].includes(work)) return '工作状态异常，请先更新项目进展';
     if (work === '暂停' && !textValue(record['暂停原因']).trim()) return '暂停原因缺失，请先更新项目进展';
     if (work === '进行中' && !textValue(record['当前进展']).trim()) return '当前进展缺失，请先更新项目进展';
   } else {
@@ -28,6 +28,10 @@ export function projectReviewProblem(record: CrmRecord['record'], now = Date.now
       return '结束日期缺失或晚于今天，请先在原表核对';
     if (!textValue(record['结果说明']).trim()) return '结果说明缺失，请先在原表补齐';
     if (terminal === '已取消' && !textValue(record['取消原因']).trim()) return '取消原因缺失，请先在原表补齐';
+  }
+  if (textValue(record['工作状态']) === '已签合同' && terminal === '未确认') {
+    const signed = record['签约日期'];
+    if (typeof signed !== 'number' || !Number.isFinite(signed) || Math.floor((signed + 28800000) / 86400000) > Math.floor((now + 28800000) / 86400000)) return '签约日期缺失或晚于今天';
   }
   if (record['已归档'] === true) {
     const archived = record['归档时间'];
@@ -39,9 +43,10 @@ export function projectReviewProblem(record: CrmRecord['record'], now = Date.now
 }
 
 export const progressFields: FieldSpec[] = [
-  { key: '工作状态', type: 'select', required: true, options: ['待启动', '进行中', '暂停'] },
+  { key: '工作状态', type: 'select', required: true, options: ['待启动', '进行中', '暂停', '已签合同'] },
   { key: '当前进展', type: 'long', required: true },
   { key: '暂停原因', type: 'long' },
+  { key: '签约日期', type: 'date' },
   ...planFields.map((f) => ({ ...f, required: false })),
   { key: '变更说明', type: 'long', required: true },
 ];
