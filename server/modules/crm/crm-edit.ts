@@ -9,6 +9,8 @@ import {
 } from '@shared/crm-edit';
 import { parseDraft, reject } from './crm-validation';
 import { existingProjectFields } from '@shared/crm-workflow';
+import { auditNote } from '@shared/crm-lifecycle';
+import { CONTACT_INTERVAL_PREFIX } from '@shared/crm-contact-history';
 
 export function prepareEdit(
   kind: EntityKind,
@@ -38,7 +40,6 @@ export function prepareEdit(
     enums,
   );
   const raw = input.changes as Record<string, unknown>;
-  // Customer status is editable but is initialized by the server on creation.
   const validationSpec = kind === 'customer' ? spec : kind === 'contact'
     ? [...forms.contact, ...spec.filter((field) => ['联系人状态', '停用原因'].includes(field.key))]
     : forms[kind];
@@ -50,14 +51,22 @@ export function prepareEdit(
   const changes = changedFields(before, checked.draft, spec);
   if (!Object.keys(changes).length) reject('编辑', '没有需要保存的修改');
   const writes: Record<string, unknown> = {};
+  const now: number = Date.now();
+  let contactEvent: string = '';
   if (kind === 'contact') {
     const status = checked.draft['联系人状态'];
     if (status === '停用' && !checked.draft['停用原因']) reject('停用原因', '停用联系人时必填');
     if (status === '有效') {
+      if (textValue(row.record['联系人状态']) === '停用') {
+        const disabledAt: unknown = row.record['停用时间'];
+        if (typeof disabledAt !== 'number' || !Number.isSafeInteger(disabledAt) || disabledAt < 0 || disabledAt > now)
+          reject('停用时间', '历史停用时间异常，请先在原表核对');
+        contactEvent = CONTACT_INTERVAL_PREFIX + JSON.stringify({ version: 1, disabledAt, restoredAt: now });
+      }
       writes['停用时间'] = null;
       writes['停用原因'] = '';
     } else if (textValue(row.record['联系人状态']) !== '停用') {
-      writes['停用时间'] = Date.now();
+      writes['停用时间'] = now;
     } else if (typeof row.record['停用时间'] !== 'number' || !Number.isFinite(row.record['停用时间']) || row.record['停用时间'] > Date.now()) {
       reject('停用时间', '历史停用时间异常，请先在原表核对');
     }
@@ -68,6 +77,8 @@ export function prepareEdit(
     else if (field.type === 'text' || field.type === 'long') writes[key] = '';
     else if (field.type === 'person' || field.type === 'relation' || field.type === 'attachment')
       writes[key] = [];
+    else if (!field.required && (field.type === 'date' || field.type === 'datetime'))
+      writes[key] = null;
     else
       reject(
         key,
@@ -88,9 +99,10 @@ export function prepareEdit(
     textValue(row.record[auditKey]),
     ...(kind === 'contact' && Object.hasOwn(changes, '联系人状态') ? [
       `联系人状态：${textValue(row.record['联系人状态'])} → ${String(checked.draft['联系人状态'])}`,
-      `停用信息：${String(writes['停用时间'] ?? row.record['停用时间'] ?? '')} · ${textValue(writes['停用原因'] || row.record['停用原因'] || checked.draft['停用原因'])}`,
+      `停用信息：${String(writes['停用时间'] ?? row.record['停用时间'] ?? '')}\n${auditNote(textValue(writes['停用原因'] || row.record['停用原因'] || checked.draft['停用原因']))}`,
     ] : []),
-    `资料修改 · ${new Date().toISOString()} · 操作人 ${actor}\n字段：${Object.keys(changes).join('、')}${reason ? `\n说明：${String(reason)}` : ''}`,
+    `资料修改 · ${new Date(now).toISOString()} · 操作人 ${actor}\n字段：${Object.keys(changes).join('、')}${reason ? `\n说明：\n${auditNote(String(reason))}` : ''}`,
+    contactEvent,
   ]
     .filter(Boolean)
     .join('\n\n');

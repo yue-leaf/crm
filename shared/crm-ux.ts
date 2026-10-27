@@ -2,6 +2,7 @@ import type { CrmRecord, EntityKind } from './api.interface';
 import type { Draft } from './crm';
 import { textValue } from './crm';
 import { contactLifecycleProblem } from './crm-review';
+import { contactInactiveAt } from './crm-contact-history';
 import { advancementBlocked, followupTarget } from './crm-workflow';
 
 /** Change only the requested filter; keep independent filters and scope. */
@@ -23,6 +24,7 @@ export function contactChoiceProblem(row: CrmRecord, occurred: number): string {
   const issue: string = contactLifecycleProblem(row.record);
   if (issue) return issue;
   if (!Number.isFinite(occurred)) return '请先填写跟进时间';
+  if (contactInactiveAt(row.record, occurred)) return '该联系人在跟进发生时已停用';
   if (textValue(row.record['联系人状态']) === '有效') return '';
   const disabledAt: unknown = row.record['停用时间'];
   return typeof disabledAt === 'number' && occurred < disabledAt ? '' : '该联系人在跟进发生时已停用';

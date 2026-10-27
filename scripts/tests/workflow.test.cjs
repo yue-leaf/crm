@@ -14,22 +14,19 @@ test('closed project accepts the entire closing day and rejects the next day', (
   historicalContext('project', row, time('2026-10-20T23:59:59.999'));
   assert.throws(() => historicalContext('project', row, time('2026-10-21T00:00:00')), /重开/);
 });
-test('archive timestamp is exclusive and missing or inconsistent lifecycle data fails closed', () => {
-  const archived = time('2026-10-20T16:30:00');
-  for (const kind of ['customer', 'project']) {
-    const row = { record: { 核查标记: '正常', 终局确认: '已完成', 结束日期: closed, 已归档: true, 归档时间: archived } };
-    historicalContext(kind, row, archived - 1);
-    assert.throws(() => historicalContext(kind, row, archived), /恢复/);
-    delete row.record.归档时间;
-    assert.throws(() => historicalContext(kind, row, archived - 1), /归档时间缺失/);
-  }
-  assert.throws(() => historicalContext('project', { record: { 核查标记: '正常', 终局确认: '未确认', 已归档: true } }, closed), /尚未结项/);
-  assert.throws(() => historicalContext('project', { record: { 核查标记: '正常', 终局确认: '已取消' } }, closed), /结束日期缺失/);
+test('archive metadata no longer restricts work, while cancellation boundaries still apply', () => {
+ for(const kind of ['customer','project']) {
+  const row={record:{终局确认:'未确认',工作状态:'进行中',已归档:true}};
+  assert.doesNotThrow(()=>historicalContext(kind,row,closed));
+ }
+ assert.throws(()=>historicalContext('project',{record:{终局确认:'已取消'}},closed),/结束日期缺失/);
+ assert.throws(()=>historicalContext('project',{record:{终局确认:'未知'}},closed),/终局状态/);
 });
+
 test('related actions prefill one parent only and followups navigate to their own plan', () => {
   const parent = { id: 'recParent', record: { 终局确认: '未确认' } };
   assert.deepEqual(relatedDraft('customer', parent, 'project'), { 所属企业: ['recParent'] });
-  assert.deepEqual(relatedDraft('project', parent, 'followup'), { 跟进归属: '项目跟进', 关联项目: ['recParent'], 直接客户: [] });
+  assert.deepEqual(relatedDraft('project', parent, 'followup'), { 跟进归属: '项目跟进', 关联项目: ['recParent'], 直接客户: [], 跟进客户: [] });
   assert.deepEqual(followupTarget({ record: { 跟进归属: '项目跟进', 关联项目: { link_record_ids: ['recParent'] } } }), { kind: 'project', id: 'recParent' });
   assert.equal(followupTarget({ record: { 跟进归属: '项目跟进', 关联项目: { link_record_ids: ['recParent'] }, 直接客户: { link_record_ids: ['recOther'] } } }), null);
   assert.match(advancementBlocked('project', { record: { 终局确认: '已完成' } }), /结束/);
@@ -70,34 +67,31 @@ test('project start, pause and resume preserve the plan on pause and require a c
   const f = fixture();
   await assert.rejects(() => f.update('progress', { 工作状态: '进行中', 当前进展: 'Started', 变更说明: 'Start' }), /当前计划/);
   await f.update('progress', { 工作状态: '进行中', 当前进展: 'Started', 当前下一步行动: 'Next', 下次跟进日期: '2026-10-25', 行动执行人: ['123'], 变更说明: 'Start' });
-  assert.equal(f.row.record.核查标记, '待核查');
-  await f.update('review', { 核查说明: 'Reviewed' });
+  assert.ok(!Object.hasOwn(f.writes[0], '核查标记'));
   await assert.rejects(() => f.update('progress', { 工作状态: '暂停', 当前进展: 'Waiting', 变更说明: 'Pause' }), /暂停原因/);
   await f.update('progress', { 工作状态: '暂停', 当前进展: 'Waiting', 暂停原因: 'External dependency', 当前下一步行动: 'Must not overwrite', 变更说明: 'Pause' });
   assert.equal(f.row.record.当前下一步行动, 'Next');
   assert.deepEqual(f.row.record.行动执行人, [123]);
-  await f.update('review', { 核查说明: 'Pause reviewed' });
   await f.update('progress', { 工作状态: '进行中', 当前进展: 'Resumed', 当前下一步行动: 'Resume next', 下次跟进日期: '2026-10-26', 行动执行人: [], 变更说明: 'Resume' });
   assert.equal(f.row.record.暂停原因, '');
   assert.deepEqual(f.row.record.行动执行人, []);
   assert.match(f.row.record.管理记录, /old history[\s\S]*Start[\s\S]*Pause[\s\S]*Resume/);
-  await f.update('review', { 核查说明: 'Resume reviewed' });
   assert.equal(f.row.record.核查标记, '正常');
 });
-test('archived parent prevents project advancement without issuing writes', async () => {
-  const f = fixture();
-  f.customer.record.已归档 = true;
-  for (const operation of ['plan', 'progress', 'suggest-end'])
-    await assert.rejects(() => f.update(operation, {}), /企业已归档/);
-  assert.equal(f.writes.length, 0);
+test('legacy archive fields on parent do not prevent a valid plan update', async () => {
+ const f=fixture();f.customer.record.已归档=true;
+ await f.update('plan',{当前下一步行动:'Next',下次跟进日期:'2026-10-28'});
+ assert.equal(f.writes.length,1);assert.equal(f.row.record.当前下一步行动,'Next');
 });
-test('historical followup validates both the project and its archived customer', async () => {
+
+test('historical followup respects cancellation day and ignores retired customer archive time', async () => {
   const f = fixture();
   Object.assign(f.row.record, { 终局确认: '已完成', 结束日期: closed, 已归档: true, 归档时间: time('2026-10-21T10:00:00') });
   Object.assign(f.customer.record, { 已归档: true, 归档时间: time('2026-10-20T12:00:00') });
   const draft = { 跟进归属: '项目跟进', 关联项目: ['recProject'], 记录类型: '内部推进', 后续安排: '无后续动作', 无后续动作结论: 'Done' };
   await f.service.relationChecks('followup', draft, { 实际发生时间: time('2026-10-20T11:59:59') });
-  await assert.rejects(() => f.service.relationChecks('followup', draft, { 实际发生时间: time('2026-10-20T13:00:00') }), /恢复/);
+  await f.service.relationChecks('followup', draft, { 实际发生时间: time('2026-10-20T13:00:00') });
+  await assert.rejects(() => f.service.relationChecks('followup', draft, {实际发生时间:time('2026-10-21T00:00:00')}), /重开/);
 });
 test('person validation admits tenant members without roster synchronization, rejects unknown and mismatched identities', async () => {
   const service = new CrmService({ load: () => ({ call: async () => { assert.fail('live identities must not read the roster'); } }) }, identityFixture([123,456]));

@@ -1,10 +1,15 @@
 import type { CrmRecord } from './api.interface';
 import { textValue } from './crm';
 import { EVENT_PREFIX, lifecycleEvents, lifecycleTitles } from './crm-lifecycle';
+import { CONTACT_INTERVAL_PREFIX, contactIntervals } from './crm-contact-history';
 
 /** Keep business history readable without exposing the machine event encoding. */
 export function managementLogText(value: unknown): string {
   return textValue(value).split('\n').map(line => {
+    if (line.startsWith(CONTACT_INTERVAL_PREFIX)) {
+      const interval = contactIntervals({ 联系人管理记录: line })[0];
+      return interval ? `历史停用区间：${displayDate('停用时间', interval.disabledAt)} 至 ${displayDate('恢复时间', interval.restoredAt)}` : line;
+    }
     if (!line.startsWith(EVENT_PREFIX)) return line.replace(/^(confirm-end|archive|restore|reopen) ·/,
       operation => `${lifecycleTitles[operation.split(' ')[0] as keyof typeof lifecycleTitles]} ·`);
     const event = lifecycleEvents({ 管理记录: line })[0];

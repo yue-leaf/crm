@@ -117,5 +117,5 @@ test('valid historical contact remains usable only strictly before deactivation'
   const f = fixture(customer(), (kind, action) => kind === 'crm-contact' && action === 'getRecord'
     ? { record: { 核查标记: '正常', 联系人状态: '停用', 停用时间: 1000, 停用原因: 'Left company', 所属企业: { link_record_ids: ['recCompany'] } } } : undefined);
   await f.service.relationChecks('followup', draft, { 实际发生时间: 999 });
-  await assert.rejects(() => f.service.relationChecks('followup', draft, { 实际发生时间: 1000 }), /有效期/);
+  await assert.rejects(() => f.service.relationChecks('followup', draft, { 实际发生时间: 1000 }), /已停用/);
 });

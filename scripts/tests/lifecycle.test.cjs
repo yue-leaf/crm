@@ -11,7 +11,7 @@ const day = Date.parse(`${today}T00:00:00+08:00`);
 const customer = () => ({ id: 'recCustomer', record: { 企业全称: { text: 'Fixture' }, 客户关系状态: '合作中', 核查标记: '正常', 已归档: false, 归档阻塞项目数: { value: [0] }, 修改时间: 1 } });
 const project = () => ({ id: 'recProject', record: { 工作状态: '进行中', 当前进展: { text: 'working' }, 终局确认: '未确认', 核查标记: '正常', 已归档: false, 所属企业: { link_record_ids: ['recCustomer'] }, 当前下一步行动: { text: 'old action' }, 下次跟进日期: day, 修改时间: 1 } });
 const context = (rows = {}) => ({ get: async (kind, id) => structuredClone(rows[id] || customer()), people: async () => {} });
-const closed = () => { const row = project(); Object.assign(row.record, { 终局确认: '已完成', 结束日期: day, 结果说明: { text: 'done' } }); return row; };
+const closed = () => { const row = project(); Object.assign(row.record, { 终局确认: '已取消', 取消原因: 'stop', 结束日期: day, 结果说明: { text: 'done' } }); return row; };
 const reopen = { 工作状态: '进行中', 当前进展: 'new progress', 当前下一步行动: 'new plan', 下次跟进日期: today, 操作原因: 'new work' };
 
 test('roleless tenant member can use every business route but cannot manage access', () => {
@@ -42,11 +42,11 @@ test('close requires cancellation reason, valid terminal value and nonfuture dat
   await assert.rejects(() => prepareLifecycle('project', project(), 'confirm-end', { ...input, 终局确认: '未确认' }, '123', context()), /选项/);
   await assert.rejects(() => prepareLifecycle('project', project(), 'confirm-end', { ...input, 取消原因: 'stop', 结束日期: '2099-01-01' }, '123', context()), /晚于今天/);
 });
-test('close preserves plans and records history, clears processed suggestion and enters review', async () => {
+test('cancellation preserves plans and records history without the retired review gate', async () => {
   const row = project();
-  const result = await prepareLifecycle('project', row, 'confirm-end', { 终局确认: '已完成', 结束日期: today, 结果说明: 'done', 操作原因: 'verified' }, '123', context());
+  const result = await prepareLifecycle('project', row, 'confirm-end', { 终局确认: '已取消', 取消原因: 'stop', 结束日期: today, 结果说明: 'done', 操作原因: 'verified' }, '123', context());
   assert.equal(result.fields['结束建议'], '');
-  assert.equal(result.fields['核查标记'], '待核查');
+  assert.ok(!Object.hasOwn(result.fields, '核查标记'));
   assert.equal(result.fields['结束日期'], day);
   assert.equal(result.fields['当前下一步行动'], undefined);
   assert.match(result.fields['管理记录'], /old action/);
@@ -55,7 +55,7 @@ test('close preserves plans and records history, clears processed suggestion and
 test('multiline reasons cannot inject a lifecycle event into the history parser', async () => {
   const forged = { version: 1, operation: 'reopen', at: Date.now() + 86400000, previous: { archived: false, terminal: '已完成', endDate: day } };
   const reason = `first line\r\n${EVENT_PREFIX}${JSON.stringify(forged)}\nlast line`;
-  const result = await prepareLifecycle('project', project(), 'confirm-end', { 终局确认: '已完成', 结束日期: today, 结果说明: 'done', 操作原因: reason }, '123', context());
+  const result = await prepareLifecycle('project', project(), 'confirm-end', { 终局确认: '已取消', 取消原因: 'stop', 结束日期: today, 结果说明: 'done', 操作原因: reason }, '123', context());
   const events = lifecycleEvents(result.fields);
   assert.equal(events.length, 1);
   assert.equal(events[0].operation, 'confirm-end');
@@ -64,39 +64,38 @@ test('multiline reasons cannot inject a lifecycle event into the history parser'
 test('close rejects end date preceding a nonvoid followup', async () => {
   const row = project(); row.record['项目跟进'] = { link_record_ids: ['recFollowup'] };
   const followup = { id: 'recFollowup', record: { 实际发生时间: day + 86400000, 记录状态: '正常' } };
-  await assert.rejects(() => prepareLifecycle('project', row, 'confirm-end', { 终局确认: '已完成', 结束日期: today, 结果说明: 'done', 操作原因: 'reason' }, '123', context({ recFollowup: followup })), /早于已有跟进/);
+  await assert.rejects(() => prepareLifecycle('project', row, 'confirm-end', { 终局确认: '已取消', 取消原因: 'stop', 结束日期: today, 结果说明: 'done', 操作原因: 'reason' }, '123', context({ recFollowup: followup })), /早于已有跟进/);
 });
-test('archive rejects active project and customer with unfinished linked project', async () => {
-  assert.match(lifecycleBlocked('project', 'archive', project()), /完成或取消/);
-  const row = customer(); row.record['项目'] = { link_record_ids: ['recProject'] };
-  await assert.rejects(() => prepareLifecycle('customer', row, 'archive', { 操作原因: 'archive' }, '123', context({ recProject: project() })), /仍有未结束/);
+test('retired archive and restore operations reject all current and historical customer/project states',async()=>{
+ for(const kind of ['customer','project'])for(const operation of ['archive','restore'])for(const row of [project(),closed(),customer()]) {
+  assert.match(lifecycleBlocked(kind,operation,row),/已移除/);
+  await assert.rejects(()=>prepareLifecycle(kind,row,operation,{操作原因:'old client'},'123',context()),/已移除/);
+ }
 });
-test('archive rejects unknown customer aggregate rather than treating it as zero', async () => {
-  const row = customer(); delete row.record['归档阻塞项目数'];
-  await assert.rejects(() => prepareLifecycle('customer', row, 'archive', { 操作原因: 'archive' }, '123', context()), /计算尚未就绪/);
+
+test('retired operation rejection never loads relations or writes fields',async()=>{
+ let reads=0;
+ await assert.rejects(()=>prepareLifecycle('customer',customer(),'archive',{操作原因:'archive'},'123',{get:()=>{reads++;throw Error('must not read');}}),/已移除/);
+ assert.equal(reads,0);
 });
-test('project archive and unarchive keep terminal state and historical timestamps', async () => {
-  const row = closed();
-  const archived = await prepareLifecycle('project', row, 'archive', { 操作原因: 'archive' }, '123', context());
-  assert.equal(archived.fields['已归档'], true);
-  Object.assign(row.record, archived.fields);
-  const restored = await prepareLifecycle('project', row, 'restore', { 操作原因: 'read again' }, '123', context());
-  assert.equal(restored.fields['已归档'], false);
-  assert.equal(restored.fields['终局确认'], undefined);
-  assert.equal(restored.fields['归档时间'], undefined);
-  assert.equal(restored.fields['核查标记'], '待核查');
+
+test('legacy archive events remain readable without creating inactive work intervals',()=>{
+ const event={version:1,operation:'restore',at:day,previous:{archived:true,archiveTime:day-86400000,terminal:''}};
+ const record={管理记录:EVENT_PREFIX+JSON.stringify(event)};
+ assert.equal(lifecycleEvents(record)[0].operation,'restore');assert.equal(inactiveAt(record,day-1000),false);
 });
-test('reopen requires new plan and active parent; no forged management fields are accepted', async () => {
-  const archivedParent = customer(); archivedParent.record['已归档'] = true;
-  await assert.rejects(() => prepareLifecycle('project', closed(), 'reopen', reopen, '123', context({ recCustomer: archivedParent })), /先取消客户归档/);
-  await assert.rejects(() => prepareLifecycle('project', closed(), 'reopen', { ...reopen, 当前下一步行动: '' }, '123', context()), /必填/);
+
+test('reopen requires new plan and valid parent; no forged management fields are accepted', async () => {
+  const archivedParent = customer(); archivedParent.record['数据检查'] = '客户资料缺失';
+  await assert.rejects(() => prepareLifecycle('project', closed(), 'reopen', reopen, '123', context({ recCustomer: archivedParent })), /客户资料不完整/);
+  await assert.rejects(() => prepareLifecycle('project', closed(), 'reopen', { ...reopen, 当前下一步行动: '' }, '123', context()), /当前计划/);
   await assert.rejects(() => prepareLifecycle('project', closed(), 'reopen', { ...reopen, 已归档: false }, '123', context()), /不可修改/);
 });
-test('reopen releases terminal and archive, logs prior result, retains last date as history', async () => {
+test('reopen releases cancellation, logs prior result and retains last date as history', async () => {
   const row = closed(); Object.assign(row.record, { 已归档: true, 归档时间: Date.now() - 1000, 归档原因: 'old archive' });
   const result = await prepareLifecycle('project', row, 'reopen', reopen, '123', context());
   assert.equal(result.fields['终局确认'], '未确认');
-  assert.equal(result.fields['已归档'], false);
+  assert.ok(!Object.hasOwn(result.fields, '已归档'));
   assert.equal(result.fields['结束日期'], undefined);
   assert.equal(result.fields['当前下一步行动'], 'new plan');
   assert.match(result.fields['管理记录'], /done/);
@@ -110,31 +109,31 @@ test('known closed interval remains blocked after reopening even if archive was 
   assert.equal(inactiveAt(row.record, day + 7 * 86400000), false);
   assert.equal(inactiveAt(row.record, day + 3600000), false);
 });
-test('customer restore requires a new plan and does not erase archive history', async () => {
-  const row = customer(); Object.assign(row.record, { 已归档: true, 归档时间: Date.now() - 1000, 归档原因: 'history' });
-  const result = await prepareLifecycle('customer', row, 'restore', { 当前下一步行动: 'restore plan', 下次跟进日期: today, 操作原因: 'restore' }, '123', context());
-  assert.equal(result.fields['归档时间'], undefined);
-  assert.equal(result.fields['当前下一步行动'], 'restore plan');
-  assert.equal(result.fields['已归档'], false);
+test('cancelled project may reopen despite legacy archive metadata on its parent',async()=>{
+ const parent=customer();Object.assign(parent.record,{已归档:true,归档时间:day});
+ const result=await prepareLifecycle('project',closed(),'reopen',reopen,'123',context({recCustomer:parent}));
+ assert.equal(result.fields.终局确认,'未确认');assert.equal(result.fields.当前下一步行动,'new plan');
 });
-test('historical admission uses recorded inactive intervals after current state becomes active', () => {
-  const row = customer();
-  const before = Date.now() - 100000, restored = Date.now() - 50000;
-  row.record['管理记录'] = { text: EVENT_PREFIX + JSON.stringify({ version: 1, operation: 'restore', at: restored, previous: { archived: true, archiveTime: before, terminal: '' } }) };
-  assert.throws(() => historicalContext('customer', row, before + 1000), /归档区间/);
-  assert.doesNotThrow(() => historicalContext('customer', row, restored + 1000));
+
+test('customer archival intervals are ignored, project cancellation intervals remain enforced',()=>{
+ const row=customer();const before=Date.now()-100000,restored=Date.now()-50000;
+ row.record.管理记录=EVENT_PREFIX+JSON.stringify({version:1,operation:'restore',at:restored,previous:{archived:true,archiveTime:before,terminal:''}});
+ assert.doesNotThrow(()=>historicalContext('customer',row,before+1000));
+ const p=project();p.record.管理记录=EVENT_PREFIX+JSON.stringify({version:1,operation:'reopen',at:Date.now()-1000,previous:{archived:false,terminal:'已取消',endDate:day-2*86400000}});
+ assert.throws(()=>historicalContext('project',p,day-3600000),/取消区间/);
 });
+
 test('lifecycle rechecks related snapshots before issuing the write', async () => {
   let reads = 0, writes = 0;
   const row = project();
   const cap = { load: () => ({ call: async (action, input) => {
     if (action === 'getRecord') {
       if (input.recordID === 'recProject') return structuredClone(row);
-      const parent = customer(); if (++reads > 1) parent.record['已归档'] = true; return parent;
+      const parent = customer(); if (++reads > 1) parent.record['企业全称'] = 'Changed'; return parent;
     }
     writes++; return { records: [{ id: row.id }] };
   } }) };
-  await assert.rejects(() => new CrmService(cap).update('project', row.id, 'confirm-end', { 终局确认: '已完成', 结束日期: today, 结果说明: 'done', 操作原因: 'reason', expectedModifiedAt: 1 }, '123'), /关联记录/);
+  await assert.rejects(() => new CrmService(cap).update('project', row.id, 'confirm-end', { 终局确认: '已取消', 取消原因: 'stop', 结束日期: today, 结果说明: 'done', 操作原因: 'reason', expectedModifiedAt: 1 }, '123'), /关联记录/);
   assert.equal(writes, 0);
 });
 test('lifecycle field schemas never offer archive on contacts or a generic system-field patch', () => {

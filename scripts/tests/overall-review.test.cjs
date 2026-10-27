@@ -4,6 +4,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {CrmService}=require('../../dist/server/modules/crm/crm.service.js');
 const {textValue}=require('../../dist/shared/crm.js');
+const {recordReviewProblem}=require('../../dist/shared/crm-review.js');
 const {editBlockedReason}=require('../../dist/shared/crm-edit.js');
 const {historicalContext}=require('../../dist/server/modules/crm/crm-workflow.js');
 const old=Date.parse('2026-10-20T10:00:00+08:00');
@@ -23,21 +24,20 @@ function fixture(kind, patch={}) {
  const update=(op,body)=>service.update(kind,row.id,op,{...body,expectedModifiedAt:1},'test');
  return {row,customer,writes,directory,service,update,review:()=>update('review',{核查说明:'Checked'})};
 }
-test('customer/contact/followup review rejects inconsistent lifecycle and plan data without writes',async()=>{
+test('current quality checks reject invalid contact, followup and customer plan data',()=>{
  for(const [kind,patch] of [
-  ['customer',{客户关系状态:'未知'}],['customer',{当前下一步行动:'Plan'}],
-  ['customer',{已归档:true,归档时间:old,归档原因:'Done',归档阻塞项目数:{value:[1]}}],
-  ['customer',{已归档:true,归档时间:Date.now()+3600000,归档原因:'Done',归档阻塞项目数:{value:[0]}}],
-  ['contact',{联系人状态:'未知'}],['contact',{联系人状态:'停用',停用时间:old}],
-  ['contact',{联系人状态:'有效',停用原因:'stale'}],
-  ['followup',{记录状态:'未知'}],['followup',{记录状态:'已作废'}],
- ]) {const f=fixture(kind,patch);await assert.rejects(f.review,`${kind} must reject ${JSON.stringify(patch)}`);assert.equal(f.writes.length,0);}
+ ['customer',{当前下一步行动:'Plan'}],['contact',{联系人状态:'未知'}],
+ ['contact',{联系人状态:'停用',停用时间:old}],['contact',{联系人状态:'有效',停用原因:'stale'}],
+ ['followup',{记录状态:'未知'}],['followup',{记录状态:'已作废'}]]) {
+  const f=fixture(kind,patch);assert.ok(recordReviewProblem(kind,f.row.record));assert.equal(f.writes.length,0);
+ }
 });
-test('formula SDK arrays render values and block review when Base reports errors',async()=>{
+
+test('formula SDK arrays render values and surface Base quality errors',async()=>{
  assert.equal(textValue({bizType:'Text',value:['关联错误；']}),'关联错误；');
  assert.equal(textValue({bizType:'Number',value:[0]}),'0');
  const f=fixture('customer',{数据检查:{bizType:'Text',value:['关联错误；']}});
- await assert.rejects(f.review,/关联错误/);assert.equal(f.writes.length,0);
+ assert.match(recordReviewProblem('customer',f.row.record),/关联错误/);assert.equal(f.writes.length,0);
 });
 test('future contact disable timestamps cannot authorize external followups',async()=>{
  const f=fixture('contact',{核查标记:'正常',联系人状态:'停用',停用时间:Date.now()+3600000,停用原因:'Future'});
@@ -50,26 +50,27 @@ test('adding synchronized participants preserves history but rejects unknown ide
  assert.deepEqual(f.row.record.实际跟进人,[123,456]);
  await assert.rejects(()=>f.update('edit',{changes:{实际跟进人:['123','456','789']},reason:'Reject unregistered new colleague'}),/人员/);
 });
-test('terminal project review remains possible under archived customer while new project creation stays blocked',async()=>{
- const f=fixture('project',{终局确认:'已完成',结束日期:old,结果说明:'Done'});
- Object.assign(f.customer.record,{已归档:true,归档时间:old+86400000,归档原因:'Done'});
- await f.review();assert.equal(f.row.record.核查标记,'正常');
- await assert.rejects(()=>f.service.create('project',{项目名称:'New',项目类型:'PAT',所属企业:['recCustomer'],项目负责人:['123'],'目标 / 需求摘要':'Goal',当前下一步行动:'Next',下次跟进日期:'2026-10-25'}),/归档/);
+test('cancelled projects cannot be edited directly and retired review does not write',async()=>{
+ const f=fixture('project',{终局确认:'已取消',结束日期:old,结果说明:'Stopped',取消原因:'Stopped'});
+ await assert.rejects(()=>f.update('edit',{changes:{项目名称:'Changed'}}),/已结束/);
+ await assert.rejects(f.review,/不支持/);assert.equal(f.writes.length,0);
 });
+
 test('invalid project work state does not permit ordinary edits',()=>{
  const f=fixture('project',{工作状态:'未知'});assert.ok(editBlockedReason('project',f.row));
   f.row.record.核查标记='正常';assert.throws(()=>historicalContext('project',f.row,old),/工作状态/);
 });
-test('valid lifecycle records remain reviewable and void review does not restore record state',async()=>{
- for(const [kind,patch] of [
-  ['customer',{}],
-  ['customer',{已归档:true,归档时间:old,归档原因:'Done',归档阻塞项目数:{bizType:'Number',value:[0]},当前下一步行动:'Historical action without date'}],
-  ['contact',{联系人状态:'停用',停用时间:old,停用原因:'Left company'}],
-  ['followup',{记录状态:'已作废',作废原因:'Duplicate'}],
- ]) {const f=fixture(kind,patch);await f.review();assert.equal(f.row.record.核查标记,'正常');if(kind==='followup')assert.equal(f.row.record.记录状态,'已作废');}
+test('valid contact and void followup quality checks never mutate record state',()=>{
+ for(const [kind,patch] of [['customer',{}],['contact',{联系人状态:'停用',停用时间:old,停用原因:'Left'}],['followup',{记录状态:'已作废',作废原因:'Duplicate'}]]) {
+  const f=fixture(kind,patch);const before=structuredClone(f.row.record);
+  assert.equal(recordReviewProblem(kind,f.row.record),'');assert.deepEqual(f.row.record,before);assert.equal(f.writes.length,0);
+ }
 });
-test('terminal project cannot be reviewed when closing date is after customer archival',async()=>{
- const f=fixture('project',{终局确认:'已完成',结束日期:old+86400000,结果说明:'Done'});
+
+test('cancelled project historical followup boundary is independent of retired customer archive metadata',async()=>{
+ const f=fixture('project',{终局确认:'已取消',结束日期:old+86400000,结果说明:'Stopped',取消原因:'Stopped'});
  Object.assign(f.customer.record,{已归档:true,归档时间:old});
- await assert.rejects(f.review,/归档边界/);assert.equal(f.writes.length,0);
+ assert.equal(recordReviewProblem('project',f.row.record),'');
+ assert.doesNotThrow(()=>historicalContext('project',f.row,old+86400000));
+ assert.throws(()=>historicalContext('project',f.row,old+2*86400000),/重开/);
 });
