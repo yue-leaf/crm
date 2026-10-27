@@ -40,7 +40,7 @@ const editableCustomer = () => ({
     客户关系状态: '待建立',
     客户备注: { text: 'old' },
     核查标记: '正常',
-    核查说明: { text: '原核查历史' },
+    管理记录: { text: '原管理历史' },
     已归档: false,
   },
 });
@@ -55,12 +55,12 @@ test('edit writes only changed fields, clears text and retains prior audit histo
   );
   assert.deepEqual(
     Object.keys(result.writes).sort(),
-    ['地区', '客户备注', '核查标记', '核查说明'].sort(),
+    ['地区', '客户备注', '管理记录'].sort(),
   );
   assert.equal(result.writes.客户备注, '');
-  assert.equal(result.writes.核查标记, '待核查');
-  assert.match(result.writes.核查说明, /原核查历史/);
-  assert.match(result.writes.核查说明, /更新资料/);
+  assert.ok(!Object.hasOwn(result.writes, '核查标记'));
+  assert.match(result.writes.管理记录, /原管理历史/);
+  assert.match(result.writes.管理记录, /更新资料/);
   assert.equal(result.draft.企业全称, 'Example');
   assert.deepEqual(result.validationFields.客户负责人, [123]);
 });
@@ -157,7 +157,7 @@ test('edit prefill preserves zero amounts, people, relations and second precisio
     {},
   );
 });
-test('unsupported date clearing fails before writing and leaves unchanged dates out of patch', () => {
+test('optional date clearing writes null and leaves unchanged dates out of patch', () => {
   const row = {
     id: 'recProject',
     record: {
@@ -173,17 +173,9 @@ test('unsupported date clearing fails before writing and leaves unchanged dates 
       工作状态: '待启动',
     },
   };
-  assert.throws(
-    () =>
-      prepareEdit(
-        'project',
-        row,
-        { changes: { 目标完成日期: null }, reason: 'clear' },
-        {},
-        'unit-test',
-      ),
-    /不支持清空/,
-  );
+  const cleared = prepareEdit('project', row, { changes: { 目标完成日期: null }, reason: 'clear' }, {}, 'unit-test');
+  assert.equal(cleared.writes.目标完成日期, null);
+  assert.ok(!Object.hasOwn(cleared.writes, '下次跟进日期'));
   const result = prepareEdit(
     'project',
     row,
@@ -269,7 +261,7 @@ test('all business controller methods reject anonymous requests before calling s
       assert.throws(invoke, (e) => e.getStatus() === 403);
   }
 });
-test('review revalidates existing contact facts before issuing any write', async () => {
+test('edit revalidates existing contact facts before issuing any write', async () => {
   const row = {
     id: 'recContact',
     record: {
@@ -300,8 +292,8 @@ test('review revalidates existing contact facts before issuing any write', async
       service.update(
         'contact',
         'recContact',
-        'review',
-        { expectedModifiedAt: 1, 核查说明: 'review' },
+        'edit',
+        { expectedModifiedAt: 1, changes: { 姓名: 'Renamed' } },
         'test-only',
       ),
     /邮箱/,
@@ -313,8 +305,8 @@ test('review revalidates existing contact facts before issuing any write', async
       service.update(
         'contact',
         'recContact',
-        'review',
-        { expectedModifiedAt: 1, 核查说明: 'review' },
+        'edit',
+        { expectedModifiedAt: 1, changes: { 姓名: 'Renamed' } },
         'test-only',
       ),
     /联系方式/,

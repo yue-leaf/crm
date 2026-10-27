@@ -35,3 +35,10 @@ function runLint() {
 }
 
 runLint();
+const tests = spawnSync(process.execPath, ['scripts/test.cjs'], {
+  cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'], env: process.env,
+});
+if (tests.error || tests.status !== 0) {
+  failAndExit('regression tests', tests.error ? tests.error.message :
+    String(tests.stdout || '') + '\n' + String(tests.stderr || ''));
+}

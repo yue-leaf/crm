@@ -56,11 +56,10 @@ test('customer-scoped contact searches keep customer and name predicates on ever
   assert.throws(() => controller.customerContacts({ userContext: {} }, 'recCustomer'), e => e.getStatus() === 403);
 });
 
-test('simplified progress and completion forms still satisfy the audited write contract', () => {
+test('simplified progress and cancellation forms still satisfy the audited write contract', () => {
   const progress = actionDraft('progress', { 工作状态: '进行中', 当前进展: '完成评审', 当前下一步行动: '提交方案', 下次跟进日期: '2026-10-28' });
   assert.ok(parseDraft(progress, progressFields, {}).fields['变更说明']);
-  const complete = actionDraft('confirm-end', { 终局确认: '已完成', 结束日期: '2026-10-20', 结果说明: '交付验收通过', 取消原因: '' });
-  assert.equal(parseDraft(complete, lifecycleFields('project', 'confirm-end'), {}).fields['结果说明'], '交付验收通过');
+  assert.throws(() => parseDraft(actionDraft('confirm-end', {终局确认:'已完成',结束日期:'2026-10-20',结果说明:'done'}), lifecycleFields('project','confirm-end'),{}), /选项/);
   const cancel = actionDraft('confirm-end', { 终局确认: '已取消', 结束日期: '2026-10-20', 取消原因: '客户计划调整', 结果说明: '旧结果' });
   const parsed = parseDraft(cancel, lifecycleFields('project', 'confirm-end'), {}).fields;
   assert.equal(parsed['结果说明'], '客户计划调整');
@@ -121,7 +120,7 @@ test('adoption reads fresh suggestion and parent; revised advice can be adopted 
   assert.equal(result.key, suggestionKey({ ...fresh, record: { ...fresh.record, 建议处理人: ['1', '2'], 修改时间: 99 } }));
 });
 
-test('withdrawn suggestions and closed or archived targets do not prepare an editable plan', async () => {
+test('withdrawn suggestions and cancelled targets do not prepare an editable plan', async () => {
   for (const fields of [{ 记录状态: '已作废' }, { 后续安排: '无后续动作' }, { 关联项目: [] }]) {
     const fresh = suggestion();
     fresh.record = { ...fresh.record, ...fields };
@@ -129,7 +128,7 @@ test('withdrawn suggestions and closed or archived targets do not prepare an edi
     await assert.rejects(() => readPlanSuggestion(fresh.id, async (kind) => { calls.push(kind); return fresh; }), /没有可采用/);
     assert.deepEqual(calls, ['followup']);
   }
-  for (const fields of [{ 终局确认: '已完成' }, { 已归档: true, 终局确认: '未确认' }]) {
+  for (const fields of [{ 终局确认: '已取消' }, { 终局确认: '已完成' }]) {
     await assert.rejects(() => readPlanSuggestion('recFollowup', async (kind) => kind === 'followup'
       ? suggestion() : { id: 'recProject', record: fields }), /已结束|已归档/);
   }

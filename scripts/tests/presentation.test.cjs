@@ -19,15 +19,16 @@ test('time boundaries display Shanghai seconds; date-only fields keep calendar d
  assert.equal(displayDate('停用时间',Number.NaN),'—');
  assert.equal(displayDate('归档时间',null),'—');
 });
-test('detail sections preserve every returned field exactly once, including zeros and new fields',()=>{
- const record={项目名称:'Example',当前下一步行动:'Next',预计金额:0,已归档:false,核查说明:'Note',修改时间:1,新增业务字段:'Keep'};
+test('detail sections retain selected business values and hide retired or unknown fields',()=>{
+ const record={项目名称:'Example',当前下一步行动:'Next',预计金额:0,已归档:false,核查说明:'Note',管理记录:'History',修改时间:1,新增系统字段:'Hidden'};
  const groups=detailGroups(record),fields=groups.flatMap(g=>g.fields);
- assert.equal(fields.length,Object.keys(record).length);
- assert.deepEqual(Object.fromEntries(fields),record);
+ assert.deepEqual(Object.fromEntries(fields),{项目名称:'Example',当前下一步行动:'Next',预计金额:0,管理记录:'History',修改时间:1});
+ assert.equal(fields.length,new Set(fields.map(([key])=>key)).size);
  assert.equal(groups.find(g=>g.title==='基本资料').collapsed,false);
- assert.equal(groups.find(g=>g.title==='核查与管理').collapsed,true);
- assert.equal(groups.find(g=>g.title==='其他与系统信息').collapsed,true);
+ assert.equal(groups.find(g=>g.title==='管理记录').collapsed,true);
+ assert.equal(groups.find(g=>g.title==='操作信息').collapsed,true);
 });
+
 test('status colors distinguish progress, pause and cancellation without coloring arbitrary text',()=>{
  assert.equal(statusTone('工作状态','进行中'),'blue');
  assert.equal(statusTone('工作状态','暂停'),'amber');

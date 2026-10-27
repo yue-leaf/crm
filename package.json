@@ -130,6 +130,7 @@
   },
   "private": true,
   "scripts": {
+    "test": "node scripts/test.cjs",
     "build": "./scripts/build.sh",
     "build:client": "NODE_ENV=production vite build --config vite.config.ts",
     "build:prod": "npm run build:server \u0026\u0026 npm run build:client",

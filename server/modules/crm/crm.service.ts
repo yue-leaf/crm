@@ -36,7 +36,7 @@ import { changedFields, recordDraft } from '@shared/crm-edit';
 import {
   advancementBlocked, commerceKeys, existingProjectFields, progressFields,
 } from '@shared/crm-workflow';
-import { contactLifecycleProblem } from '@shared/crm-review';
+import { contactChoiceProblem } from '@shared/crm-ux';
 import { auditNote, isLifecycle } from '@shared/crm-lifecycle';
 import { prepareLifecycle } from './crm-lifecycle';
 import type { RelatedSnapshot } from './crm-lifecycle';
@@ -390,18 +390,8 @@ export class CrmService {
         const parents = linkIds(c.record['所属企业']);
         if (parents.length !== 1 || parents[0] !== customerId)
           reject('客户联系人', '联系人不属于当前企业');
-        const issue = contactLifecycleProblem(c.record);
+        const issue = contactChoiceProblem(c, occurred);
         if (issue) reject('客户联系人', issue);
-        if (
-          textValue(c.record['联系人状态']) !== '有效' &&
-          !(
-            textValue(c.record['联系人状态']) === '停用' &&
-            typeof c.record['停用时间'] === 'number' &&
-            Number.isFinite(c.record['停用时间']) &&
-            occurred < c.record['停用时间']
-          )
-        )
-          reject('客户联系人', '发生时间不在联系人有效期内');
       }
     } else {
       if (arr('客户联系人').length)

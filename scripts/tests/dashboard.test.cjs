@@ -5,28 +5,33 @@ const {CrmService}=require('../../dist/server/modules/crm/crm.service.js');
 const {CrmController}=require('../../dist/server/modules/crm/crm.controller.js');
 const now=Date.parse('2026-10-24T12:00:00+08:00'),date=s=>Date.parse(s+'T00:00:00+08:00');
 const row=(id,patch={})=>({id:'rec'+id,record:{项目名称:id,项目负责人:[123],终局确认:'未确认',工作状态:'进行中',当前进展:'Working',核查标记:'正常',已归档:false,当前下一步行动:'Next',下次跟进日期:date('2026-10-25'),...patch}});
-test('dashboard states exclude archived, terminal overrides work state, attention is a unique union',()=>{
- const rows=[row('Overdue',{下次跟进日期:date('2026-10-23')}),row('Missing',{当前下一步行动:'',数据检查:'缺少计划'}),row('Pending',{核查标记:'待核查'}),row('Paused',{工作状态:'暂停',暂停原因:'Wait',下次跟进日期:date('2026-10-20')}),row('Done',{终局确认:'已完成',结束日期:date('2026-10-01'),结果说明:'done'}),row('Archive',{已归档:true}),row('Unknown',{终局确认:'unknown'})];
+test('dashboard includes legacy archived records and counts the five current states',()=>{
+ const rows=[row('Overdue',{下次跟进日期:date('2026-10-23')}),row('Missing',{当前下一步行动:''}),
+ row('Paused',{工作状态:'暂停',暂停原因:'Wait',下次跟进日期:date('2026-10-20')}),
+ row('Signed',{工作状态:'已签合同',签约日期:date('2026-10-01')}),row('Cancelled',{终局确认:'已取消',结束日期:date('2026-10-01')}),
+ row('Archive',{已归档:true}),row('Unknown',{终局确认:'unknown'})];
  const out=buildProjectOverview(rows,'all','123',now);
- assert.equal(out.total,6);assert.equal(out.active,4);assert.equal(out.archived,1);assert.equal(out.monthCompleted,1);assert.equal(out.overdue,1);assert.equal(out.missingPlan,1);assert.equal(out.review,3);assert.equal(out.attention,4);assert.equal(out.unknown,1);
- assert.equal(out.states.已完成,1);assert.equal(out.projects[0].id,'recOverdue');
- for(const filter of ['active','attention','overdue','review','archived','month-completed'])assert.equal(rows.filter(r=>projectMatches(r,filter,now)).length,out[{'month-completed':'monthCompleted'}[filter]||filter]);
+ assert.equal(out.total,7);assert.equal(out.active,5);assert.equal(out.monthCompleted,1);assert.equal(out.overdue,2);assert.equal(out.missingPlan,1);assert.equal(out.unknown,1);
+ assert.deepEqual(out.states,{待启动:0,进行中:3,暂停:1,已签合同:1,已取消:1});assert.equal(out.projects[0].id,'recPaused');
+ assert.ok(!Object.hasOwn(out,'archived'));assert.ok(!Object.hasOwn(out,'review'));
+ for(const filter of ['active','attention','overdue','today','tomorrow','month-completed'])assert.equal(rows.filter(r=>projectMatches(r,filter,now)).length,out[{'month-completed':'monthCompleted'}[filter]||filter]);
 });
+
 test('mine is based on actual owner ID and does not match collaborators or similar IDs',()=>{
  const rows=[row('Mine'),row('Other',{项目负责人:[1234],协同人员:[123]}),row('Text',{项目负责人:['123']}),row('None',{项目负责人:null})];
  assert.deepEqual(scopedProjects(rows,'mine','123').map(r=>r.id),['recMine','recText']);
  assert.equal(buildProjectOverview(rows,'mine','123',now).total,2);
 });
-test('Shanghai month and day boundaries, paused work and unknown statuses are classified safely',()=>{
+test('Shanghai signature month and followup day boundaries reject invalid timestamps',()=>{
  assert.equal(projectFacts(row('Today',{下次跟进日期:date('2026-10-24')}),now).overdue,false);
- assert.equal(projectFacts(row('NotReviewed',{核查标记:'待核查',下次跟进日期:date('2026-10-23')}),now).overdue,false);
- assert.equal(projectFacts(row('Future',{终局确认:'已完成',结束日期:date('2026-10-25')}),now).monthCompleted,false);
- assert.equal(projectFacts(row('Previous',{终局确认:'已完成',结束日期:date('2026-09-30')}),now).monthCompleted,false);
+ assert.equal(projectFacts(row('Tomorrow',{下次跟进日期:date('2026-10-25')}),now).followup.key,'tomorrow');
+ for(const signed of [date('2026-10-25'),date('2026-09-30'),-Number.MAX_VALUE,NaN])
+  assert.equal(projectFacts(row('Signed',{工作状态:'已签合同',签约日期:signed}),now).monthCompleted,false);
+ assert.equal(projectFacts(row('Signed',{工作状态:'已签合同',签约日期:date('2026-10-01')}),now).monthCompleted,true);
  assert.equal(projectFacts(row('BadDate',{下次跟进日期:NaN}),now).missingPlan,true);
- assert.equal(projectFacts(row('Overflow',{终局确认:'已完成',结束日期:-Number.MAX_VALUE,结果说明:'done'}),now).review,true);
- assert.equal(projectFacts(row('Overflow',{终局确认:'已完成',结束日期:-Number.MAX_VALUE,结果说明:'done'}),now).monthCompleted,false);
  assert.equal(buildProjectOverview([],'all','123',now).attention,0);
 });
+
 const serviceFor=pages=>new CrmService({load:()=>({call:async(action,input)=>{assert.equal(action,'searchRecords');return structuredClone(pages[input.pageToken||'first']);}})});
 test('overview reads all project pages, and filtered results continue beyond the first page',async()=>{
  const first=Array.from({length:50},(_,i)=>row(String(i))),second=[row('Last')];
