@@ -297,9 +297,6 @@
   width: 300px;
   gap: 9px;
 }
-.list-toolbar .toolbar-search > svg {
-  color: #68717d;
-}
 .list-toolbar > span {
   margin-left: auto;
   color: #68717d;
@@ -1042,16 +1039,16 @@
 
 /* Compact search and filters share a single, aligned toolbar. */
 .list-toolbar { flex-wrap: wrap; gap: 12px; padding: 18px 24px; }
-.list-toolbar > .toolbar-search { position: relative; width: 300px; min-width: 200px; gap: 0; }
-.list-toolbar .toolbar-search > svg { position: absolute; left: 12px; pointer-events: none; }
-.list-toolbar .toolbar-search > input { height: 36px; padding-left: 36px; font-size: 13px; }
+.list-toolbar > .toolbar-search { width: 360px; min-width: 240px; gap: 8px; }
+.list-toolbar .toolbar-search > label { flex-shrink: 0; color: #646a73; font-size: 13px; font-weight: 400; white-space: nowrap; }
+.list-toolbar .toolbar-search > input { flex: 1; min-width: 0; height: 36px; font-size: 13px; }
 .list-toolbar > button { height: 36px; font-size: 13px; }
 .list-toolbar > .followup-filter { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .followup-filter > span { color: #646a73; white-space: nowrap; }
 .followup-filter > button { width: 148px; height: 36px; font-size: 13px; background: #fff; }
 .list-toolbar > .toolbar-count { margin-left: auto; white-space: nowrap; }
 @media (max-width: 1100px) {
-  .list-toolbar > .toolbar-search { width: 240px; }
+  .list-toolbar > .toolbar-search { width: 300px; }
   .list-toolbar > .followup-filter { margin-left: 0; }
 }
 @media (max-width: 640px) {

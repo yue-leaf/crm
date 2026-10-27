@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   ArrowUpRight,
   Plus,
-  Search,
   RefreshCw,
   ChevronRight,
   LoaderCircle,
@@ -22,6 +21,7 @@ import { toast } from 'sonner';
 import { useCurrentUserProfile } from '@lark-apaas/client-toolkit/hooks/useCurrentUserProfile';
 import { ActionButton as Button } from './ActionButton';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -750,12 +750,12 @@ const CrmPage: React.FC = () => {
                     }}
                   >
                     <div className="toolbar-search">
-                      <Search size={16} aria-hidden="true" />
+                      <Label htmlFor="crm-list-search">{active === 'customer' ? '企业名称' : titles[active]}</Label>
                       <Input
+                        id="crm-list-search"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder={`搜索${titles[active]}`}
-                        aria-label={`搜索${titles[active]}`}
+                        placeholder={`请输入${active === 'customer' ? '企业名称' : titles[active]}`}
                       />
                     </div>
                     {(active === 'customer' || active === 'project') && <div className="followup-filter"><span>跟进状态</span>
