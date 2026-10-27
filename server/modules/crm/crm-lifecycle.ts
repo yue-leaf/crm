@@ -32,7 +32,8 @@ export async function prepareLifecycle(
     const issue = recordReviewProblem(kind, row.record);
     if (issue) reject('资料', issue);
   }
-  if (kind === 'project' && (operation === 'confirm-end' || operation === 'reopen')) {
+  if (kind === 'project' && (operation === 'confirm-end' || operation === 'reopen' ||
+      (operation === 'restore' && textValue(row.record['工作状态']) === '已签合同' && textValue(row.record['终局确认']) === '未确认'))) {
     const parents = linkIds(row.record['所属企业']);
     if (parents.length !== 1) reject('所属企业', '项目必须关联唯一企业');
     const customer = await load('customer', parents[0]);

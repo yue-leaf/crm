@@ -60,3 +60,11 @@ test('signed projects can archive, but customers cannot archive while their sign
  assert.doesNotThrow(()=>historicalContext('project',p,date));
  const result=await prepareLifecycle('customer',c,'archive',{操作原因:'合作结束'},'123',context);assert.equal(result.fields.已归档,true);
 });
+
+test('restoring a signed project cannot restart after-sales under an archived customer',async()=>{
+ const h=harness();await h.update(signed);const p=h.current();Object.assign(p.record,{已归档:true,归档时间:Date.now()-1000,归档原因:'结束'});
+ const archivedCustomer={...customer,record:{...customer.record,已归档:true}};
+ await assert.rejects(()=>prepareLifecycle('project',p,'restore',{操作原因:'继续售后'},'123',{get:async()=>archivedCustomer,people:async()=>{}}),/先取消客户归档/);
+ const result=await prepareLifecycle('project',p,'restore',{操作原因:'继续售后'},'123',{get:async()=>customer,people:async()=>{}});
+ assert.equal(result.fields.已归档,false);assert.equal(result.related[0].row.id,customer.id);
+});
