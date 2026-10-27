@@ -6,7 +6,6 @@ import { titles, textValue } from '@shared/crm';
 import { RecordPicker } from './RecordPicker';
 import type { RecordOption } from './RecordPicker';
 import { contactChoiceProblem } from '@shared/crm-ux';
-import { Button } from '@/components/ui/button';
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : '数据加载失败，请重试';
 export const RelationField: React.FC<{
@@ -82,8 +81,9 @@ export const RelationField: React.FC<{
   });
   return <div className="relation-field">
     <RecordPicker label={field.label || field.key} multiple={field.multiple} disabled={disabled}
+      onCreate={onCreateContact && customerId && !disabled ? onCreateContact : undefined} createLabel="新建联系人"
       value={value} selected={known.filter((row) => value.includes(row.id)).map(option)} options={items.map(option)}
-      open={open} onOpenChange={(next) => { generation.current++; setOpen(next); if (!next) setQuery(''); }}
+      open={open} onOpenChange={(next) => { if (next === open) return; generation.current++; setOpen(next); if (!next) setQuery(''); }}
       query={query} onQueryChange={(next) => { if (next === query) return; generation.current++; setItems([]); setCursor(undefined); setLoading(true); setQuery(next); }}
       onChange={onChange} loading={loading} loadingMore={loadingMore} error={error || selectionError}
       hasMore={Boolean(cursor)} onRetry={() => setRetry((prev) => prev + 1)} onLoadMore={() => {
@@ -111,10 +111,6 @@ export const RelationField: React.FC<{
       return issue ? <p key={row.id} className="field-error" role="alert">{textValue(row.record['姓名'])}：{issue}</p> : null;
     })}
     {field.key === '关联项目' && customerId === '' && <small>请先选择客户</small>}
-    {field.target === 'contact' && <div className="flex flex-wrap items-center gap-2">
-      {!customerId && <small>请先选择客户</small>}
-      {onCreateContact && <Button type="button" size="sm" variant="ghost" disabled={disabled || !customerId}
-        onClick={onCreateContact}>新建联系人</Button>}
-    </div>}
+    {field.target === 'contact' && !customerId && <small>请先选择客户</small>}
   </div>;
 };
