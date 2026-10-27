@@ -1,7 +1,7 @@
 import React from 'react';
 import { MoreHorizontal, Pencil, MessageSquarePlus, ArrowUpRight, Archive, ArchiveRestore, RotateCcw, CheckCircle2, TrendingUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ActionButton as Button } from './ActionButton';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import type { CrmRecord, EntityKind, CrmLifecycleOperation } from '@shared/api.interface';
@@ -14,10 +14,10 @@ interface Props {
   kind: EntityKind;
   row: CrmRecord;
   busy: boolean;
-  onEdit: () => void;
-  onAction: (operation: string) => void;
+  onEdit: () => void | Promise<void>;
+  onAction: (operation: string) => void | Promise<void>;
   onFollowup: () => void;
-  onTarget: () => void;
+  onTarget: () => void | Promise<void>;
 }
 interface ToolbarAction {
   operation: string;

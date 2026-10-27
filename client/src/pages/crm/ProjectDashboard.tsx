@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight, CalendarDays, Clock3, CircleAlert, ListTodo, Paperclip, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ActionButton as Button } from './ActionButton';
 import type { CrmRecord } from '@shared/api.interface';
 import { taskLabels, taskMatches } from '@shared/crm-workspace';
 import type { WorkspaceData, WorkspaceKind, TaskFilter } from '@shared/crm-workspace';
@@ -13,8 +13,8 @@ import './project-overview.css';
 import './workspace.css';
 interface Props {
   data: WorkspaceData | null; loading: boolean; error: string; busy: boolean; onRetry: () => void;
-  onOpen: (row: CrmRecord, kind: WorkspaceKind) => void;
-  onAction: (kind: 'customer' | 'project', id: string, action: 'followup' | 'plan') => void;
+  onOpen: (row: CrmRecord, kind: WorkspaceKind) => void | Promise<void>;
+  onAction: (kind: 'customer' | 'project', id: string, action: 'followup' | 'plan') => void | Promise<void>;
   onCreate: () => void;
 }
 export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, onRetry, onOpen, onAction, onCreate }) => {

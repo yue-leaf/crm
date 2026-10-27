@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { MessageSquareText, ArrowUpRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ActionButton as Button } from './ActionButton';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/api/crm';
@@ -15,7 +15,7 @@ interface Props {
   kind: 'customer' | 'project';
   id: string;
   busy: boolean;
-  onView: (row: CrmRecord, kind: EntityKind) => void;
+  onView: (row: CrmRecord, kind: EntityKind) => void | Promise<void>;
   view: FollowupView;
   onViewChange: (view: FollowupView) => void;
 }

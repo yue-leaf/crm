@@ -1061,3 +1061,9 @@
   .followup-filter > button { width: 148px; }
   .list-toolbar > .toolbar-count { width: auto; }
 }
+
+/* Preserve action geometry while an individual request is pending. */
+.crm-action-button { position: relative; }
+.crm-action-label { display: inline-flex; align-items: center; justify-content: inherit; gap: inherit; min-width: 0; }
+.crm-action-spinner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.record-actions .crm-action-button { min-width: 76px; }

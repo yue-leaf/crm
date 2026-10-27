@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { FolderKanban, Plus } from 'lucide-react';
 import { api } from '@/api/crm';
-import { Button } from '@/components/ui/button';
+import { ActionButton as Button } from './ActionButton';
 import type { CrmPage, CrmRecord } from '@shared/api.interface';
 import { textValue } from '@shared/crm';
 import { useRelatedPage } from './useRelatedPage';
@@ -9,7 +9,7 @@ import { FollowupBadge } from './FollowupStatus';
 import { Cell } from './Fields';
 
 export function CustomerProjects({ customerId, busy, createBlocked, onCreate, onView }: {
-  customerId: string; busy: boolean; createBlocked: boolean; onCreate: () => void; onView: (row: CrmRecord) => void;
+  customerId: string; busy: boolean; createBlocked: boolean; onCreate: () => void; onView: (row: CrmRecord) => void | Promise<void>;
 }) {
   const load = useCallback((cursor?: string): Promise<CrmPage> => api.customerProjects(customerId, { cursor }), [customerId]);
   const { page, loading, error, more, retry } = useRelatedPage(load, JSON.stringify(['projects', customerId]));
