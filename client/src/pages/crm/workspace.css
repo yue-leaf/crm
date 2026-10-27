@@ -13,7 +13,10 @@
 .tone-orange strong, .tone-orange > span svg { color: #b97924; }
 .tone-blue strong, .tone-blue > span svg { color: #3569c7; }
 .tone-neutral strong { color: #394658; }
-.workspace-main-grid { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
+.workspace-main-grid { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(300px, 1fr); gap: 20px; align-items: stretch; }
+.workspace-tasks, .workspace-recent { display: flex; flex-direction: column; }
+.workspace-tasks > .workspace-list-end { margin-top: auto; }
+.workspace-main-grid .workspace-heading { flex-shrink: 0; }
 .workspace-heading { min-height: 64px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .workspace-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 20px 14px; }
 .workspace-tabs button { padding: 6px 10px; border-radius: 5px; font-size: 12px; color: #606a78; }
@@ -21,7 +24,7 @@
 .workspace-table-scroll { overflow-x: auto; }
 .workspace-task-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
 .workspace-task-table th { text-align: left; background: #f7f8fa; color: #68717d; font-weight: 400; font-size: 12px; }
-.workspace-task-table th, .workspace-task-table td { padding: 13px 12px; border-top: 1px solid #edf0f5; vertical-align: top; overflow-wrap: anywhere; }
+.workspace-task-table th, .workspace-task-table td { padding: 13px 12px; border-top: 1px solid #edf0f5; vertical-align: middle; overflow-wrap: anywhere; line-height: 22px; }
 .workspace-task-table th:first-child, .workspace-task-table td:first-child { padding-left: 20px; width: 23%; }
 .workspace-task-table th:nth-child(2) { width: 23%; }
 .workspace-task-table th:nth-child(3) { width: 16%; }
@@ -33,7 +36,7 @@
 .workspace-muted { display: block; color: #8a929e; font-size: 12px; line-height: 1.7; }
 .workspace-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; line-height: 1.7; }
 .workspace-row-actions { display: flex; align-items: flex-start; flex-direction: column; gap: 2px; }
-.workspace-row-actions button { font-size: 12px; padding: 4px 8px; height: 28px; color: #3569c7; }
+.workspace-row-actions button { justify-content: flex-start; font-size: 12px; padding: 3px 0; height: 28px; line-height: 22px; color: #3569c7; }
 .workspace-task-table .people { max-width: 100%; flex-wrap: wrap; }
 .workspace-due { font-size: 12px; white-space: nowrap; }
 .due-overdue { color: #c84b46; font-weight: 600; }
@@ -42,10 +45,10 @@
 .workspace-list-end { border-top: 1px solid #edf0f5; padding: 8px 20px; display: flex; align-items: center; justify-content: space-between; min-height: 42px; font-size: 12px; color: #8a929e; }
 .workspace-empty { text-align: center; padding: 36px 20px; color: #8a929e; font-size: 13px; }
 .workspace-empty-action { margin: 0 20px 20px; }
-.workspace-feed { padding: 0 20px 8px; }
+.workspace-feed { display: grid; align-content: start; padding: 0 20px 8px; }
 .workspace-feed article { padding: 14px 0; border-top: 1px solid #edf0f5; }
 .workspace-feed-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 9px; }
-.workspace-feed-meta time { font-size: 11px; color: #8a929e; }
+.workspace-feed-meta time { font-size: 11px; color: #8a929e; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .workspace-feed-target { display: flex; gap: 5px 12px; flex-wrap: wrap; margin-bottom: 6px; }
 .workspace-feed-target button { color: #3569c7; text-align: left; font-size: 12px; overflow-wrap: anywhere; }
 .workspace-feed-content { display: block; width: 100%; text-align: left; color: #394658; font-size: 13px; }
