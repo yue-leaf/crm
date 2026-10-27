@@ -232,7 +232,7 @@ export class CrmService {
   async workspaceList(scope: string, userId: string, kind: string, filter: string, cursor?: string, search?: string): Promise<CrmPage> {
     if (!['customer', 'project', 'followup'].includes(kind)) throw new BadRequestException('工作台数据类型无效');
     const filters = ['all', 'month', ...(kind === 'customer' ? ['attention'] : kind === 'project'
-      ? ['active', 'completed-month', 'archived', 'unknown', '待启动', '进行中', '暂停', '已签合同', '已取消'] : [])];
+      ? ['active', 'completed-month', 'unknown', '待启动', '进行中', '暂停', '已签合同', '已取消'] : [])];
     if (!filters.includes(filter)) throw new BadRequestException('工作台筛选无效');
     if (cursor && !/^offset:\d{1,6}$/.test(cursor)) throw new BadRequestException('分页标记无效');
     if (search !== undefined && (typeof search !== 'string' || search.length > 200)) throw new BadRequestException('搜索内容过长');
@@ -341,7 +341,6 @@ export class CrmService {
   }
   private async activeCustomer(id: string): Promise<CrmRecord> {
     const c = await this.get('customer', id);
-    if (c.record['已归档'] === true) reject('所属企业', '企业已归档');
     return c;
   }
   private async relationChecks(
@@ -354,15 +353,7 @@ export class CrmService {
       Array.isArray(d[k]) ? (d[k] as string[]) : [];
     if (key === 'project' && reviewing && ['已完成', '已取消'].includes(textValue(reviewing.record['终局确认']))) {
       // Terminal review must not depend on customer quality (which aggregates these projects).
-      const customer = await this.get('customer', arr('所属企业')[0]);
-      if (customer.record['已归档'] === true) {
-        const archived = customer.record['归档时间'];
-        const closed = reviewing.record['结束日期'];
-        const day = (ms: number) => Math.floor((ms + 8 * 3600000) / 86400000);
-        if (typeof archived !== 'number' || !Number.isFinite(archived) || archived > Date.now() ||
-            typeof closed !== 'number' || !Number.isFinite(closed) || day(closed) > day(archived))
-          reject('所属企业', '归档边界异常或项目结束晚于客户归档，请在原表核对');
-      }
+      await this.get('customer', arr('所属企业')[0]);
     } else if (key === 'contact' || key === 'project')
       await this.activeCustomer(arr('所属企业')[0]);
     if (key !== 'followup') return;
@@ -431,7 +422,6 @@ export class CrmService {
     }
   }
   private assertActive(row: CrmRecord): void {
-    if (row.record['已归档'] === true) reject('记录', '已归档，不能继续推进');
     if (['已完成', '已取消'].includes(textValue(row.record['终局确认'])))
       reject('记录', '项目已经结束，不能继续推进');
   }
@@ -479,9 +469,9 @@ export class CrmService {
     Object.assign(
       fields,
       key === 'customer'
-        ? { 已归档: false }
+        ? {}
         : key === 'project'
-          ? { 工作状态: '待启动', 终局确认: '未确认', 已归档: false }
+          ? { 工作状态: '待启动', 终局确认: '未确认' }
           : key === 'contact'
             ? { 联系人状态: '有效' }
             : { 记录状态: '正常' },

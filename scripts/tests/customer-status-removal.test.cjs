@@ -25,6 +25,6 @@ test('removing customer status does not drop active customer tasks or stale-cust
     assert.equal(data.tasks[0].state, '');
   }
   const { data } = workspaceModel({ customer: [{ ...customer, record: { ...customer.record, 已归档: true } }], project: [], followup: [] }, 'all', '123', now);
-  assert.equal(data.tasks.length, 0);
-  assert.equal(data.attentionTotal, 0);
+  assert.equal(data.tasks.length, 1);
+  assert.equal(data.attentionTotal, 1);
 });

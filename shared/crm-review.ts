@@ -32,17 +32,10 @@ export function recordReviewProblem(kind: EntityKind, record: CrmRecord['record'
     const action = textValue(record['当前下一步行动']).trim();
     const date = record['下次跟进日期'];
     const hasExecutor = Array.isArray(record['行动执行人']) && record['行动执行人'].length > 0;
-    if (record['已归档'] !== true && (action || date != null || hasExecutor) &&
+    if ((action || date != null || hasExecutor) &&
         (!action || typeof date !== 'number' || !Number.isFinite(date)))
       return '客户行动计划不完整，请补齐行动和日期';
-    if (record['已归档'] === true) {
-      const archived = record['归档时间'];
-      if (typeof archived !== 'number' || !Number.isFinite(archived) || archived > now)
-        return '归档时间缺失或晚于当前时间，请在原表核对';
-      if (!textValue(record['归档原因']).trim()) return '归档原因缺失，请在原表补齐';
-      const blocking = textValue(record['归档阻塞项目数']);
-      if (blocking !== '0') return '归档阻塞项目尚未清零或计算结果未就绪，请先核对关联项目并刷新';
-    }
+
   }
   return '';
 }

@@ -1,4 +1,4 @@
-import { statusFields, statusBlocked, currentProjectStatus } from '@shared/crm-status';
+import { statusFields, currentProjectStatus } from '@shared/crm-status';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -314,15 +314,6 @@ const CrmPage: React.FC = () => {
     editorOrigin.current = currentLocation();
     planSuggestion.current = null;
     setFollowupCustomer(''); setCustomerResolveError('');
-    if (kind === 'customer' && operation === 'archive' && row) {
-      const blockingProjects = numberValue(row.record['归档阻塞项目数']);
-      if (blockingProjects !== null && blockingProjects > 0) {
-        toast.warning(`还有 ${blockingProjects} 个项目未满足归档条件`, {
-          action: { label: '查看项目', onClick: () => setDetailTab('projects') },
-        });
-        return;
-      }
-    }
     editorRequestVersion.current++;
     detailVersion.current++;
     const ed = { kind, operation, row };
@@ -350,7 +341,7 @@ const CrmPage: React.FC = () => {
         initial['取消原因'] = '';
       }
       if (operation === 'reopen') initial['工作状态'] = '进行中';
-      if (operation === 'reopen' || (operation === 'restore' && kind === 'customer')) {
+      if (operation === 'reopen') {
         initial['当前下一步行动'] = '';
         initial['下次跟进日期'] = '';
         initial['行动执行人'] = [];
@@ -378,7 +369,7 @@ const CrmPage: React.FC = () => {
     try {
       const fresh = await api.get(kind, row.id);
       if (version !== requestVersion.current || editorRequest !== editorRequestVersion.current) return;
-      const blocked = operation === 'status' ? statusBlocked(fresh) : editBlockedReason(kind, fresh);
+      const blocked = operation === 'status' ? '' : editBlockedReason(kind, fresh);
       if (blocked) {
         toast.error(blocked);
         return;
@@ -822,7 +813,7 @@ const CrmPage: React.FC = () => {
                               </td>
                             ))}
                             <td role="cell" data-label="操作" className="record-actions">
-                              {active === 'project' && <Button variant="ghost" size="sm" disabled={saving || uploading || !!statusBlocked(row)} title={statusBlocked(row) || undefined} onClick={() => edit(row, 'project', 'status')}><RefreshCw size={14} />更新状态</Button>}
+                              {active === 'project' && <Button variant="ghost" size="sm" disabled={saving || uploading} onClick={() => edit(row, 'project', 'status')}><RefreshCw size={14} />更新状态</Button>}
                               {active === 'customer' && <Button variant="ghost" size="sm" disabled={saving || uploading} onClick={() => detail(row, 'customer', undefined, 'contacts')}><Users size={14} />联系人</Button>}
                               <Button
                                 variant="ghost"
@@ -1037,8 +1028,6 @@ const CrmPage: React.FC = () => {
           {editor?.operation === 'plan' && editor.row && <p className="panel-note">当前计划：{textValue(editor.row.record['当前下一步行动']) || '尚未安排'}。保存后将采用下方计划。</p>}
           {editor && isLifecycle(editor.operation) && <p className="panel-note">
             {editor.operation === 'confirm-end' ? '确认后项目停止活动推进，可在结束后归档。取消项目必须说明原因。'
-              : editor.operation === 'archive' ? '归档保留全部业务和历史，停止新增活动。客户的关联项目必须已结束且资料完整。'
-              : editor.operation === 'restore' ? '取消归档保留历史归档时间；项目仍保持原结束状态。客户恢复时请填写新计划。'
               : '重开后项目恢复推进，请填写新的进展和计划。历史记录会保留。'}
           </p>}
             <fieldset className="form-grid" disabled={saving || uploading || uncertain}>

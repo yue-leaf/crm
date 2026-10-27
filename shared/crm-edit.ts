@@ -70,7 +70,6 @@ export function changedFields(
   );
 }
 export function editBlockedReason(kind: EntityKind, row: CrmRecord): string {
-  if (row.record['已归档'] === true) return '已归档，请先取消归档或重开后编辑';
   if (
     kind === 'project' &&
     textValue(row.record['终局确认']) !== '未确认'

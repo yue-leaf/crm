@@ -26,14 +26,11 @@ export function lifecycleFields(kind: EntityKind, operation: CrmLifecycleOperati
 }
 export function lifecycleBlocked(kind: EntityKind, operation: CrmLifecycleOperation, row: CrmRecord): string {
   if (kind !== 'customer' && kind !== 'project') return '此记录不支持该操作';
-  const archived = row.record['已归档'] === true;
+  if (operation === 'archive' || operation === 'restore') return '此操作已移除，请使用项目状态管理';
   const terminal = textValue(row.record['终局确认']);
-  if (operation === 'restore') return archived ? '' : '记录尚未归档';
   if (operation === 'reopen') return kind === 'project' && ['已完成', '已取消'].includes(terminal)
-    ? '' : '仅已完成或已取消的项目可以重开';
-  if (archived) return '记录已归档，请先取消归档或重开项目';
-  if (operation === 'confirm-end') return kind === 'project' && ['未确认', '已取消'].includes(terminal) ? '' : '仅未结项项目可以确认结束';
-  if (kind === 'project' && !['已完成', '已取消'].includes(terminal) && textValue(row.record['工作状态']) !== '已签合同') return '项目签约或取消后才能归档';
+    ? '' : '仅已取消的项目可以恢复';
+  if (operation === 'confirm-end') return kind === 'project' && ['未确认', '已取消'].includes(terminal) ? '' : '项目状态异常，请先核对';
   return '';
 }
 
@@ -67,11 +64,10 @@ export function lifecycleEvents(record: CrmRecord['record']): LifecycleEvent[] {
 /** Reject newly recorded events in known inactive intervals, even after reopening. */
 export function inactiveAt(record: CrmRecord['record'], occurred: number): boolean {
   return lifecycleEvents(record).some(e => {
-    if (e.operation !== 'restore' && e.operation !== 'reopen') return false;
-    const archive = e.previous.archived && typeof e.previous.archiveTime === 'number' ? e.previous.archiveTime : Infinity;
+    if (e.operation !== 'reopen' || !['已取消', '已完成'].includes(e.previous.terminal)) return false;
     const closed = e.operation === 'reopen' && typeof e.previous.endDate === 'number'
       ? (Math.floor((e.previous.endDate + 8 * 3600000) / 86400000) + 1) * 86400000 - 8 * 3600000 : Infinity;
-    const boundary = Math.min(archive, closed);
+    const boundary = closed;
     if (!Number.isFinite(boundary)) return false;
     return occurred >= boundary && occurred < e.at;
   });

@@ -78,14 +78,6 @@
         "writeable": true
       },
       {
-        "id": "fldExample000168",
-        "name": "归档时间",
-        "type": 5,
-        "bizType": "DateTime",
-        "readable": true,
-        "writeable": true
-      },
-      {
         "id": "fldExample000072",
         "name": "修改时间",
         "type": 1002,
@@ -130,14 +122,6 @@
         "name": "协同人员",
         "type": 11,
         "bizType": "User",
-        "readable": true,
-        "writeable": true
-      },
-      {
-        "id": "fldExample000116",
-        "name": "已归档",
-        "type": 7,
-        "bizType": "Checkbox",
         "readable": true,
         "writeable": true
       },
@@ -206,14 +190,6 @@
         "writeable": false
       },
       {
-        "id": "fldExample000165",
-        "name": "归档阻塞项目数",
-        "type": 20,
-        "bizType": "Formula",
-        "readable": true,
-        "writeable": false
-      },
-      {
         "id": "fldExample000054",
         "name": "创建时间",
         "type": 1001,
@@ -250,14 +226,6 @@
         "name": "客户直接跟进",
         "type": 21,
         "bizType": "DuplexLink",
-        "readable": true,
-        "writeable": true
-      },
-      {
-        "id": "fldExample000035",
-        "name": "归档原因",
-        "type": 1,
-        "bizType": "Text",
         "readable": true,
         "writeable": true
       },

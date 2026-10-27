@@ -78,7 +78,7 @@ export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, 
       </section>
     </div>
     <section className="workspace-summary" aria-label="业务总览"><div className="workspace-section-title"><h2>业务总览</h2></div>
-      <div className="workspace-totals">{([{ kind: 'customer', label: '总客户数', unit: '家', hint: '包含已归档客户' }, { kind: 'project', label: '总项目数', unit: '个', hint: '包含已结束和已归档项目' },
+      <div className="workspace-totals">{([{ kind: 'customer', label: '总客户数', unit: '家', hint: '全部客户' }, { kind: 'project', label: '总项目数', unit: '个', hint: '全部项目' },
         { kind: 'followup', label: '总跟进数', unit: '条', hint: '有效跟进，已作废或数据异常的记录不计入' }] as const).map(item => <div className="panel workspace-total" key={item.kind}>
           <button disabled={disabled} title={item.hint} className="workspace-total-main" onClick={() => show(item.kind, 'all', item.label)}><span>{item.label}</span><div><strong>{count(data?.totals[item.kind].total)}</strong><small>{item.unit}</small><ArrowRight size={15} /></div></button>
           <div className="workspace-total-details">{item.kind === 'project' ? <><button disabled={disabled} onClick={() => show('project', 'active', '在办项目')}>在办 <b>{count(data?.project.active)}</b></button><button disabled={disabled} onClick={() => show('project', 'completed-month', '本月签约项目')}>本月签约 <b>{count(data?.project.monthCompleted)}</b></button></>
@@ -86,10 +86,10 @@ export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, 
         </div>)}</div>
     </section>
     <div className="workspace-bottom-grid">
-      <section className="panel"><div className="workspace-heading"><h2>项目状态分布</h2><small className="workspace-muted">未归档项目</small></div>
+      <section className="panel"><div className="workspace-heading"><h2>项目状态分布</h2></div>
         <div className="workspace-states">{projectStates.map(state => <button key={state} disabled={disabled} onClick={() => show('project', state, `${state}项目`)}><span>{state}</span>
           <div className="workspace-bar" aria-hidden="true"><i className={`bar-${state}`} style={{ width: data ? `${(data.project.states[state] || 0) / Math.max(1, ...Object.values(data.project.states)) * 100}%` : '0%' }} /></div><strong>{count(data?.project.states[state])}</strong></button>)}</div>
-        <div className="workspace-state-footer"><button disabled={disabled} onClick={() => show('project', 'archived', '已归档项目')}>已归档 <b>{count(data?.project.archived)}</b><ArrowRight size={13} /></button>
+        <div className="workspace-state-footer">
           {!!data?.project.unknown && <button onClick={() => show('project', 'unknown', '待核对状态的项目')}><CircleAlert size={14} />状态待核对 {data.project.unknown}</button>}</div>
       </section>
       <section className="panel"><div className="workspace-heading"><h2>需要关注的客户</h2><Button size="sm" variant="ghost" disabled={disabled} onClick={() => show('customer', 'attention', '需要关注的客户')}>查看全部{data ? ` (${data.attentionTotal})` : ''}<ArrowRight size={14} /></Button></div>

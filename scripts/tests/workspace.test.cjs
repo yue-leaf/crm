@@ -14,18 +14,18 @@ const followup = (id, kind, target, record = {}) => ({ id, record: { 跟进主�
   跟进归属: kind === 'customer' ? '客户直接跟进' : '项目跟进', [kind === 'customer' ? '直接客户' : '关联项目']: { link_record_ids: [target] },
   记录状态: '正常', '内容 / 推进结论': '已沟通', ...record } });
 
-test('workspace combines customer/project due dates, deduplicates missing plans and excludes terminal/archive tasks', () => {
+test('workspace includes former archived customers and signed projects while deduplicating missing plans', () => {
   const src = { customer: [customer('recToday'), customer('recOverdue', { 下次跟进日期: t('2026-10-26'), 当前下一步行动: '' }),
     customer('recEnded', { 已归档: true }), customer('recArchived', { 已归档: true })],
     project: [project('recTomorrow', 'recToday'), project('recMissing', 'recToday', { 当前下一步行动: '', 下次跟进日期: null }),
       project('recClosed', 'recToday', { 工作状态: '已签合同', 签约日期: t('2026-10-26'), 已归档: true })], followup: [] };
   const { data } = workspaceModel(src, 'all', '1', now);
-  assert.deepEqual(data.counts, { today: 1, tomorrow: 1, overdue: 1, missing: 2 });
-  assert.equal(data.tasks.length, 4);
+  assert.deepEqual(data.counts, { today: 3, tomorrow: 2, overdue: 1, missing: 2 });
+  assert.equal(data.tasks.length, 7);
   assert.equal(data.totals.customer.total, 4); assert.equal(data.totals.project.total, 3);
-  assert.equal(data.project.monthCompleted, 1); assert.equal(data.project.archived, 1);
-  assert.equal(data.project.states.已签合同, 0);
-  assert.deepEqual(data.tasks.filter(row => taskMatches(row, 'priority', now)).map(row => row.id), ['recOverdue', 'recToday', 'recTomorrow']);
+  assert.equal(data.project.monthCompleted, 1); assert.equal(data.project.archived, undefined);
+  assert.equal(data.project.states.已签合同, 1);
+  assert.deepEqual(data.tasks.filter(row => taskMatches(row, 'priority', now)).map(row => row.id), ['recOverdue', 'recArchived', 'recEnded', 'recToday', 'recClosed', 'recTomorrow']);
 });
 test('personal scope includes collaborators, executors, related customers and participant followups without inflating all-team totals', () => {
   const src = { customer: [customer('recC1', { 客户负责人: [2] }), customer('recC2', { 客户负责人: [3] }), customer('recC3', { 客户负责人: [3] })],
@@ -69,7 +69,7 @@ test('every total and project status drills down with exactly the same scope and
   for (const state of Object.keys(m.data.project.states)) assert.equal(workspaceRecords(m, 'project', state).length, m.data.project.states[state]);
   assert.equal(workspaceRecords(m, 'project', 'completed-month').length, m.data.project.monthCompleted);
   assert.equal(workspaceRecords(m, 'project', 'active').length, m.data.project.active);
-  assert.equal(workspaceRecords(m, 'project', 'archived').length, m.data.project.archived);
+  assert.throws(() => workspaceRecords(m, 'project', 'archived'), /筛选无效/);
   assert.equal(workspaceRecords(m, 'customer', 'attention').length, m.data.attentionTotal);
   assert.throws(() => workspaceRecords(m, 'customer', 'active'), /筛选无效/);
 });

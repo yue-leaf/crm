@@ -44,7 +44,7 @@ export const WorkspaceRecords: React.FC<{ selection: WorkspaceDrilldown; scope: 
         <strong>{textValue(row.record[titles[selection.kind]]) || '未命名记录'}</strong>
         <span>{selection.kind === 'customer' ? '' : selection.kind === 'project'
           ? textValue(row.record['终局确认']) === '未确认' ? textValue(row.record['工作状态']) : textValue(row.record['终局确认']) : textValue(row.record['记录类型'])}
-          {row.record['已归档'] === true ? ' · 已归档' : ''}</span>
+</span>
         <small><Cell name={selection.kind === 'followup' ? '实际发生时间' : '创建时间'} value={row.record[selection.kind === 'followup' ? '实际发生时间' : '创建时间']} /></small>
       </button>)}</div>
       {busy && <p className="workspace-empty" role="status">正在加载…</p>}
