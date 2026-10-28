@@ -1,7 +1,14 @@
 export const MAX_ATTACHMENTS = 20;
 export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
-export interface SavedAttachment { name: string; size: number; type: string; tmpUrl: string; nativeName?: string; downloadPath?: string }
+export interface SavedAttachment { name: string; size: number; type: string; tmpUrl: string }
 export interface AttachmentRef { source: 'existing' | 'upload'; name: string; size: number; index?: number; path?: string; mime?: string }
+
+/** Keep the original basename; use a separate directory to prevent overwrites. */
+export function attachmentUploadPath(name: string, uniqueId: string): string {
+  if (!name.trim() || name === '.' || name === '..' || /[\\/\x00-\x1f?:]/.test(name) ||
+      !/^[A-Za-z0-9-]+$/.test(uniqueId)) throw new Error('文件名含不支持的字符，请重命名后上传');
+  return `followups/${uniqueId}/${name}`;
+}
 
 export function attachments(value: unknown): SavedAttachment[] {
   if (value == null) return [];
@@ -19,7 +26,7 @@ export function attachmentRef(value: string): AttachmentRef {
     typeof v.size !== 'number' || !Number.isSafeInteger(v.size) || v.size < 0 ||
     (v.source === 'existing' && (!Number.isInteger(v.index) || v.index! < 0 || typeof v.mime !== 'string')) ||
     (v.source === 'upload' && (v.size > MAX_ATTACHMENT_BYTES || typeof v.path !== 'string' || !v.path || v.path.length > 2048 ||
-      /[\\\x00-\x1f?#:]/.test(v.path) || v.path.startsWith('/') || v.path.split('/').some(p => !p || p === '.' || p === '..'))))
+      /[\\\x00-\x1f?:]/.test(v.path) || v.path.startsWith('/') || v.path.split('/').some(p => !p || p === '.' || p === '..'))))
     throw new Error('附件信息无效，请重新选择文件');
   return v;
 }
