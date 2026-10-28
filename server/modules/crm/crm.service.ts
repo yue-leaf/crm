@@ -45,6 +45,7 @@ import { buildProjectOverview, projectMatches, scopedProjects, sortProjects, val
 import { followupStatus, sortFollowups, validFollowupFilter } from '@shared/crm-followup-status';
 import { CrmRelations } from './crm-relations';
 import { resolveAttachments, attachmentWriteMatches } from './crm-attachments';
+import type { ExpectedAttachment } from './crm-attachments';
 import { attachmentSignature } from '@shared/crm-attachments';
 import { workspaceModel, workspaceRecords } from '@shared/crm-workspace';
 import type { WorkspaceKind } from '@shared/crm-workspace';
@@ -500,7 +501,7 @@ export class CrmService {
       throw new BadRequestException('附件处理失败，记录尚未保存，请重新上传或稍后重试');
     }
   }
-  private async verifySaved(key: EntityKind, id: string, fields: Record<string, unknown>, attachmentCheck?: { name: string; size: number }[]): Promise<void> {
+  private async verifySaved(key: EntityKind, id: string, fields: Record<string, unknown>, attachmentCheck?: ExpectedAttachment[]): Promise<void> {
     let saved: CrmRecord;
     try {
       saved = await this.get(key, id);

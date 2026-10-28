@@ -28,7 +28,7 @@ test('attachment payload rejects URLs, malformed paths, oversized and forged ent
 test('retained files use fresh server links; new files use verified default-bucket metadata', async () => {
   const result = await resolveAttachments([...attachmentDraft([old]), fresh()], [{ ...old, tmpUrl: 'https://files.example/fresh' }], files);
   assert.deepEqual(result.urls, ['https://files.example/fresh', 'https://storage.example/quote?signature=1']);
-  assert.deepEqual(result.expected, [{ name: old.name, size: 123 }, { name: '报价.xlsx', size: 456 }]);
+  assert.deepEqual(result.expected, [{ name: old.name, size: 123 }, { name: '报价.xlsx', size: 456, storageName: 'quote.xlsx' }]);
   await assert.rejects(resolveAttachments(attachmentDraft([old]), [], files), /文件已变化/);
   await assert.rejects(resolveAttachments([fresh(), fresh()], [], files), /重复/);
   await assert.rejects(resolveAttachments([fresh({ size: 455 })], [], files), /文件校验失败/);
@@ -75,6 +75,34 @@ test('storage errors abort before any record mutation', async () => {
   service.people = async () => {}; service.relationChecks = async () => {};
   await assert.rejects(service.update('followup', 'recFollowup', 'edit', { expectedModifiedAt: 123, changes: { 附件: [fresh()] } }, '123'), /记录尚未保存/);
   assert.equal(writes, 0);
+});
+test('native storage filename is accepted only with matching size and a trusted exact alias',()=>{
+ const expected=[{name:'Chip-Test-CD-FFF2-8001.der',size:235,storageName:'1880306867927224.der'}];
+ const native={...old,name:'1880306867927224.der',size:235};
+ assert.equal(attachmentWriteMatches([native],expected),true);
+ assert.equal(attachmentWriteMatches([{...native,name:expected[0].name}],expected),true);
+ assert.equal(attachmentWriteMatches([{...native,name:'unrelated.der'}],expected),false);
+ assert.equal(attachmentWriteMatches([{...native,size:234}],expected),false);
+ assert.equal(attachmentWriteMatches([native,native],expected),false);
+ assert.equal(attachmentWriteMatches([],expected),false);
+});
+test('ambiguous original/storage names are matched one-to-one rather than by order or size alone',()=>{
+ const expected=[{name:'one',storageName:'two',size:235},{name:'one',storageName:'three',size:235}];
+ assert.equal(attachmentWriteMatches([{...old,name:'one',size:235},{...old,name:'two',size:235}],expected),true);
+ assert.equal(attachmentWriteMatches([{...old,name:'two',size:235},{...old,name:'two',size:235}],expected),false);
+});
+test('create with a generated object filename is verified without issuing a second write',async()=>{
+ let stored,writes=0;
+ const cap={getCapability:()=>({formValue:{fields:[]}}),load:()=>({call:async(action,input)=>{
+  if(action==='getRecord')return{id:'recCreated',record:stored};
+  assert.equal(action,'batchAddRecords');writes++;
+  stored={...input.records[0].record,直接客户:{link_record_ids:['recCustomer']},附件:[{...old,name:'1880306867927224.der',size:235}]};
+  return{records:[{id:'recCreated'}]};
+ }})};
+ const service=new CrmService(cap,{}, {getFileMetadata:async()=>({name:'Chip-Test-CD-FFF2-8001.der',metadata:{contentLength:'235'}}),createSignedUrl:async()=> 'https://storage.example/1880306867927224.der?signature=1'});
+ service.people=async()=>{};service.relationChecks=async()=>{};
+ const draft={跟进主题:'项目沟通',跟进归属:'客户直接跟进',直接客户:['recCustomer'],记录类型:'内部推进',实际发生时间:'2026-10-28T10:00:00',实际跟进人:['123'],'内容 / 推进结论':'实验确认',后续安排:'无后续动作',无后续动作结论:'完成',附件:[fresh({name:'Chip-Test-CD-FFF2-8001.der',path:'1880306867927224.der',size:235})]};
+ assert.equal((await service.create('followup',draft)).id,'recCreated');assert.equal(writes,1);
 });
 test('create persists native attachments and fails visibly on incomplete plugin readback', async () => {
   for (const drop of [false, true]) {
