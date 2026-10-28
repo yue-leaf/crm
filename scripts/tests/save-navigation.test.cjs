@@ -24,7 +24,7 @@ function harness(kind='customer',origin=null){
   editorOrigin:{current:origin},suspendedEditor:{current:null},requestVersion:{current:0},detailVersion:{current:0},
   planSuggestion:{current:null},data:{records:[]},specs:()=>[],showField:()=>true,requiredField:x=>x,missingFields:()=>({}),
   actionDraft:(_,draft)=>draft,followupWriteDraft:d=>d,setFieldErrors:()=>{},setSaveError:()=>{},setSaving:()=>{},
-  setEditor:()=>{},setSelection:row=>selected.push(row),setReceipt:row=>receipts.push(row),
+  setEditor:()=>{},setSelection:row=>selected.push(row),setReceipt:row=>receipts.push(row),setDetailRevision:()=>{},
   setAdoptedSuggestions:()=>{},toast:{success:()=>{},info:()=>{}},message:e=>e.message,SaveOutcomeUnknown:class extends Error{},
   reload:async()=>{refreshes++;},resumeFollowup:id=>resumed.push(id),
   api:{create:async(kind,draft)=>{creates++;payloads.push(draft);return{id:'recNew',message:'saved'};},get:async(kind,id)=>{reads.push([kind,id]);return{id,record:{}};}},
@@ -43,7 +43,8 @@ test('root create closes the editor and refreshes the list without opening a det
 test('creating a related contact returns to its source customer without a saved/continue banner',async()=>{
  const origin={kind:'customer',row:{id:'recCustomer',record:{}},tab:'contacts'};
  const h=harness('contact',origin);await h.save();
- assert.equal(h.restored.length,1);assert.equal(h.restored[0][1].id,'recCustomer');
+ assert.equal(h.restored.length,2);assert.equal(h.restored[1][1].id,'recCustomer');
+ assert.ok(!h.selected.includes(null));
  assert.equal(h.receipts.filter(x=>x&&typeof x!=='function').length,0);
 });
 test('inline contact creation still resumes the suspended followup draft',async()=>{
@@ -53,9 +54,23 @@ test('inline contact creation still resumes the suspended followup draft',async(
 test('detail toolbar and workspace have distinct reconciliation keys on every clock refresh',()=>{
  assert.equal(Object.keys(keys).length,3);
  for(const selectionKind of ['customer','project','followup'])for(let tick=0;tick<20;tick++){
-  const values=Object.values(keys).map(expression=>vm.runInNewContext(expression,{selectionKind,selection:{id:'recSame'}}));
+  const values=Object.values(keys).map(expression=>vm.runInNewContext(expression,{selectionKind,selection:{id:'recSame'},detailRevision:tick}));
   assert.equal(new Set(values).size,values.length,`duplicate sibling keys for ${selectionKind} at tick ${tick}`);
  }
+});
+test('source customer stays open while the list and parent refresh are delayed',async()=>{
+ const origin={kind:'customer',row:{id:'recCustomer',record:{}},tab:'contacts',scroll:120};
+ const h=harness('contact',origin);let finish;
+ h.context.reload=()=>new Promise(resolve=>{finish=resolve;});
+ const pending=h.save();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(h.restored.length,1);assert.equal(h.restored[0][0].tab,'contacts');assert.deepEqual(h.selected,[]);
+ finish();await pending;assert.equal(h.restored[1][1].id,'recCustomer');
+});
+test('successful contact creation keeps the source customer even if rereading its details fails',async()=>{
+ const origin={kind:'customer',row:{id:'recCustomer',record:{}},tab:'contacts'};
+ const h=harness('contact',origin);h.context.api.get=async()=>{throw Error('network unavailable');};
+ await h.save();assert.equal(h.counts().creates,1);assert.equal(h.restored.length,1);
+ assert.equal(h.restored[0][0].row.id,'recCustomer');assert.deepEqual(h.selected,[]);
 });
 test('customer context locks the contact parent; standalone create remains selectable and lock resets',()=>{
  const context={savingRef:{current:false},uploadingRef:{current:false},editorOrigin:{},currentLocation:()=>null,

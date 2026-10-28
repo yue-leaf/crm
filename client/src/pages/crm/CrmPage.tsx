@@ -168,6 +168,7 @@ const CrmPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [selection, setSelection] = useState<CrmRecord | null>(null);
+  const [detailRevision, setDetailRevision] = useState(0);
   const [selectionKind, setSelectionKind] = useState<EntityKind>('customer');
   const [detailTrail, setDetailTrail] = useState<DetailLocation[]>([]);
   const [followupViews, setFollowupViews] = useState<Record<string, FollowupView>>({});
@@ -503,8 +504,11 @@ const CrmPage: React.FC = () => {
       }
       if (suspendedEditor.current) { resumeFollowup(r.id); return; }
       const origin = editorOrigin.current;
+      if (origin) {
+        restoreLocation(origin);
+        setDetailRevision((previous) => previous + 1);
+      } else setSelection(null);
       setEditor(null);
-      setSelection(null);
       setReceipt(null);
       const refresh = reload(data?.records.length || 0);
       const version = requestVersion.current;
@@ -525,7 +529,7 @@ const CrmPage: React.FC = () => {
           }
         }
       } catch {
-        toast.info('保存已完成，详情暂时加载失败，请从列表重新打开');
+        toast.info('保存已完成，客户详情暂未刷新，请稍后重新打开核对');
       }
     } catch (e: unknown) {
       if (e instanceof SaveOutcomeUnknown) setUncertain(true);
@@ -884,7 +888,7 @@ const CrmPage: React.FC = () => {
       <Dialog
         open={!!selection && !editor}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !editor && !savingRef.current && !uploadingRef.current) {
             editorRequestVersion.current++;
             detailVersion.current++;
 
@@ -939,7 +943,7 @@ const CrmPage: React.FC = () => {
                 <p className="panel-note">已有结束建议，可在“更多操作”中确认完成或取消。</p>
               )}
               {selectionKind === 'customer' || selectionKind === 'project'
-                ? <CustomerWorkspace key={`workspace:${selectionKind}:${selection.id}`} kind={selectionKind} row={selection}
+                ? <CustomerWorkspace key={`workspace:${selectionKind}:${selection.id}:${detailRevision}`} kind={selectionKind} row={selection}
                     followupView={followupViews[`${selectionKind}:${selection.id}`] || defaultFollowupView}
                     onFollowupViewChange={(view) => setFollowupViews((previous) => ({ ...previous,
                       [`${selectionKind}:${selection.id}`]: view }))}
