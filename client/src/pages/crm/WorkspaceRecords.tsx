@@ -10,11 +10,13 @@ import { appendPage } from '@shared/crm-interaction';
 import { Cell, message } from './Fields';
 export interface WorkspaceDrilldown { kind: WorkspaceKind; filter: string; title: string }
 export const WorkspaceRecords: React.FC<{ selection: WorkspaceDrilldown; scope: ProjectScope; onClose: () => void;
-  onOpen: (row: CrmRecord, kind: WorkspaceKind) => void }> = ({ selection, scope, onClose, onOpen }) => {
+  onOpen: (row: CrmRecord, kind: WorkspaceKind) => void | Promise<void> }> = ({ selection, scope, onClose, onOpen }) => {
   const [data, setData] = useState<CrmPage | null>(null);
   const [search, setSearch] = useState(''); const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [retry, setRetry] = useState(0);
   const generation = useRef(0); const paging = useRef(false);
+  const opening = useRef(false); const transitioning = useRef(false);
+  const [openingId, setOpeningId] = useState<string | null>(null);
   useEffect(() => {
     const version = ++generation.current; setBusy(true); setError(''); setData(null); paging.current = false;
     void api.workspaceRecords(scope, selection.kind, selection.filter, '', query).then(result => {
@@ -32,7 +34,26 @@ export const WorkspaceRecords: React.FC<{ selection: WorkspaceDrilldown; scope: 
     } catch (e) { if (version === generation.current) setError(message(e)); }
     finally { if (version === generation.current) { setBusy(false); paging.current = false; } }
   };
-  return <Dialog open onOpenChange={open => { if (!open) onClose(); }}><DialogContent className="crm-dialog workspace-record-dialog">
+  const openRecord = async (row: CrmRecord) => {
+    if (opening.current) return;
+    opening.current = true; setOpeningId(row.id); setError('');
+    const version = generation.current;
+    try {
+      const fresh = await api.get(selection.kind, row.id);
+      if (version !== generation.current) return;
+      transitioning.current = true;
+      await onOpen(fresh, selection.kind);
+      if (version === generation.current) onClose();
+    } catch (e) {
+      transitioning.current = false;
+      if (version === generation.current) setError(message(e));
+    } finally {
+      opening.current = false;
+      if (version === generation.current) setOpeningId(null);
+    }
+  };
+  return <Dialog open onOpenChange={open => { if (!open) { generation.current++; onClose(); } }}><DialogContent className="crm-dialog workspace-record-dialog"
+    onCloseAutoFocus={event => { if (transitioning.current) event.preventDefault(); }}>
     <header className="crm-dialog-header"><DialogTitle>{selection.title}</DialogTitle><DialogDescription className="sr-only">查看并打开业务记录</DialogDescription></header>
     <div className="crm-dialog-body">
       <form className="workspace-search" onSubmit={event => { event.preventDefault(); if (search.trim() === query) setRetry(n => n + 1); else setQuery(search.trim()); }}>
@@ -40,7 +61,7 @@ export const WorkspaceRecords: React.FC<{ selection: WorkspaceDrilldown; scope: 
         <Button type="submit" variant="outline">搜索</Button><span>{data ? `共 ${data.total} 条` : ''}</span>
       </form>
       {error && <div className="error-banner" role="alert">{error}<Button variant="ghost" onClick={() => { if (data?.hasMore) void more(); else setRetry(n => n + 1); }}>重试</Button></div>}
-      <div className="workspace-records">{data?.records.map(row => <button key={row.id} className="workspace-record" onClick={() => { onClose(); onOpen(row, selection.kind); }}>
+      <div className="workspace-records">{data?.records.map(row => <button key={row.id} className="workspace-record" disabled={Boolean(openingId)} aria-busy={openingId === row.id} onClick={() => void openRecord(row)}>
         <strong>{textValue(row.record[titles[selection.kind]]) || '未命名记录'}</strong>
         <span>{selection.kind === 'customer' ? '' : selection.kind === 'project'
           ? textValue(row.record['终局确认']) === '未确认' ? textValue(row.record['工作状态']) : textValue(row.record['终局确认']) : textValue(row.record['记录类型'])}
