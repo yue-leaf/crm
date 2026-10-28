@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { BadRequestException, BadGatewayException, ConflictException } from '@nestjs/common';
+import { BadRequestException, BadGatewayException, ConflictException, Logger } from '@nestjs/common';
 import type { FileService } from '@lark-apaas/fullstack-nestjs-core';
 import { attachmentRef, attachments } from '@shared/crm-attachments';
 import type { ExpectedAttachment } from './crm-attachments';
@@ -22,6 +22,7 @@ const nativeRequest: NativeRequest = async (method, path, data, token) => {
 
 /** Use native media uploads: the filename is a multipart field, never inferred from a URL. */
 export class NativeAttachmentGateway {
+  private readonly logger = new Logger(NativeAttachmentGateway.name);
   constructor(private readonly request: NativeRequest = nativeRequest,
     private readonly config: () => { personalBaseToken?: string } = () => ({
       personalBaseToken: process.env.FEISHU_BASE_PERSONAL_TOKEN,
@@ -50,10 +51,12 @@ export class NativeAttachmentGateway {
     const refs = values.map(attachmentRef);
     const token = await this.token();
     const expected: ExpectedAttachment[] = [], tokens: string[] = [];
+    let stage = '检查表格访问';
     try {
-      // Validate access before any CRM business write (including new records).
-      const access = await this.request('GET', this.path(base, table), undefined, token);
+      // Base has no GET /tables/:table_id endpoint. Use the supported record list API.
+      const access = await this.request('GET', `${this.path(base, table)}/records?page_size=1`, undefined, token);
       if (access.code !== 0) throw new Error('table inaccessible');
+      stage = '读取原有附件';
       const native = id ? await this.read(base, table, id, token) : [];
       const old = attachments(previous);
       const used = new Set<string>();
@@ -69,6 +72,7 @@ export class NativeAttachmentGateway {
           if (index < 0) throw new ConflictException('附件已变化，请刷新后重试');
           tokens.push(native.splice(index, 1)[0].file_token);
         } else {
+          stage = '读取上传文件';
           const meta = await files.getFileMetadata(ref.path!);
           if (!meta || meta.name !== ref.name || Number(meta.metadata.contentLength) !== ref.size)
             throw new BadRequestException('附件信息不一致，请重新上传');
@@ -80,6 +84,7 @@ export class NativeAttachmentGateway {
           form.append('parent_node', base);
           form.append('size', String(ref.size));
           form.append('file', downloaded.content, meta.name);
+          stage = '上传至多维表格';
           const result = await this.request('POST', '/drive/v1/medias/upload_all', form, token);
           if (result.code !== 0 || !result.data?.file_token) throw new Error('native upload failed');
           tokens.push(result.data.file_token);
@@ -88,7 +93,10 @@ export class NativeAttachmentGateway {
       }
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof ConflictException) throw error;
-      throw new BadRequestException('附件上传失败，请检查多维表格授权码是否启用及其访问权限；记录尚未保存');
+      const httpStatus = axios.isAxiosError(error) ? error.response?.status : undefined;
+      // Never log Axios errors or headers: they contain the personal authorization code.
+      this.logger.warn({ stage, httpStatus });
+      throw new BadRequestException(`附件处理失败（${stage}${httpStatus ? `，HTTP ${httpStatus}` : ''}），记录尚未保存，请联系管理员检查接口或访问权限`);
     }
     return { base, table, tokens, expected };
   }
