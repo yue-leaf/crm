@@ -1,12 +1,13 @@
 import type { FileService } from '@lark-apaas/fullstack-nestjs-core';
 import { attachmentRef, attachments, safeAttachmentUrl, MAX_ATTACHMENT_BYTES } from '@shared/crm-attachments';
 import { reject } from './crm-validation';
+export interface ExpectedAttachment { name: string; size: number; storageName?: string }
 
 /** Only resolve app storage paths or attachments already on this record, never caller-supplied URLs. */
 export async function resolveAttachments(values: string[], previous: unknown, files: Pick<FileService, 'getFileMetadata' | 'createSignedUrl'>) {
   const existing = attachments(previous);
   const urls: string[] = [];
-  const expected: { name: string; size: number }[] = [];
+  const expected: ExpectedAttachment[] = [];
   const used = new Set<string>();
   for (const raw of values) {
     const ref = attachmentRef(raw);
@@ -25,13 +26,32 @@ export async function resolveAttachments(values: string[], previous: unknown, fi
         reject('附件', '文件校验失败，请重新上传');
       const url = await files.createSignedUrl(ref.path!, 3600);
       if (!safeAttachmentUrl(url)) reject('附件', '文件链接生成失败，请重试');
-      urls.push(url); expected.push({ name: file.name, size });
+      // Base imports URL attachments using their storage object basename. It can
+      // differ from the original upload name returned by getFileMetadata.
+      const storageName = ref.path!.split('/').at(-1)!;
+      urls.push(url); expected.push({ name: file.name, size, storageName });
     }
   }
   return { urls, expected };
 }
 
-export function attachmentWriteMatches(actual: unknown, expected: { name: string; size: number }[]): boolean {
-  const signature = (rows: { name: string; size: number }[]) => JSON.stringify(rows.map(v => [v.name, v.size]).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))));
-  try { return signature(attachments(actual)) === signature(expected); } catch { return false; }
+export function attachmentWriteMatches(actual: unknown, expected: ExpectedAttachment[]): boolean {
+  try {
+    const saved = attachments(actual);
+    if (saved.length !== expected.length) return false;
+    // One-to-one matching preserves duplicate counts even when a storage name
+    // collides with another file's original name. Size alone is never sufficient.
+    const assigned: number[] = Array(saved.length).fill(-1);
+    const match = (index: number, seen: Set<number>): boolean => {
+      const file = expected[index];
+      for (let i = 0; i < saved.length; i++) {
+        if (seen.has(i) || saved[i].size !== file.size ||
+          (saved[i].name !== file.name && saved[i].name !== file.storageName)) continue;
+        seen.add(i);
+        if (assigned[i] < 0 || match(assigned[i], seen)) { assigned[i] = index; return true; }
+      }
+      return false;
+    };
+    return expected.every((_, index) => match(index, new Set()));
+  } catch { return false; }
 }
