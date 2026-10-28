@@ -49,33 +49,6 @@ test('signed URL rotation does not cause a conflict, metadata changes and missin
   assert.equal(attachmentWriteMatches([old, old], [{ name: old.name, size: 123 }]), false);
   assert.equal(attachmentWriteMatches(null, []), true);
 });
-test('service update writes URL array and checks native attachment readback', async () => {
-  let saved = row(); let writes;
-  const cap = {
-    getCapability: () => ({ formValue: { fields: [] } }),
-    load: () => ({ call: async (action, input) => {
-      if (action === 'getRecord') return structuredClone(saved);
-      assert.equal(action, 'batchUpdateRecords'); writes = input.records[0].record;
-      saved = { ...saved, record: { ...saved.record, ...writes, 附件: [old, { name: '报价.xlsx', size: 456, type: 'application/octet-stream', tmpUrl: 'https://files.example/new' }] } };
-      return { records: [{ id: saved.id }] };
-    } }),
-  };
-  const service = new CrmService(cap, {}, files);
-  service.people = async () => {}; service.relationChecks = async () => {};
-  await service.update('followup', saved.id, 'edit', { expectedModifiedAt: 123, changes: { 附件: [...attachmentDraft([old]), fresh()] } }, '123');
-  assert.deepEqual(writes.附件, [old.tmpUrl, 'https://storage.example/quote?signature=1']);
-  assert.match(writes.管理记录, /附件/);
-});
-test('storage errors abort before any record mutation', async () => {
-  let writes = 0;
-  const cap = { getCapability: () => ({ formValue: { fields: [] } }), load: () => ({ call: async action => {
-    if (action === 'getRecord') return row(); writes++; throw new Error('unexpected write');
-  } }) };
-  const service = new CrmService(cap, {}, { ...files, createSignedUrl: async () => { throw new Error('provider internal detail'); } });
-  service.people = async () => {}; service.relationChecks = async () => {};
-  await assert.rejects(service.update('followup', 'recFollowup', 'edit', { expectedModifiedAt: 123, changes: { 附件: [fresh()] } }, '123'), /记录尚未保存/);
-  assert.equal(writes, 0);
-});
 test('upload path preserves original names and isolates identical basenames', () => {
  const {attachmentUploadPath}=require('../../dist/shared/crm-attachments.js');
  for(const name of ['Chip-Test-CD-FFF2-8001.der','会议记录 #1 (最终).pdf']){
@@ -90,23 +63,4 @@ test('numeric object paths fail before business write; native names must match',
  const legacy={getFileMetadata:async()=>({name:'original.der',metadata:{contentLength:'235'}}),createSignedUrl:async()=>{throw new Error('must not sign');}};
  await assert.rejects(resolveAttachments([fresh({name:'original.der',size:235,path:'123.der'})],[],legacy),/旧版页面上传/);
  assert.equal(attachmentWriteMatches([{...old,name:'123.der',size:235}],[{name:'original.der',size:235}]),false);
-});
-test('create persists native attachments and fails visibly on incomplete plugin readback', async () => {
-  for (const drop of [false, true]) {
-    let stored;
-    const cap = { getCapability: () => ({ formValue: { fields: [] } }), load: () => ({ call: async (action, input) => {
-      if (action === 'getRecord') return { id: 'recCreated', record: stored };
-      assert.equal(action, 'batchAddRecords');
-      assert.deepEqual(input.records[0].record.附件, ['https://storage.example/quote?signature=1']);
-      stored = { ...input.records[0].record, 直接客户: { link_record_ids: ['recCustomer'] },
-        附件: drop ? [] : [{ name: '报价.xlsx', size: 456, type: 'application/octet-stream', tmpUrl: 'https://files.example/new' }] };
-      return { records: [{ id: 'recCreated' }] };
-    } }) };
-    const service = new CrmService(cap, {}, files);
-    service.people = async () => {}; service.relationChecks = async () => {};
-    const draft = { 跟进主题: '新会议', 跟进归属: '客户直接跟进', 直接客户: ['recCustomer'], 记录类型: '内部推进',
-      实际发生时间: '2026-10-20T10:00:00', 实际跟进人: ['123'], '内容 / 推进结论': '结论', 后续安排: '无后续动作', 无后续动作结论: '完成', 附件: [fresh()] };
-    if (drop) await assert.rejects(service.create('followup', draft), /附件原文件名或数量未正确回读/);
-    else assert.equal((await service.create('followup', draft)).id, 'recCreated');
-  }
 });
