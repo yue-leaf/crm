@@ -88,7 +88,29 @@ test('customer context locks contact and project parents; standalone create rema
   context.handlers.openEditor(kind);assert.equal(context.editor.fixedCustomerId,undefined);
   context.handlers.set('所属企业',['recOther']);assert.equal(context.draft.所属企业[0],'recOther');
  }
+ context.changeFollowupTarget=require('../../dist/shared/crm-followup-target.js').changeFollowupTarget;
+ context.handlers.openEditor('followup','create',undefined,{跟进客户:['recCustomer'],直接客户:['recCustomer'],关联项目:[]});
+ assert.equal(context.editor.fixedCustomerId,'recCustomer');context.handlers.set('跟进客户',['recOther']);
+ assert.equal(context.draft.跟进客户[0],'recCustomer');
+ context.handlers.set('关联项目',['recProject']);assert.equal(context.draft.关联项目[0],'recProject');
+ assert.equal(context.draft.直接客户.length,0);
+ context.handlers.set('关联项目',[]);assert.equal(context.draft.直接客户[0],'recCustomer');
+ context.handlers.openEditor('followup');assert.equal(context.editor.fixedCustomerId,undefined);
+ context.handlers.set('跟进客户',['recOther']);assert.equal(context.draft.跟进客户[0],'recOther');
 
+});
+test('fixed followup customer is submitted for direct followup but remains context-only when a project is selected',async()=>{
+ for(const project of [[],['recProject']]){
+  const h=harness('followup');h.context.editor.fixedCustomerId='recCustomer';
+  h.context.FOLLOWUP_CUSTOMER='跟进客户';h.context.followupWriteDraft=require('../../dist/shared/crm-followup-target.js').followupWriteDraft;
+  h.context.draft={跟进客户:['recOther'],直接客户:['recOther'],关联项目:project};
+  await h.save();const written=h.payloads[0];
+  assert.equal(Object.hasOwn(written,'跟进客户'),false);
+  assert.equal(written.跟进归属,project.length?'项目跟进':'客户直接跟进');
+  assert.equal(written.直接客户.length,project.length?0:1);
+  if(!project.length)assert.equal(written.直接客户[0],'recCustomer');
+  else assert.equal(written.关联项目[0],'recProject');
+ }
 });
 test('contact and project saves always use the fixed customer from their source context',async()=>{
  for(const kind of ['contact','project']) {

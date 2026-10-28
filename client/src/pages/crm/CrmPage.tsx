@@ -318,8 +318,8 @@ const CrmPage: React.FC = () => {
     setFollowupCustomer(''); setCustomerResolveError('');
     editorRequestVersion.current++;
     detailVersion.current++;
-    const customer = preset['所属企业'];
-    const fixedCustomerId = (kind === 'contact' || kind === 'project') && operation === 'create' &&
+    const customer = preset[kind === 'followup' ? FOLLOWUP_CUSTOMER : '所属企业'];
+    const fixedCustomerId = ['contact', 'project', 'followup'].includes(kind) && operation === 'create' &&
       Array.isArray(customer) && customer.length === 1 ? customer[0] : undefined;
     const ed: Editor = { kind, operation, row, fixedCustomerId };
     const initial: Draft =
@@ -495,7 +495,8 @@ const CrmPage: React.FC = () => {
                 submitted,
                 Number(editor.row.record['修改时间']),
               )
-            : await api.create(editor.kind, editor.kind === 'followup' ? followupWriteDraft(draft)
+            : await api.create(editor.kind, editor.kind === 'followup' ? followupWriteDraft(editor.fixedCustomerId
+              ? { ...draft, [FOLLOWUP_CUSTOMER]: [editor.fixedCustomerId] } : draft)
               : editor.fixedCustomerId ? { ...draft, 所属企业: [editor.fixedCustomerId] } : draft);
       toast.success(r.message);
       if (editor.operation === 'plan' && planSuggestion.current) {
@@ -560,7 +561,7 @@ const CrmPage: React.FC = () => {
     }
   };
   const set = (key: string, value: Draft[string]) => {
-    if (editor?.fixedCustomerId && key === '所属企业') return;
+    if (editor?.fixedCustomerId && (key === '所属企业' || key === FOLLOWUP_CUSTOMER)) return;
     if (savingRef.current || (uploadingRef.current && key !== '附件')) return;
     setFieldErrors((previous) => {
       const next = { ...previous }; delete next[key];
@@ -1022,7 +1023,8 @@ const CrmPage: React.FC = () => {
                       onChange={set}
                       onUploadBusy={onUploadBusy}
                       disabled={saving || uploading || uncertain || (editor.kind === 'followup' && ['关联项目', '客户联系人'].includes(f.key) && !followupCustomer) ||
-                        ((Boolean(editor.fixedCustomerId) || Boolean(suspendedEditor.current)) && f.key === '所属企业')}
+                        (Boolean(editor.fixedCustomerId) && (f.key === '所属企业' || f.key === FOLLOWUP_CUSTOMER)) ||
+                        (Boolean(suspendedEditor.current) && f.key === '所属企业')}
                     />
                   ))}
             </fieldset>
