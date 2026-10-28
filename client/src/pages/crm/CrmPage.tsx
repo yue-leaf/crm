@@ -500,11 +500,12 @@ const CrmPage: React.FC = () => {
       const origin = editorOrigin.current;
       setEditor(null);
       setSelection(null);
+      setReceipt(null);
       const refresh = reload(data?.records.length || 0);
       const version = requestVersion.current;
       const detailRequest = ++detailVersion.current;
       await refresh;
-      if (version !== requestVersion.current) return;
+      if (version !== requestVersion.current || !origin) return;
       try {
         const fresh = await api.get(editor.kind, r.id);
         if (version === requestVersion.current && detailRequest === detailVersion.current) {
@@ -512,20 +513,11 @@ const CrmPage: React.FC = () => {
             const parent = origin.kind === editor.kind && origin.row.id === fresh.id ? fresh : await api.get(origin.kind, origin.row.id);
             if (version !== requestVersion.current || detailRequest !== detailVersion.current) return;
             restoreLocation(origin, parent);
-            if (editor.operation === 'create') setReceipt({ kind: editor.kind, row: fresh });
+            if (editor.operation === 'create' && editor.kind === 'followup') setReceipt({ kind: editor.kind, row: fresh });
             else setReceipt((previous) => previous?.kind === editor.kind && previous.row.id === fresh.id
               ? { kind: editor.kind, row: fresh } : previous);
             return;
           }
-          if (editor.operation !== 'create') return;
-          setReceipt({ kind: editor.kind, row: fresh });
-          setSelectionKind(editor.kind);
-          const parents: string[] = linkIds(fresh.record[editor.kind === 'followup' ? '直接客户' : '所属企业']);
-          const fromProject: boolean = editor.kind === 'followup' && selectionKind === 'project'
-            && !!selection && linkIds(fresh.record['关联项目']).includes(selection.id);
-          setCustomerContext(editor.kind === 'customer' ? fresh.id : parents.length === 1 ? parents[0] : fromProject ? customerContext : null);
-          setDetailTab('followups');
-          setSelection(fresh);
         }
       } catch {
         toast.info('保存已完成，详情暂时加载失败，请从列表重新打开');
@@ -556,27 +548,6 @@ const CrmPage: React.FC = () => {
     } catch (e: unknown) {
       if (version === requestVersion.current && detailRequest === detailVersion.current &&
         editorRequest === editorRequestVersion.current) toast.error(message(e));
-    }
-  };
-  const continueCreate = async () => {
-    if (!receipt || savingRef.current || uploadingRef.current) return;
-    if (receipt.kind !== 'followup') {
-      openEditor(receipt.kind, 'create', undefined, receipt.kind === 'contact' || receipt.kind === 'project'
-        ? { 所属企业: linkIds(receipt.row.record['所属企业']) } : {});
-      return;
-    }
-    const target = followupTarget(receipt.row);
-    if (!target) return;
-    const editorRequest = ++editorRequestVersion.current;
-    const version = requestVersion.current;
-    const detailRequest = ++detailVersion.current;
-
-    try {
-      const parent = await api.get(target.kind, target.id);
-      if (version === requestVersion.current && detailRequest === detailVersion.current && editorRequest === editorRequestVersion.current)
-        openEditor('followup', 'create', undefined, relatedDraft(target.kind, parent, 'followup'));
-    } catch (e: unknown) {
-      if (version === requestVersion.current && detailRequest === detailVersion.current && editorRequest === editorRequestVersion.current) toast.error(message(e));
     }
   };
   const set = (key: string, value: Draft[string]) => {
@@ -942,17 +913,13 @@ const CrmPage: React.FC = () => {
           <div className="crm-dialog-body">
           {selection && (
             <>
-              {receipt && <div className="panel-note flex flex-wrap items-center gap-2" role="status">
-                <span>{labels[receipt.kind]}已保存。</span>
-                <Button size="sm" variant="ghost" disabled={saving || uploading} onClick={() => continueCreate()}>继续新增{labels[receipt.kind]}</Button>
-              </div>}
               {((receipt?.kind === 'followup' && !adoptedSuggestions.has(suggestionKey(receipt.row)) && suggestedPlan(receipt.row.record)) ||
                 (selectionKind === 'followup' && !adoptedSuggestions.has(suggestionKey(selection)) && suggestedPlan(selection.record))) && <div className="panel-note flex flex-wrap items-center gap-2">
                 <span>下一步建议已记录，当前计划需单独确认更新。</span>
                 <Button size="sm" variant="outline" disabled={saving || uploading}
                   onClick={() => adoptPlan(receipt?.kind === 'followup' ? receipt.row : selection)}>采用建议更新计划</Button>
               </div>}
-              <DetailToolbar key={`${selectionKind}:${selection.id}`} kind={selectionKind} row={selection} busy={saving || uploading}
+              <DetailToolbar key={`toolbar:${selectionKind}:${selection.id}`} kind={selectionKind} row={selection} busy={saving || uploading}
                 onEdit={() => edit(selection, selectionKind)}
                 onAction={(operation: string) => openEditor(selectionKind, operation, selection)}
                 onFollowup={() => openEditor('followup', 'create', undefined, relatedDraft(
@@ -966,7 +933,7 @@ const CrmPage: React.FC = () => {
                 <p className="panel-note">已有结束建议，可在“更多操作”中确认完成或取消。</p>
               )}
               {selectionKind === 'customer' || selectionKind === 'project'
-                ? <CustomerWorkspace key={`${selectionKind}:${selection.id}`} kind={selectionKind} row={selection}
+                ? <CustomerWorkspace key={`workspace:${selectionKind}:${selection.id}`} kind={selectionKind} row={selection}
                     followupView={followupViews[`${selectionKind}:${selection.id}`] || defaultFollowupView}
                     onFollowupViewChange={(view) => setFollowupViews((previous) => ({ ...previous,
                       [`${selectionKind}:${selection.id}`]: view }))}
@@ -976,7 +943,7 @@ const CrmPage: React.FC = () => {
                     onEditContact={(row: CrmRecord) => edit(row, 'contact')}
                     onCreate={(kind: 'contact' | 'project') => openEditor(kind, 'create', undefined,
                       relatedDraft('customer', selection, kind))} />
-                : <RecordDetails key={`${selectionKind}:${selection.id}`} record={selection.record}
+                : <RecordDetails key={`details:${selectionKind}:${selection.id}`} record={selection.record}
                     onOpenRecord={(id, kind) => detail({ id, record: {} }, kind, customerContext || undefined)}
                     onOpenCustomer={(id: string) => detail({ id, record: {} }, 'customer', undefined, selectionKind === 'contact' ? 'contacts' : 'followups')} />}
 
