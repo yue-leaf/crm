@@ -44,7 +44,9 @@ import { historicalContext } from './crm-workflow';
 import { buildProjectOverview, projectMatches, scopedProjects, sortProjects, validProjectFilter } from '@shared/crm-dashboard';
 import { followupStatus, sortFollowups, validFollowupFilter } from '@shared/crm-followup-status';
 import { CrmRelations } from './crm-relations';
-import { resolveAttachments, attachmentWriteMatches } from './crm-attachments';
+import { attachmentWriteMatches } from './crm-attachments';
+import { NativeAttachmentGateway } from './crm-native-attachments';
+import type { NativeAttachmentPlan } from './crm-native-attachments';
 import type { ExpectedAttachment } from './crm-attachments';
 import { attachmentSignature } from '@shared/crm-attachments';
 import { workspaceModel, workspaceRecords } from '@shared/crm-workspace';
@@ -54,6 +56,7 @@ import type { WorkspaceKind } from '@shared/crm-workspace';
 export class CrmService {
   private readonly logger = new Logger(CrmService.name);
   private readonly updating = new Set<string>();
+  private readonly nativeAttachments = new NativeAttachmentGateway();
   constructor(
     @Inject(CapabilityService) private readonly capability: CapabilityService,
     @Inject(AuthNPaasService) private readonly identities: AuthNPaasService,
@@ -472,7 +475,8 @@ export class CrmService {
       records: [{ record: fields }],
     });
     const id = this.writtenId(result);
-    await this.verifySaved(key, id, fields, attachmentCheck);
+    if (attachmentCheck) await this.nativeAttachments.apply(attachmentCheck, id);
+    await this.verifySaved(key, id, fields, attachmentCheck?.expected);
     return {
       id,
       message: '已保存',
@@ -490,12 +494,18 @@ export class CrmService {
       throw new BadGatewayException('保存结果未确认，请先刷新核对');
     return result.records[0].id;
   }
-  private async prepareAttachments(fields: Record<string, unknown>, previous?: unknown) {
+  private async prepareAttachments(fields: Record<string, unknown>, previous?: unknown, id?: string): Promise<NativeAttachmentPlan | undefined> {
     if (!Object.hasOwn(fields, '附件')) return undefined;
+    if (!id && Array.isArray(fields['附件']) && !fields['附件'].length) {
+      delete fields['附件']; return undefined;
+    }
     try {
-      const result = await resolveAttachments(fields['附件'] as string[], previous, this.files);
-      fields['附件'] = result.urls;
-      return result.expected;
+      const config = this.capability.getCapability('crm-followup')?.formValue;
+      const result = await this.nativeAttachments.prepare(String(config?.appToken || ''), String(config?.tableID || ''),
+        fields['附件'] as string[], previous, this.files, id);
+      // Never send attachments through the URL-import plugin: it changes filenames.
+      delete fields['附件'];
+      return result;
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
       throw new BadRequestException('附件处理失败，记录尚未保存，请重新上传或稍后重试');
@@ -637,7 +647,7 @@ export class CrmService {
     } else if (operation === 'access' && key === 'access') {
       fields = parseDraft(input, forms.access, this.enums(key)).fields;
     } else reject('操作', '不支持的操作');
-    const attachmentCheck = key === 'followup' ? await this.prepareAttachments(fields, row.record['附件']) : undefined;
+    const attachmentCheck = key === 'followup' ? await this.prepareAttachments(fields, row.record['附件'], id) : undefined;
     // Base has no atomic compare-and-set. Recheck after slow relation/person/file reads;
     // a process-local lock also excludes overlapping updates in this instance.
     for (const check of related) {
@@ -656,7 +666,8 @@ export class CrmService {
       }),
     );
     if (written !== id) throw new BadGatewayException('保存响应记录不一致，请刷新核对');
-    await this.verifySaved(key, id, fields, attachmentCheck);
+    if (attachmentCheck) await this.nativeAttachments.apply(attachmentCheck, id);
+    await this.verifySaved(key, id, fields, attachmentCheck?.expected);
     return {
       id,
       message:
