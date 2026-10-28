@@ -44,8 +44,11 @@ import { historicalContext } from './crm-workflow';
 import { buildProjectOverview, projectMatches, scopedProjects, sortProjects, validProjectFilter } from '@shared/crm-dashboard';
 import { followupStatus, sortFollowups, validFollowupFilter } from '@shared/crm-followup-status';
 import { CrmRelations } from './crm-relations';
-import { resolveAttachments, attachmentWriteMatches } from './crm-attachments';
+import { resolveAttachments, verifyAttachmentContent } from './crm-attachments';
 import type { ExpectedAttachment } from './crm-attachments';
+import { attachmentContentHash, readAttachmentBytes } from './crm-file-content';
+import { ATTACHMENT_METADATA, originalAttachmentNames } from '@shared/crm-attachment-metadata';
+import { attachments } from '@shared/crm-attachments';
 import { attachmentSignature } from '@shared/crm-attachments';
 import { workspaceModel, workspaceRecords } from '@shared/crm-workspace';
 import type { WorkspaceKind } from '@shared/crm-workspace';
@@ -54,6 +57,7 @@ import type { WorkspaceKind } from '@shared/crm-workspace';
 export class CrmService {
   private readonly logger = new Logger(CrmService.name);
   private readonly updating = new Set<string>();
+  private readonly attachmentHash = attachmentContentHash;
   constructor(
     @Inject(CapabilityService) private readonly capability: CapabilityService,
     @Inject(AuthNPaasService) private readonly identities: AuthNPaasService,
@@ -74,7 +78,14 @@ export class CrmService {
     input: Record<string, unknown>,
   ): Promise<unknown> {
     try {
-      return await this.capability.load(`crm-${kind}`).call(action, input);
+      const result = await this.capability.load(`crm-${kind}`).call(action, input);
+      if (kind === 'followup' && result && typeof result === 'object') {
+        if ('record' in result && result.record && typeof result.record === 'object')
+          originalAttachmentNames(result.record as Record<string, unknown>, String(input.recordID));
+        if ('records' in result && Array.isArray(result.records))
+          for (const row of result.records) if (row?.record) originalAttachmentNames(row.record, row.id);
+      }
+      return result;
     } catch {
       // Plugin errors can contain request data or credentials. Log operation only.
       this.logger.warn(`Base ${kind} ${action} failed`);
@@ -493,7 +504,8 @@ export class CrmService {
   private async prepareAttachments(fields: Record<string, unknown>, previous?: unknown) {
     if (!Object.hasOwn(fields, '附件')) return undefined;
     try {
-      const result = await resolveAttachments(fields['附件'] as string[], previous, this.files);
+      const result = await resolveAttachments(fields['附件'] as string[], previous, this.files, this.attachmentHash);
+      if (JSON.stringify(result.expected).length > 18000) reject('附件', '文件名总长度过长，请缩短后再上传');
       fields['附件'] = result.urls;
       return result.expected;
     } catch (error) {
@@ -509,9 +521,22 @@ export class CrmService {
       throw new BadGatewayException(`保存后的回读未完成，请刷新核对记录 ${id}，避免重复提交`);
     }
     const specs = [...forms[key], ...planFields, ...endFields, ...progressFields];
-    const mismatch = Object.entries(fields).some(([name, expected]) => {
+    let metadata: string | undefined;
+    if (attachmentCheck) {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          metadata = JSON.stringify({ version: 1, files: await verifyAttachmentContent(saved.record['附件'], attachmentCheck, this.attachmentHash) });
+          break;
+        } catch {
+          if (attempt === 2) throw new BadGatewayException(`附件内容回读尚未确认，请刷新核对记录 ${id}，避免重复提交`);
+          await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+          saved = await this.get(key, id);
+        }
+      }
+    }
+    const mismatches = Object.entries(fields).filter(([name, expected]) => {
       const actual = saved.record[name];
-      if (name === '附件' && attachmentCheck) return !attachmentWriteMatches(actual, attachmentCheck);
+      if (name === '附件' && attachmentCheck) return false; // Verified by content above.
       if (expected === null) return actual != null;
       if (Array.isArray(expected)) {
         const values = specs.find((f) => f.key === name)?.type === 'relation'
@@ -521,7 +546,26 @@ export class CrmService {
       if (typeof expected === 'string') return textValue(actual) !== expected;
       return actual !== expected;
     });
-    if (mismatch) throw new BadGatewayException(`保存回读不一致，请刷新核对记录 ${id} 后再操作`);
+    if (mismatches.length) throw new BadGatewayException(`保存回读不一致（${mismatches.map(([name]) => name).join('、')}），请刷新核对记录 ${id} 后再操作`);
+    if (metadata !== undefined && textValue(saved.record[ATTACHMENT_METADATA]) !== metadata) {
+      await this.call(key, 'batchUpdateRecords', { records: [{ id, record: { [ATTACHMENT_METADATA]: metadata } }] });
+      let confirmed = await this.get(key, id);
+      for (let attempt = 0; attempt < 2 && textValue(confirmed.record[ATTACHMENT_METADATA]) !== metadata; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+        confirmed = await this.get(key, id);
+      }
+      if (textValue(confirmed.record[ATTACHMENT_METADATA]) !== metadata)
+        throw new BadGatewayException(`附件原文件名保存尚未确认，请刷新核对记录 ${id}，避免重复提交`);
+    }
+  }
+  async downloadAttachment(id: string, index: string) {
+    if (!/^\d{1,2}$/.test(index)) throw new BadRequestException('附件序号无效');
+    const row = await this.get('followup', id);
+    const file = attachments(row.record['附件'])[Number(index)];
+    if (!file) throw new NotFoundException('附件不存在');
+    const content = await readAttachmentBytes(file.tmpUrl);
+    if (content.length !== file.size) throw new BadGatewayException('附件下载不完整，请重试');
+    return { content, name: file.name };
   }
   async update(
     kind: string,

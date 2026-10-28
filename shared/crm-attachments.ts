@@ -1,6 +1,6 @@
 export const MAX_ATTACHMENTS = 20;
 export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
-export interface SavedAttachment { name: string; size: number; type: string; tmpUrl: string }
+export interface SavedAttachment { name: string; size: number; type: string; tmpUrl: string; nativeName?: string; downloadPath?: string }
 export interface AttachmentRef { source: 'existing' | 'upload'; name: string; size: number; index?: number; path?: string; mime?: string }
 
 export function attachments(value: unknown): SavedAttachment[] {

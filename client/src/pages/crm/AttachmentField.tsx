@@ -2,17 +2,32 @@ import React, { useRef, useState } from 'react';
 import { Paperclip, Upload, X, LoaderCircle } from 'lucide-react';
 import { getDataloom } from '@lark-apaas/client-toolkit/dataloom';
 import { getDefaultBucketId } from '@lark-apaas/client-toolkit/tools/storage';
+import { axiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { attachments, attachmentRef, fileSize, MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES, safeAttachmentUrl } from '@shared/crm-attachments';
 import type { AttachmentRef } from '@shared/crm-attachments';
 import './attachments.css';
 
 export const AttachmentList: React.FC<{ value: unknown }> = ({ value }) => {
+  const download = async (event: React.MouseEvent, path: string, name: string) => {
+    event.preventDefault();
+    try {
+      const result = await axiosForBackend({ url: path, method: 'GET', responseType: 'blob', timeout: 45000 });
+      if (result.status !== 200) throw new Error('下载失败');
+      const url = URL.createObjectURL(result.data);
+      const link = document.createElement('a'); link.href = url; link.download = name;
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch { toast.error('附件下载失败，请稍后重试'); }
+  };
   try {
     const files = attachments(value);
     return files.length ? <ul className="attachment-list">{files.map((file, index) => <li key={index}>
       <Paperclip size={16} /><span className="attachment-name">{safeAttachmentUrl(file.tmpUrl)
-        ? <a href={file.tmpUrl} target="_blank" rel="noopener noreferrer">{file.name}</a> : file.name}</span>
+        ? <a href={file.tmpUrl} target="_blank" rel="noopener noreferrer"
+            onClick={file.downloadPath && /^\/api\/crm\/followups\/rec[A-Za-z0-9]+\/attachments\/\d+$/.test(file.downloadPath)
+              ? event => void download(event, file.downloadPath!, file.name) : undefined}>{file.name}</a> : file.name}</span>
       <small>{fileSize(file.size)}</small>
     </li>)}</ul> : <span className="muted">—</span>;
   } catch { return <span role="alert">附件加载失败，请刷新</span>; }

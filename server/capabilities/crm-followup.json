@@ -301,6 +301,14 @@
         "bizType": "Text",
         "readable": true,
         "writeable": true
+      },
+      {
+        "id": "fldKJRIdsT",
+        "name": "附件元数据",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
       }
     ]
   },
