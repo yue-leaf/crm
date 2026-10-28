@@ -14,10 +14,11 @@ import './workspace.css';
 interface Props {
   data: WorkspaceData | null; loading: boolean; error: string; busy: boolean; onRetry: () => void;
   onOpen: (row: CrmRecord, kind: WorkspaceKind) => void | Promise<void>;
+  onOpenLoaded: (row: CrmRecord, kind: WorkspaceKind) => void | Promise<void>;
   onAction: (kind: 'customer' | 'project', id: string, action: 'followup' | 'plan') => void | Promise<void>;
   onCreate: () => void;
 }
-export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, onRetry, onOpen, onAction, onCreate }) => {
+export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, onRetry, onOpen, onOpenLoaded, onAction, onCreate }) => {
   const [filter, setFilter] = useState<TaskFilter>('priority');
   const [limit, setLimit] = useState(8);
   const [drilldown, setDrilldown] = useState<WorkspaceDrilldown | null>(null);
@@ -99,6 +100,6 @@ export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, 
         </article>)}</div> : empty('暂无长期未联系的客户')}
       </section>
     </div>
-    {drilldown && data && <WorkspaceRecords key={`${data.scope}:${drilldown.kind}:${drilldown.filter}`} scope={data.scope} selection={drilldown} onClose={() => setDrilldown(null)} onOpen={onOpen} />}
+    {drilldown && data && <WorkspaceRecords key={`${data.scope}:${drilldown.kind}:${drilldown.filter}`} scope={data.scope} selection={drilldown} onClose={() => setDrilldown(null)} onOpen={onOpenLoaded} />}
   </div>;
 };
