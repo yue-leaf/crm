@@ -1,10 +1,13 @@
 import type { FileService } from '@lark-apaas/fullstack-nestjs-core';
 import { attachmentRef, attachments, safeAttachmentUrl, MAX_ATTACHMENT_BYTES } from '@shared/crm-attachments';
 import { reject } from './crm-validation';
-export interface ExpectedAttachment { name: string; size: number; storageName?: string }
+import { hashBytes } from './crm-file-content';
+import type { AttachmentMetadata } from '@shared/crm-attachment-metadata';
+export interface ExpectedAttachment { name: string; size: number; storageName?: string; sha256?: string }
 
 /** Only resolve app storage paths or attachments already on this record, never caller-supplied URLs. */
-export async function resolveAttachments(values: string[], previous: unknown, files: Pick<FileService, 'getFileMetadata' | 'createSignedUrl'>) {
+export async function resolveAttachments(values: string[], previous: unknown, files: Pick<FileService, 'getFileMetadata' | 'createSignedUrl'> & Partial<Pick<FileService, 'download'>>,
+  readHash?: (url: string) => Promise<string>) {
   const existing = attachments(previous);
   const urls: string[] = [];
   const expected: ExpectedAttachment[] = [];
@@ -18,7 +21,8 @@ export async function resolveAttachments(values: string[], previous: unknown, fi
       const file = existing[ref.index!];
       if (!file || file.name !== ref.name || file.size !== ref.size || file.type !== ref.mime) reject('附件', '文件已变化，请刷新后重试');
       if (!safeAttachmentUrl(file.tmpUrl)) reject('附件', '下载链接无效，请刷新后重试');
-      urls.push(file.tmpUrl); expected.push({ name: file.name, size: file.size });
+      urls.push(file.tmpUrl); expected.push({ name: file.name, size: file.size,
+        ...(readHash ? { sha256: await readHash(file.tmpUrl) } : {}) });
     } else {
       const file = await files.getFileMetadata(ref.path!);
       const size = Number(file?.metadata.contentLength);
@@ -29,10 +33,33 @@ export async function resolveAttachments(values: string[], previous: unknown, fi
       // Base imports URL attachments using their storage object basename. It can
       // differ from the original upload name returned by getFileMetadata.
       const storageName = ref.path!.split('/').at(-1)!;
-      urls.push(url); expected.push({ name: file.name, size, storageName });
+      let sha256: string | undefined;
+      if (readHash) {
+        if (!files.download) reject('附件', '文件服务不支持内容校验');
+        const downloaded = await files.download(ref.path!);
+        if (downloaded.content.size !== size) reject('附件', '上传文件内容大小不一致');
+        sha256 = hashBytes(new Uint8Array(await downloaded.content.arrayBuffer()));
+      }
+      urls.push(url); expected.push({ name: file.name, size, storageName, ...(sha256 ? { sha256 } : {}) });
     }
   }
   return { urls, expected };
+}
+
+/** Base may reuse a file token and name from an earlier identical upload. */
+export async function verifyAttachmentContent(actual: unknown, expected: ExpectedAttachment[], readHash: (url: string) => Promise<string>): Promise<AttachmentMetadata[]> {
+  const saved = attachments(actual);
+  if (saved.length !== expected.length) throw new Error('附件数量不一致');
+  const unused = [...expected];
+  const result: AttachmentMetadata[] = [];
+  for (const file of saved) {
+    const sha256 = await readHash(file.tmpUrl);
+    const index = unused.findIndex(v => v.size === file.size && v.sha256 === sha256);
+    if (index < 0) throw new Error('附件内容不一致');
+    const matched = unused.splice(index, 1)[0];
+    result.push({ name: matched.name, nativeName: file.nativeName || file.name, size: file.size, sha256 });
+  }
+  return result;
 }
 
 export function attachmentWriteMatches(actual: unknown, expected: ExpectedAttachment[]): boolean {

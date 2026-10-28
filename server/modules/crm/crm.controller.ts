@@ -9,6 +9,7 @@ import {
   Req,
   ForbiddenException,
   BadRequestException,
+  StreamableFile,
 } from '@nestjs/common';
 import { NeedLogin } from '@lark-apaas/fullstack-nestjs-core';
 import type { Request } from 'express';
@@ -37,6 +38,14 @@ export class CrmController {
   @Get('session')
   current(@Req() req: Request): CrmSession {
     return this.session(req);
+  }
+  @Get('followups/:id/attachments/:index')
+  async downloadAttachment(@Req() req: Request, @Param('id') id: string, @Param('index') index: string) {
+    this.session(req);
+    const file = await this.crm.downloadAttachment(id, index);
+    const encoded = encodeURIComponent(file.name).replace(/['()*]/g, c => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+    return new StreamableFile(file.content, { type: 'application/octet-stream', length: file.content.length,
+      disposition: `attachment; filename*=UTF-8''${encoded}` });
   }
 
   @Get('summary')

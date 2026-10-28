@@ -301,6 +301,14 @@
         "bizType": "Text",
         "readable": true,
         "writeable": true
+      },
+      {
+        "id": "fldExample000063",
+        "name": "附件元数据",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
       }
     ]
   },
