@@ -15,6 +15,8 @@ test('native upload sends original filename and bytes; record receives tokens, n
  const gateway=new NativeAttachmentGateway(async(method,path,data,token)=>{
   calls.push({method,path});
   assert.equal(token,'test-token');
+  assert.ok(path.includes('/records') || path === '/drive/v1/medias/upload_all',
+   'only supported Base record and media endpoints may be used');
   if(path.includes('/medias/')){
    assert.equal(data.get('file_name'),name);
    assert.equal(data.get('file').name,name);
@@ -82,8 +84,19 @@ test('default transport sends the configured personal token only to the Base API
  };
  try{
   await new NativeAttachmentGateway().prepare('base1','tbl1',[],[],files);
-  assert.deepEqual(urls,['https://base-api.feishu.cn/open-apis/bitable/v1/apps/base1/tables/tbl1']);
+  assert.deepEqual(urls,['https://base-api.feishu.cn/open-apis/bitable/v1/apps/base1/tables/tbl1/records?page_size=1']);
  }finally{axios.defaults.adapter=previous;if(original===undefined)delete process.env[key];else process.env[key]=original;}
+});
+
+test('unsupported table-detail endpoint is never called during upload preflight',async()=>{
+ const gateway=new NativeAttachmentGateway(async(method,path)=>{
+  assert.equal(method,'GET');
+  if(path==='/bitable/v1/apps/base1/tables/tbl1')throw new Error('404 page not found');
+  assert.equal(path,'/bitable/v1/apps/base1/tables/tbl1/records?page_size=1');
+  return{code:0,data:{items:[]}};
+ },config);
+ const result=await gateway.prepare('base1','tbl1',[],[],files);
+ assert.deepEqual(result.tokens,[]);
 });
 
 test('native readback checks original names as well as token identity',async()=>{
