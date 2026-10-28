@@ -72,7 +72,7 @@ test('successful contact creation keeps the source customer even if rereading it
  await h.save();assert.equal(h.counts().creates,1);assert.equal(h.restored.length,1);
  assert.equal(h.restored[0][0].row.id,'recCustomer');assert.deepEqual(h.selected,[]);
 });
-test('customer context locks the contact parent; standalone create remains selectable and lock resets',()=>{
+test('customer context locks contact and project parents; standalone create remains selectable and lock resets',()=>{
  const context={savingRef:{current:false},uploadingRef:{current:false},editorOrigin:{},currentLocation:()=>null,
   planSuggestion:{},editorRequestVersion:{current:0},detailVersion:{current:0},initialDraft:{},session:null,
   specs:()=>[],isLifecycle:()=>false,setFollowupCustomer:()=>{},setCustomerResolveError:()=>{},
@@ -81,13 +81,19 @@ test('customer context locks the contact parent; standalone create remains selec
  context.setEditor=value=>{context.editor=value;};context.setDraft=value=>{context.draft=typeof value==='function'?value(context.draft):value;};
  vm.createContext(context);
  vm.runInContext(ts.transpileModule(editorHandlers.join('\n')+'\nglobalThis.handlers={openEditor,set};',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,context);
- context.handlers.openEditor('contact','create',undefined,{所属企业:['recCustomer']});
- assert.equal(context.editor.fixedCustomerId,'recCustomer');context.handlers.set('所属企业',['recOther']);
- assert.equal(context.draft.所属企业[0],'recCustomer');
- context.handlers.openEditor('contact');assert.equal(context.editor.fixedCustomerId,undefined);
- context.handlers.set('所属企业',['recOther']);assert.equal(context.draft.所属企业[0],'recOther');
+ for(const kind of ['contact','project']) {
+  context.handlers.openEditor(kind,'create',undefined,{所属企业:['recCustomer']});
+  assert.equal(context.editor.fixedCustomerId,'recCustomer');context.handlers.set('所属企业',['recOther']);
+  assert.equal(context.draft.所属企业[0],'recCustomer');
+  context.handlers.openEditor(kind);assert.equal(context.editor.fixedCustomerId,undefined);
+  context.handlers.set('所属企业',['recOther']);assert.equal(context.draft.所属企业[0],'recOther');
+ }
+
 });
-test('contact save always uses the fixed customer from its source context',async()=>{
- const h=harness('contact');h.context.editor.fixedCustomerId='recCustomer';h.context.draft={所属企业:['recOther'],姓名:'Contact'};
- await h.save();assert.equal(h.payloads[0].所属企业[0],'recCustomer');assert.equal(h.payloads[0].姓名,'Contact');
+test('contact and project saves always use the fixed customer from their source context',async()=>{
+ for(const kind of ['contact','project']) {
+  const h=harness(kind);h.context.editor.fixedCustomerId='recCustomer';h.context.draft={所属企业:['recOther'],名称:'Record'};
+  await h.save();assert.equal(h.payloads[0].所属企业[0],'recCustomer');assert.equal(h.payloads[0].名称,'Record');
+ }
+
 });

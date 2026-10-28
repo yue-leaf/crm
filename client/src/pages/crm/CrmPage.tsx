@@ -319,7 +319,7 @@ const CrmPage: React.FC = () => {
     editorRequestVersion.current++;
     detailVersion.current++;
     const customer = preset['所属企业'];
-    const fixedCustomerId = kind === 'contact' && operation === 'create' &&
+    const fixedCustomerId = (kind === 'contact' || kind === 'project') && operation === 'create' &&
       Array.isArray(customer) && customer.length === 1 ? customer[0] : undefined;
     const ed: Editor = { kind, operation, row, fixedCustomerId };
     const initial: Draft =
