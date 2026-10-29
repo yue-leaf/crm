@@ -1,0 +1,142 @@
+require('reflect-metadata');
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { nextNotificationAt, notificationDay, validateNotificationSettings, buildNotification } = require('../../dist/shared/crm-notifications');
+const { workspaceModel } = require('../../dist/shared/crm-workspace');
+const { CrmNotificationsService } = require('../../dist/server/modules/crm/crm-notifications.service');
+const { CrmNotificationsController } = require('../../dist/server/modules/crm/crm-notifications.controller');
+const now = Date.parse('2026-10-29T08:00:03+08:00');
+const due = Date.parse('2026-10-29T08:00:00+08:00');
+const config = () => ({ id: 'config', enabled: true, sendTime: '08:00', recipientIds: ['123'], revision: 1, nextAt: new Date(due) });
+const preview = () => ({ day: '2026-10-29', title: '今日明日待办', content: '内容', todayCount: 1, tomorrowCount: 0 });
+
+// Scripted persistence boundary; no real messages or production data are modified.
+function harness(results = [], messageResult = { success: true }) {
+  const writes = [];
+  const calls = [];
+  function query(op) {
+    const q = { then(resolve, reject) { try { resolve(pop()); } catch (e) { reject(e); } },
+      from() { return q; }, where() { return q; }, orderBy() { return q; }, limit() { return q; },
+      values(value) { writes.push({ op, value }); return q; }, set(value) { writes.push({ op, value }); return q; },
+      onConflictDoNothing() { return q; }, returning() { return q; } };
+    return q;
+  }
+  function pop() { assert.ok(results.length, 'unexpected database operation'); const next = results.shift(); if (next instanceof Error) throw next; return next; }
+  const db = { select: () => query('select'), insert: () => query('insert'), update: () => query('update') };
+  const capability = { load(id) { assert.equal(id, 'crm-daily-notice'); return { async call(action, data) {
+    calls.push({ action, data }); if (messageResult instanceof Error) throw messageResult; return messageResult;
+  } }; } };
+  const service = new CrmNotificationsService(db, capability, {}, {});
+  const finishes = [], advances = [];
+  service.finish = async (...args) => finishes.push(args);
+  service.advance = async (...args) => advances.push(args);
+  service.setting = async () => config();
+  service.preview = async () => preview();
+  return { service, results, writes, calls, finishes, advances };
+}
+
+test('time selection has Shanghai boundaries, midnight rollover and no immediate backfill', () => {
+  assert.equal(notificationDay(Date.parse('2026-10-28T16:00:00Z')), '2026-10-29');
+  assert.equal(nextNotificationAt('08:30', now).toISOString(), '2026-10-29T00:30:00.000Z');
+  assert.equal(nextNotificationAt('08:00', now).toISOString(), '2026-10-30T00:00:00.000Z');
+  assert.equal(nextNotificationAt('00:00', Date.parse('2026-10-29T23:59:59+08:00')).toISOString(), '2026-10-29T16:00:00.000Z');
+  assert.throws(() => nextNotificationAt('08:15', now));
+  assert.throws(() => validateNotificationSettings({ enabled: true, sendTime: '08:00', recipientIds: [], revision: 1 }));
+  assert.throws(() => validateNotificationSettings({ enabled: true, sendTime: '08:00', recipientIds: [123], revision: 1 }));
+});
+
+test('digest shares workspace rules: signed and paused included, canceled and historical suggestions excluded', () => {
+  const project = (id, state) => ({ id, record: { 项目名称: id, 工作状态: state, 终局确认: '未确认',
+    所属企业: { link_record_ids: ['recC'] }, 当前下一步行动: '售后回访', 下次跟进日期: due, 行动执行人: [] } });
+  const data = workspaceModel({ customer: [{ id: 'recC', record: { 企业全称: '客户', 下次跟进日期: due + 86400000 } }],
+    project: [project('recSigned', '已签合同'), project('recPaused', '暂停'), project('recCanceled', '已取消')],
+    followup: [{ id: 'recF', record: { 建议日期: due } }] }, 'all', '', now).data;
+  const card = buildNotification(data.tasks, now, 'https://example.com/app/test');
+  assert.equal(card.todayCount, 2); assert.equal(card.tomorrowCount, 1);
+  assert.match(card.content, /未指定/); assert.match(card.content, /待补充下一步行动/);
+  assert.doesNotMatch(card.content, /recCanceled|recF/);
+  assert.match(card.content, /taskFilter=tomorrow/); assert.match(card.content, /record=recSigned/);
+});
+
+test('card escapes user markup and respects message size while preserving total counts', () => {
+  const tasks = Array.from({ length: 50 }, (_, i) => ({ id: `rec${i}`, kind: 'customer', name: '<img src="x">'.repeat(100),
+    customerName: 'customer', action: '[link](x) <at id="all"> &'.repeat(100), people: ['123', '456', '789'],
+    due: i % 2 ? due + 86400000 : due, status: 'today', state: '', missing: false }));
+  const card = buildNotification(tasks, now, 'https://example.feishu.link/app/app_example000001');
+  assert.equal(card.todayCount, 25); assert.equal(card.tomorrowCount, 25);
+  assert.match(card.content, /还有 20 项/); assert.doesNotMatch(card.content, /<img|<at /);
+  assert.ok(card.content.length <= 5000, String(card.content.length));
+});
+
+test('disabled and not-due schedules never read business data or send', async () => {
+  const h = harness();
+  h.service.preview = async () => { throw new Error('must not read'); };
+  h.service.setting = async () => ({ ...config(), enabled: false }); await h.service.run(now);
+  h.service.setting = async () => ({ ...config(), nextAt: new Date(now + 60000) }); await h.service.run(now);
+  assert.equal(h.calls.length, 0); assert.equal(h.writes.length, 0);
+});
+
+test('empty days create audit result but no messages', async () => {
+  const h = harness([[{ id: 'run', attempts: 1 }]]);
+  h.service.preview = async () => ({ ...preview(), todayCount: 0 });
+  await h.service.run(now);
+  assert.equal(h.finishes[0][1], 'empty'); assert.equal(h.calls.length, 0); assert.equal(h.advances.length, 1);
+});
+
+test('incomplete data is not sent; read retries stop after third attempt', async () => {
+  for (const attempts of [1, 3]) {
+    const h = harness([[{ id: 'run', attempts }]]);
+    h.service.preview = async () => { throw Error('page missing'); };
+    await h.service.run(now);
+    assert.equal(h.calls.length, 0); assert.equal(h.finishes[0][1], 'read_failed');
+    assert.equal(h.advances.length, attempts === 3 ? 1 : 0);
+  }
+});
+
+test('concurrent run cannot advance an active worker schedule', async () => {
+  const h = harness([[], [], [{ id: 'run', status: 'reading', attempts: 1, updatedAt: new Date(now) }]]);
+  await h.service.run(now); assert.equal(h.calls.length, 0); assert.equal(h.advances.length, 0);
+});
+
+test('stale schedules never send a previous day digest', async () => {
+  const h = harness([[{ id: 'run', attempts: 1 }]]);
+  await h.service.run(now + 86400000);
+  assert.equal(h.finishes[0][1], 'missed'); assert.equal(h.calls.length, 0);
+});
+
+test('daily delivery claims stable per-recipient keys before invoking exact plugin contract', async () => {
+  const h = harness([[{ id: 'run', attempts: 1 }], [{ id: 'run' }], [{ id: 'delivery' }]]);
+  await h.service.run(now);
+  assert.equal(h.writes.filter(w => w.op === 'insert')[1].value.deliveryKey, 'daily:2026-10-29:123');
+  assert.deepEqual(h.calls, [{ action: 'send_feishu_message', data: { recipients: ['123'], title: preview().title, content: preview().content } }]);
+  assert.equal(h.finishes[0][1], 'accepted'); assert.equal(h.results.length, 0);
+});
+
+test('existing delivery claims prevent resend after a time change', async () => {
+  const h = harness([[]]);
+  await h.service.deliver('daily:2026-10-29:123', '123', 'daily', preview());
+  assert.equal(h.calls.length, 0);
+});
+
+test('missing acknowledgements and timeouts stay uncertain and are not retried', async () => {
+  for (const result of [{ success: false }, {}, new Error('timeout')]) {
+    const h = harness([[{ id: 'delivery' }]], result);
+    await h.service.deliver('daily:2026-10-29:123', '123', 'daily', preview());
+    assert.equal(h.calls.length, 1); assert.equal(h.finishes[0][1], 'uncertain');
+  }
+});
+
+test('configuration changed during reading stops the old recipients', async () => {
+  const h = harness([[{ id: 'run', attempts: 1 }], [{ id: 'run' }]]);
+  let reads = 0;
+  h.service.setting = async () => ({ ...config(), revision: ++reads });
+  await h.service.run(now); assert.equal(h.calls.length, 0); assert.equal(h.finishes[0][1], 'stopped');
+});
+
+test('all settings, preview and test APIs reject non-admins before any side effect', () => {
+  const controller = new CrmNotificationsController(new Proxy({}, { get() { throw Error('service must not be called'); } }));
+  for (const roles of [undefined, [], ['crm_employee']]) {
+    const req = { userContext: { userId: '123', roles } };
+    for (const action of ['state', 'save', 'preview', 'test']) assert.throws(() => controller[action](req, {}), /仅限管理员/);
+  }
+});

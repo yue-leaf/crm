@@ -37,6 +37,41 @@ export interface CrmSession {
   name: string;
   roles?: string[];
 }
+export interface NotificationSettings {
+  enabled: boolean;
+  sendTime: string;
+  recipientIds: string[];
+  revision: number;
+  nextAt: string;
+}
+export interface NotificationSettingsUpdate {
+  enabled: boolean;
+  sendTime: string;
+  recipientIds: string[];
+  revision: number;
+}
+export interface NotificationPreview {
+  day: string;
+  todayCount: number;
+  tomorrowCount: number;
+  title: string;
+  content: string;
+}
+export interface NotificationLog {
+  id: string;
+  day: string;
+  recipientId: string | null;
+  mode: string;
+  status: string;
+  detail: string;
+  todayCount: number;
+  tomorrowCount: number;
+  updatedAt: string;
+}
+export interface NotificationState {
+  settings: NotificationSettings;
+  logs: NotificationLog[];
+}
 export interface WriteResult {
   id: string;
   message: string;
