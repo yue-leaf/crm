@@ -233,6 +233,12 @@ export class CrmService {
   async workspace(scope: string, userId: string) {
     return (await this.workspaceModel(scope, userId)).data;
   }
+  async notificationTasks(now: number) {
+    const [customer, project] = await Promise.all([
+      this.allBusiness('customer'), this.allBusiness('project'),
+    ]);
+    return workspaceModel({ customer, project, followup: [] }, 'all', '', now).data.tasks;
+  }
   async workspaceList(scope: string, userId: string, kind: string, filter: string, cursor?: string, search?: string): Promise<CrmPage> {
     if (!['customer', 'project', 'followup'].includes(kind)) throw new BadRequestException('工作台数据类型无效');
     const filters = ['all', 'month', ...(kind === 'customer' ? ['attention'] : kind === 'project'

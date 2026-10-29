@@ -16,6 +16,7 @@ import {
   Pencil,
   Eye,
   ArrowLeft,
+  Bell,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrentUserProfile } from '@lark-apaas/client-toolkit/hooks/useCurrentUserProfile';
@@ -83,6 +84,7 @@ import { changeFilter, actionDraft, suggestedPlan, suggestionKey, readPlanSugges
 import { defaultFollowupView, type FollowupView } from './FollowupFeed';
 import { RelatedPageMemory } from './RelatedPageMemory';
 import type { RelatedPosition } from '@shared/crm-navigation';
+import { NotificationSettings } from './NotificationSettings';
 import { restoreDetailScroll } from './restoreDetailScroll';
 import {
   FOLLOWUP_CUSTOMER, followupCreateFields, changeFollowupTarget, followupWriteDraft,
@@ -162,6 +164,8 @@ const CrmPage: React.FC = () => {
   const followupFilter: FollowupFilter = validFollowupFilter(rawFollowupFilter) ? rawFollowupFilter : 'all';
   const profile = useCurrentUserProfile();
   const [session, setSession] = useState<CrmSession | null>(null);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const openedDeepLink = useRef('');
   const [overview, setOverview] = useState<WorkspaceData | null>(null);
   const [data, setData] = useState<PageData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -417,6 +421,16 @@ const CrmPage: React.FC = () => {
       if (version === requestVersion.current && detailRequest === detailVersion.current) toast.error(message(e));
     }
   };
+  const recordLink = params.get('record') || '';
+  useEffect(() => {
+    const key = `${active}:${recordLink}`;
+    if (!recordLink) { openedDeepLink.current = ''; return; }
+    if (!authorized || loading || (active !== 'customer' && active !== 'project') || openedDeepLink.current === key) return;
+    openedDeepLink.current = key;
+    if (/^rec[A-Za-z0-9]+$/.test(recordLink)) void detail({ id: recordLink, record: {} }, active);
+    // Open once when the linked page finishes its initial load; closing stays closed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, recordLink, authorized, loading]);
   const workspaceAction = async (kind: 'customer' | 'project', id: string, operation: 'followup' | 'plan') => {
     if (savingRef.current || uploadingRef.current) return;
     detailVersion.current++;
@@ -658,6 +672,7 @@ const CrmPage: React.FC = () => {
               </Button>
             );
           })}
+          {admin && <Button variant="ghost" onClick={() => setNotificationOpen(true)}><Bell size={18} />通知设置</Button>}
         </nav>
         <div className="sidebar-bottom">
           <ShieldCheck size={16} /> 企业数据 · 飞书连接
@@ -677,6 +692,7 @@ const CrmPage: React.FC = () => {
             </span>
           </div>
         </header>
+        {notificationOpen && admin && <NotificationSettings onClose={() => setNotificationOpen(false)} />}
         <main className="crm-content">
           {!authorized ? (
             <section className="empty-panel">

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowRight, CalendarDays, Clock3, CircleAlert, ListTodo, Paperclip, Plus } from 'lucide-react';
 import { ActionButton as Button } from './ActionButton';
 import type { CrmRecord } from '@shared/api.interface';
@@ -19,7 +20,11 @@ interface Props {
   onCreate: () => void;
 }
 export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, onRetry, onOpen, onOpenLoaded, onAction, onCreate }) => {
-  const [filter, setFilter] = useState<TaskFilter>('priority');
+  const [params] = useSearchParams();
+  const linkedFilter = params.get('taskFilter');
+  const initialFilter: TaskFilter = linkedFilter === 'today' || linkedFilter === 'tomorrow' ? linkedFilter : 'priority';
+  const [filter, setFilter] = useState<TaskFilter>(initialFilter);
+  useEffect(() => { setFilter(initialFilter); setLimit(8); }, [initialFilter]);
   const [limit, setLimit] = useState(8);
   const [drilldown, setDrilldown] = useState<WorkspaceDrilldown | null>(null);
   const taskPanel = useRef<HTMLElement>(null);
