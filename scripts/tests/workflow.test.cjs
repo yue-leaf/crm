@@ -97,9 +97,9 @@ test('person validation admits tenant members without roster synchronization, re
   const service = new CrmService({ load: () => ({ call: async () => { assert.fail('live identities must not read the roster'); } }) }, identityFixture([123,456]));
   const spec = [{ key: '实际跟进人', type: 'person', multiple: true }];
   await service.people({ 实际跟进人: [123,456] }, spec);
-  await assert.rejects(() => service.people({ 实际跟进人: [789] }, spec), /本企业/);
+  await assert.rejects(() => service.people({ 实际跟进人: [789] }, spec), /无法核验/);
   const mismatch = new CrmService({}, { ...identityFixture(), getBatchMiaodaUserIds: async () => ['other-tenant-id'] });
-  await assert.rejects(() => mismatch.people({ 实际跟进人: [123] }, spec), /本企业/);
+  await assert.rejects(() => mismatch.people({ 实际跟进人: [123] }, spec), /无法核验/);
   const failure = new CrmService({}, { getBatchLarkUserIds: async () => { throw Error('secret'); } });
   await assert.rejects(() => failure.people({ 实际跟进人: [123] }, spec), e => e.getStatus()===502 && !e.message.includes('secret'));
 });

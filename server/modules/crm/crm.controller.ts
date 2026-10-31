@@ -34,6 +34,15 @@ export class CrmController {
     return { userId, name: userName || '当前员工', roles };
   }
 
+  private verifiedEmployee(req: Request): string | undefined {
+    const context = req.userContext;
+    // Tenant visibility is enforced by the gateway. Never trust a body field,
+    // selected-person label, role intention, or user ID alone as membership.
+    return context?.userType === '_employee' && context.tenantId != null &&
+      typeof context.userId === 'string' && context.userId.trim()
+      ? context.userId : undefined;
+  }
+
   @Get('session')
   current(@Req() req: Request): CrmSession {
     return this.session(req);
@@ -96,7 +105,7 @@ export class CrmController {
     @Body() body: unknown,
   ) {
     this.session(req, kind);
-    return this.crm.create(kind, body);
+    return this.crm.create(kind, body, this.verifiedEmployee(req));
   }
 
   @Patch('records/:kind/:id/:operation')
@@ -108,7 +117,7 @@ export class CrmController {
     @Body() body: unknown,
   ) {
     const actor = this.session(req, kind);
-    return this.crm.update(kind, id, operation, body, actor.userId);
+    return this.crm.update(kind, id, operation, body, actor.userId, this.verifiedEmployee(req));
   }
 
   @Get('records/:kind/:id')

@@ -293,18 +293,23 @@ export class CrmService {
     fields: Record<string, unknown>,
     spec: FieldSpec[],
     historical = false,
+    verifiedEmployeeId?: string,
   ): Promise<void> {
     const ids = [...new Set(spec
       .filter((f) => f.type === 'person')
       .flatMap((f) =>
         Array.isArray(fields[f.key]) ? (fields[f.key] as number[]) : [],
       ))];
-    if (!ids.length) return;
+    // The gateway already verified this request's tenant employee identity.
+    // Do not require a newly joined employee's secondary ID mapping to exist
+    // when they select themselves. This ID is supplied only by the controller.
+    const pendingIds = ids.filter(id => String(id) !== verifiedEmployeeId);
+    if (!pendingIds.length) return;
     // Resolve via the app's tenant-scoped employee-ID mapping, then round-trip
     // to prevent accepting a foreign/global ID or requiring prior roster import.
-    const known = new Set<number>();
-    for (let start = 0; start < ids.length; start += 100) {
-      const batch = ids.slice(start, start + 100).map(String);
+    const known = new Set<number>(ids.filter(id => String(id) === verifiedEmployeeId));
+    for (let start = 0; start < pendingIds.length; start += 100) {
+      const batch = pendingIds.slice(start, start + 100).map(String);
       let employees: (string | null)[];
       let resolved: (string | null)[];
       try {
@@ -322,13 +327,13 @@ export class CrmService {
       let offset = 0;
       employees.forEach((employee: string | null, index: number) => {
         if (typeof employee === 'string' && employee.trim()) {
-          if (resolved[offset] === batch[index]) known.add(ids[start + index]);
+          if (resolved[offset] === batch[index]) known.add(pendingIds[start + index]);
           offset++;
         }
       });
     }
     if (ids.every((id: number) => known.has(id))) return;
-    if (!historical) reject('人员', '请选择本企业的飞书成员');
+    if (!historical) reject('人员', '暂时无法核验所选员工的企业身份，请稍后重试或联系管理员检查通讯录映射');
     // Historical review may retain a previously synchronized enterprise member
     // whose current platform mapping is no longer available.
     let cursor: string | undefined;
@@ -459,12 +464,12 @@ export class CrmService {
         reject('预计金额', '填写金额时必须填写币种和含税口径');
     }
   }
-  async create(kind: string, body: unknown): Promise<WriteResult> {
+  async create(kind: string, body: unknown, verifiedEmployeeId?: string): Promise<WriteResult> {
     const key = this.kind(kind);
     if (key === 'access') reject('成员', '人员由通讯录同步，请在 Base 管理');
     const { draft, fields } = parseDraft(body, forms[key], this.enums(key));
     this.validateFacts(key, draft);
-    await this.people(fields, forms[key]);
+    await this.people(fields, forms[key], false, verifiedEmployeeId);
     await this.relationChecks(key, draft, fields);
     Object.assign(
       fields,
@@ -554,13 +559,14 @@ export class CrmService {
     operation: string,
     body: unknown,
     actor: string,
+    verifiedEmployeeId?: string,
   ): Promise<WriteResult> {
     const key = this.kind(kind);
     const lock = `${key}:${id}`;
     if (this.updating.has(lock)) throw new ConflictException('此记录正在保存，请稍后刷新再操作');
     this.updating.add(lock);
     try {
-      return await this.updateRecord(key, id, operation, body, actor);
+      return await this.updateRecord(key, id, operation, body, actor, verifiedEmployeeId);
     } finally {
       this.updating.delete(lock);
     }
@@ -571,6 +577,7 @@ export class CrmService {
     operation: string,
     body: unknown,
     actor: string,
+    verifiedEmployeeId?: string,
   ): Promise<WriteResult> {
     const row = await this.get(key, id);
     if (!body || typeof body !== 'object' || Array.isArray(body))
@@ -593,7 +600,7 @@ export class CrmService {
     if (isLifecycle(operation)) {
       const prepared = await prepareLifecycle(key, row, operation, input, actor, {
         get: (kind, recordId) => this.get(kind, recordId),
-        people: (values) => this.people(values, planFields),
+        people: (values) => this.people(values, planFields, false, verifiedEmployeeId),
       });
       fields = prepared.fields;
       related = prepared.related;
@@ -612,7 +619,7 @@ export class CrmService {
           }
         }
       }
-      await this.people(peopleFields, forms[key]);
+      await this.people(peopleFields, forms[key], false, verifiedEmployeeId);
       await this.relationChecks(key, edited.draft, edited.validationFields);
       fields = edited.writes;
     } else if (
@@ -624,7 +631,7 @@ export class CrmService {
       const parsed = parseDraft(input, planFields, this.enums(key));
       fields = parsed.fields;
       if (!fields['行动执行人']) fields['行动执行人'] = [];
-      await this.people(fields, planFields);
+      await this.people(fields, planFields, false, verifiedEmployeeId);
     } else if (operation === 'suggest-end' && key === 'project') {
       await this.projectAdvancement(row);
       fields = parseDraft(input, endFields, this.enums(key)).fields;
@@ -643,7 +650,7 @@ export class CrmService {
       }
       if (parsed.draft['工作状态'] !== '暂停' && Object.hasOwn(input, '行动执行人') && !fields['行动执行人'])
         fields['行动执行人'] = [];
-      await this.people(fields, progressFields);
+      await this.people(fields, progressFields, false, verifiedEmployeeId);
       const note = [textValue(row.record['管理记录']),
         `进展更新 · ${new Date().toISOString()} · ${actor}\n${textValue(row.record['工作状态'])} → ${String(parsed.draft['工作状态'])}\n${auditNote(String(parsed.draft['变更说明']))}`,
       ].filter(Boolean).join('\n\n');
