@@ -36,6 +36,7 @@ export interface CrmSession {
   userId: string;
   name: string;
   roles?: string[];
+  isEmployee?: boolean;
 }
 export interface NotificationSettings {
   enabled: boolean;

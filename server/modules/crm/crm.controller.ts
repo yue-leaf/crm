@@ -31,7 +31,7 @@ export class CrmController {
       throw new ForbiddenException('登录身份信息异常，请重新进入应用');
     if (kind === 'access' && !crmAdmin(roles))
       throw new ForbiddenException('权限配置仅限管理员管理');
-    return { userId, name: userName || '当前员工', roles };
+    return { userId, name: userName || '当前员工', roles, isEmployee: !!this.verifiedEmployee(req) };
   }
 
   private verifiedEmployee(req: Request): string | undefined {

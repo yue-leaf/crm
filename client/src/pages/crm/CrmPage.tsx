@@ -1,3 +1,4 @@
+import { defaultEmployeeSelection } from '@shared/crm-people';
 import { statusFields, currentProjectStatus } from '@shared/crm-status';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -341,7 +342,7 @@ const CrmPage: React.FC = () => {
     if (operation === 'create')
       for (const f of specs(ed)) {
         if (f.type === 'person' && f.required)
-          initial[f.key] = session ? [session.userId] : [];
+          initial[f.key] = defaultEmployeeSelection(session);
         if (f.type === 'select' && f.required && !['行业', '项目类型'].includes(f.key))
           initial[f.key] = f.options?.[0] || '';
       }

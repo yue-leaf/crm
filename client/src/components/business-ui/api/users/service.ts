@@ -6,6 +6,7 @@ import {
   type BatchGetUsersResponse,
   type ConvertExternalContactResponse,
 } from '@lark-apaas/client-toolkit/tools/services';
+import { employeeOptions } from '@shared/crm-people';
 
 const userService = new UserService();
 
@@ -15,7 +16,11 @@ const userService = new UserService();
 export async function searchUsers(
   params: SearchUsersParams,
 ): Promise<SearchUsersResponse> {
-  return userService.searchUsers({ ...params, searchExternalContact: true });
+  const response = await userService.searchUsers({ ...params, searchExternalContact: false });
+  // CRM person fields represent employees. Keep external identities available
+  // for historical display via listUsersByIds, but never offer them for selection.
+  if (response.data?.userList) response.data.userList = employeeOptions(response.data.userList);
+  return response;
 }
 
 /**
