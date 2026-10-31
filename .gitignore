@@ -10,6 +10,16 @@ build/
 
 # Environment files
 .env.local
+.env.*
+!.env.example
+!.env.*.example
+
+# Local credentials and exports
+*.pem
+*.key
+*.p12
+*.pfx
+backups/
 
 # Logs
 npm-debug.log*

@@ -1,0 +1,14 @@
+title = "CRM credential scanning"
+
+[extend]
+useDefault = true
+
+# Feishu Base appToken is the document identifier in its URL, not an access token.
+# Exempt only this verified identifier in the five Base capability bindings.
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^server/capabilities/crm-(access|contact|customer|followup|project)\.json$''']
+regexes = ['''^\s*"appToken":\s*"CJLFbJHZ7al3zisi9e1cLAxjncd",?\s*$''']
