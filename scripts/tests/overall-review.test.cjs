@@ -9,7 +9,7 @@ const {editBlockedReason}=require('../../dist/shared/crm-edit.js');
 const {historicalContext}=require('../../dist/server/modules/crm/crm-workflow.js');
 const old=Date.parse('2026-10-20T10:00:00+08:00');
 function fixture(kind, patch={}) {
- const customer={id:'recCustomer',record:{企业全称:'Example',行业:'其他化学制药',地区:'上海',客户负责人:[123],客户关系状态:'待建立',核查标记:'正常',已归档:false,修改时间:1}};
+ const customer={id:'recCustomer',record:{企业全称:'Example',行业:'制药',地区:'上海',客户负责人:[123],客户关系状态:'待建立',核查标记:'正常',已归档:false,修改时间:1}};
  const data={customer:customer.record,
   contact:{姓名:'Contact',职务:'Engineer',所属企业:{link_record_ids:['recCustomer']},电话:'123',维护人:[123],联系人状态:'有效'},
   project:{项目名称:'Project',项目类型:'PAT',所属企业:{link_record_ids:['recCustomer']},项目负责人:[123],'目标 / 需求摘要':'Goal',工作状态:'待启动',终局确认:'未确认',当前下一步行动:'Plan',下次跟进日期:old},

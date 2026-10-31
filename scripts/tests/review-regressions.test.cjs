@@ -10,7 +10,7 @@ const {lifecycleEvents,inactiveAt,EVENT_PREFIX}=require('../../dist/shared/crm-l
 const {contactIntervals,CONTACT_INTERVAL_PREFIX}=require('../../dist/shared/crm-contact-history.js');
 const {managementLogText}=require('../../dist/shared/crm-presentation.js');
 const now=Date.now(), day=86400000;
-const customer={id:'recCustomer',record:{企业全称:'客户',行业:'其他化学制药',地区:'上海',客户负责人:[123]}};
+const customer={id:'recCustomer',record:{企业全称:'客户',行业:'制药',地区:'上海',客户负责人:[123]}};
 const contact=(patch={})=>({id:'recContact',record:{姓名:'联系人',职务:'经理',电话:'123',维护人:[123],所属企业:{link_record_ids:['recCustomer']},联系人状态:'有效',...patch}});
 const followup=()=>({id:'recFollowup',record:{跟进主题:'沟通',跟进归属:'客户直接跟进',直接客户:{link_record_ids:['recCustomer']},记录类型:'内部推进','沟通 / 推进方式':'内部讨论',实际发生时间:now-day,实际跟进人:[123],'内容 / 推进结论':'结论',后续安排:'有下一步行动',建议下一步行动:'联系',建议日期:now,建议处理人:[123],记录状态:'正常',修改时间:1}});
 

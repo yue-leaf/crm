@@ -34,7 +34,7 @@ const editableCustomer = () => ({
   id: 'recCompany',
   record: {
     企业全称: { text: 'Example' },
-    行业: '其他化学制药',
+    行业: '制药',
     地区: { text: '上海' },
     客户负责人: [123],
     客户关系状态: '待建立',

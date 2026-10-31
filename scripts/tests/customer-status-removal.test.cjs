@@ -6,7 +6,7 @@ const { recordReviewProblem } = require('../../dist/shared/crm-review.js');
 const { workspaceModel } = require('../../dist/shared/crm-workspace.js');
 const { prepareEdit } = require('../../dist/server/modules/crm/crm-edit.js');
 const now = Date.parse('2026-10-27T12:00:00+08:00');
-const customer = { id: 'recCustomer', record: { 企业全称: '客户', 行业: '其他化学制药', 地区: '上海', 客户负责人: ['123'],
+const customer = { id: 'recCustomer', record: { 企业全称: '客户', 行业: '制药', 地区: '上海', 客户负责人: ['123'],
   创建时间: now - 20 * 86400000, 当前下一步行动: '联系客户', 下次跟进日期: now - 86400000, 已归档: false } };
 test('customers can be edited and validated without a customer status', () => {
   assert.ok(!editFields('customer').some(f => f.key === '客户关系状态'));
