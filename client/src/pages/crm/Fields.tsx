@@ -152,7 +152,7 @@ export const FieldInput: React.FC<{
     accountType: 'apaas' as const, triggerType: 'search' as const,
     name: f.key, required: f.required, disabled,
     placeholder: `请选择${f.label || f.key}`,
-    emptyText: '请输入员工姓名搜索；新增人员须已同步且已激活',
+    emptyText: '请输入本企业员工姓名搜索',
     className: 'crm-person-picker',
     classNames: { trigger: 'crm-person-trigger', popover: 'crm-person-popover' },
     slotProps: { popover: { collisionPadding: 12 } },
