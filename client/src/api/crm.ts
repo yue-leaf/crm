@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios';
 import { axiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
 import type {
   CrmPage,
+  CrmMemberOption,
   CrmRecord,
   CrmSession,
   CrmSummary,
@@ -55,6 +56,7 @@ async function request<T>(
   }
 }
 export const api = {
+  members: () => request<CrmMemberOption[]>('members'),
   notificationState: () => request<NotificationState>('notifications'),
   notificationSave: (value: NotificationSettingsUpdate) => request<NotificationSettings>('notifications', 'PATCH', value),
   notificationPreview: () => request<NotificationPreview>('notifications/preview'),

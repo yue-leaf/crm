@@ -60,6 +60,7 @@ type UserSelectBaseProps<
    * @default 'string'
    */
   loadOnOpen?: boolean;
+  loadOptions?: (search: string) => Promise<UserSelectItemValue[]>;
   valueType?: V;
   /**
    * 是否多选

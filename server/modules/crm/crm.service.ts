@@ -12,6 +12,7 @@ import { AuthNPaasService, CapabilityService, FileService } from '@lark-apaas/fu
 import { isDeepStrictEqual } from 'node:util';
 import type {
   CrmPage,
+  CrmMemberOption,
   EntityKind,
   CrmRecord,
   WriteResult,
@@ -100,6 +101,31 @@ export class CrmService {
     if (kind === 'project') enums['项目类型'] = forms.project.find((f) => f.key === '项目类型')!.options!;
     return enums;
   }
+  async memberOptions(): Promise<CrmMemberOption[]> {
+    const members = new Map<string, CrmMemberOption>();
+    const cursors = new Set<string>();
+    let cursor: string | undefined;
+    do {
+      const page = await this.list('access', cursor);
+      for (const row of page.records) {
+        const ids: unknown = row.record['飞书成员'];
+        const name = textValue(row.record['姓名']) || textValue(row.record['通讯录姓名']);
+        // Base's person field is converted to Miaoda IDs by the capability.
+        // Never substitute the stored Feishu Open ID or match identities by name.
+        if (!Array.isArray(ids) || ids.length !== 1 || !name.trim()) continue;
+        const id = ids[0];
+        if ((typeof id !== 'string' && typeof id !== 'number') ||
+          (typeof id === 'number' && !Number.isSafeInteger(id)) || !/^[1-9]\d*$/.test(String(id))) continue;
+        members.set(String(id), { id: String(id), name });
+      }
+      if (!page.hasMore) break;
+      if (!page.pageToken || cursors.has(page.pageToken) || cursors.size >= 100)
+        throw new BadGatewayException('成员名单未完整加载，请重试');
+      cursor = page.pageToken; cursors.add(cursor);
+    } while (cursor);
+    return [...members.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+  }
+
   async customerContacts(id: string, cursor?: string, search?: string): Promise<CrmPage> {
     await this.get('customer', id);
     return this.list('contact', cursor, search, id);

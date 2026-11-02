@@ -48,6 +48,12 @@ export class CrmController {
     return this.session(req);
   }
 
+  @Get('members')
+  members(@Req() req: Request) {
+    this.session(req);
+    return this.crm.memberOptions();
+  }
+
   @Get('summary')
   summary(@Req() req: Request) {
     this.session(req);

@@ -1,3 +1,4 @@
+export interface CrmMemberOption { id: string; name: string }
 export type EntityKind =
   | 'customer'
   | 'contact'
