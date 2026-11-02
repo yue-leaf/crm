@@ -20,7 +20,7 @@ test('real ownership or type changes still clear incompatible fields and retain 
 });
 test('visible conditional fields mark external contacts, plans, pause reasons and zero-valued commerce correctly',()=>{
  const f=(key)=>({key,type:'text'});
- assert.equal(requiredField(f('客户联系人'),'followup','create',{记录类型:'外部沟通'}).required,true);
+ assert.equal(requiredField(f('客户联系人'),'followup','create',{记录类型:'外部沟通'}).required,false);
  assert.equal(requiredField(f('客户联系人'),'followup','edit',{记录类型:'内部推进'}).required,false);
  assert.equal(requiredField(f('直接客户'),'followup','create',{跟进归属:'客户直接跟进'}).required,true);
  assert.equal(requiredField(f('无后续动作结论'),'followup','edit',{后续安排:'无后续动作'}).required,true);

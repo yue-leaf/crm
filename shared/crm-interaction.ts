@@ -44,7 +44,7 @@ export function requiredField(field: FieldSpec, kind: string, operation: string,
   if (kind === 'followup') {
     if (field.key === '直接客户') required = draft['跟进归属'] === '客户直接跟进';
     if (field.key === '关联项目') required = operation !== 'create' && draft['跟进归属'] === '项目跟进';
-    if (['客户联系人', '沟通 / 推进方式'].includes(field.key)) required = draft['记录类型'] === '外部沟通';
+    if (field.key === '沟通 / 推进方式') required = draft['记录类型'] === '外部沟通';
     if (field.key === '建议下一步行动') required = draft['后续安排'] === '有下一步行动';
     if (field.key === '无后续动作结论') required = draft['后续安排'] === '无后续动作';
   }
