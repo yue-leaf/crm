@@ -95,6 +95,7 @@ const UserSelectTagWrapper = ({
 export const UserSelect: React.FC<UserSelectProps> = (props) => {
   const {
     loadOnOpen = false,
+    loadOptions,
     size = 'medium',
     triggerType = 'button',
     renderTrigger,
@@ -158,14 +159,14 @@ export const UserSelect: React.FC<UserSelectProps> = (props) => {
   // convertedMap 变化 → fetchFn 引用变化 → useFetchData 自动 refetch
   const fetchFn = useCallback(
     async (search: string) => {
-      const result = await baseFetchFn(search);
+      const result = loadOptions ? { items: await loadOptions(search) } : await baseFetchFn(search);
       if (convertedMap.size === 0) return result;
       return {
         ...result,
         items: result.items.map((item) => convertedMap.get(item.id) ?? item),
       };
     },
-    [baseFetchFn, convertedMap],
+    [baseFetchFn, convertedMap, loadOptions],
   );
 
   // 标记是否有即将开户的用户（用于在 handleOpenChange 中阻止关闭）

@@ -1,3 +1,4 @@
+import { loadEmployeeOptions } from './employeeOptions';
 import React, { useId, useState } from 'react';
 import { zhCN } from 'date-fns/locale';
 import { CalendarDays } from 'lucide-react';
@@ -151,9 +152,10 @@ export const FieldInput: React.FC<{
   const personProps = {
     accountType: 'apaas' as const, triggerType: 'search' as const,
     loadOnOpen: true,
+    loadOptions: loadEmployeeOptions,
     name: f.key, required: f.required, disabled,
     placeholder: `请选择${f.label || f.key}`,
-    emptyText: '暂无可选员工，可输入姓名搜索',
+    emptyText: '暂无匹配成员，请检查成员名单',
     className: 'crm-person-picker',
     classNames: { trigger: 'crm-person-trigger', popover: 'crm-person-popover' },
     slotProps: { popover: { collisionPadding: 12 } },

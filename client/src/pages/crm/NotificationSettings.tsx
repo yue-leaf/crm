@@ -1,3 +1,4 @@
+import { loadEmployeeOptions } from './employeeOptions';
 import React, { useEffect, useRef, useState } from 'react';
 import { Bell, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -55,7 +56,7 @@ export const NotificationSettings: React.FC<{ onClose: () => void }> = ({ onClos
             <div><label id="notice-time-label">发送时间</label><Select value={draft.sendTime} disabled={!!busy} onValueChange={sendTime => setDraft({ ...draft, sendTime })}>
               <SelectTrigger aria-labelledby="notice-time-label"><SelectValue /></SelectTrigger><SelectContent>{notificationTimes.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}</SelectContent>
             </Select><small>每天 · 中国时区 · 每半小时可选</small></div>
-            <div><label>接收人</label><UserSelect triggerType="search" loadOnOpen className="crm-person-picker"
+            <div><label>接收人</label><UserSelect triggerType="search" loadOnOpen loadOptions={loadEmployeeOptions} className="crm-person-picker"
               classNames={{ trigger: 'crm-person-trigger', popover: 'crm-person-popover' }}
               slotProps={{ popover: { collisionPadding: 12 } }} value={draft.recipientIds} multiple disabled={!!busy} placeholder="选择本企业接收人" onChange={recipientIds => setDraft({ ...draft, recipientIds })} /></div>
           </div>
