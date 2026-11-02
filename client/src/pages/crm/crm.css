@@ -632,6 +632,10 @@
   margin-left: auto;
   color: #68717d;
 }
+.crm-person-picker {
+  width: 100%;
+  min-width: 0;
+}
 .crm-person-trigger {
   min-height: 40px;
   width: 100%;
@@ -644,6 +648,9 @@
   overflow-y: auto;
   background: #fff;
   color: #1f2329;
+}
+.crm-person-popover {
+  min-width: min(280px, calc(100vw - 24px));
 }
 .crm-record-popover {
   padding: 0;

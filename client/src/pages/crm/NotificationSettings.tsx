@@ -55,7 +55,9 @@ export const NotificationSettings: React.FC<{ onClose: () => void }> = ({ onClos
             <div><label id="notice-time-label">发送时间</label><Select value={draft.sendTime} disabled={!!busy} onValueChange={sendTime => setDraft({ ...draft, sendTime })}>
               <SelectTrigger aria-labelledby="notice-time-label"><SelectValue /></SelectTrigger><SelectContent>{notificationTimes.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}</SelectContent>
             </Select><small>每天 · 中国时区 · 每半小时可选</small></div>
-            <div><label>接收人</label><UserSelect value={draft.recipientIds} multiple disabled={!!busy} placeholder="选择本企业接收人" onChange={recipientIds => setDraft({ ...draft, recipientIds })} /></div>
+            <div><label>接收人</label><UserSelect triggerType="search" loadOnOpen className="crm-person-picker"
+              classNames={{ trigger: 'crm-person-trigger', popover: 'crm-person-popover' }}
+              slotProps={{ popover: { collisionPadding: 12 } }} value={draft.recipientIds} multiple disabled={!!busy} placeholder="选择本企业接收人" onChange={recipientIds => setDraft({ ...draft, recipientIds })} /></div>
           </div>
           <p className="notice-next">{dirty ? '修改后请保存。当日已经发送过的接收人不会重复收到提醒。'
             : state?.settings.enabled ? `下次发送：${dateText(state.settings.nextAt)}` : '提醒已关闭'}</p>
