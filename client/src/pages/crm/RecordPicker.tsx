@@ -8,6 +8,7 @@ export interface RecordOption { id: string; name: string; description?: string; 
 interface RecordPickerProps {
   label: string;
   multiple?: boolean;
+  lockedIds?: string[];
   disabled?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -29,7 +30,7 @@ interface RecordPickerProps {
 
 /** Presentation only; business records are loaded by RelationField. */
 export const RecordPicker: React.FC<RecordPickerProps> = (props) => {
-  const { label, multiple, disabled, open, onOpenChange, value, selected, options,
+  const { label, multiple, lockedIds = [], disabled, open, onOpenChange, value, selected, options,
     query, onQueryChange, onChange, loading, loadingMore, error, hasMore, onLoadMore, onRetry, onCreate, createLabel } = props;
   const listId = useId();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -53,10 +54,10 @@ export const RecordPicker: React.FC<RecordPickerProps> = (props) => {
           </PopoverTrigger>
           {multiple && value.length > 0 && <div className="picker-inline-selection" aria-label={`已选${label}`}>
             {value.slice(0, 2).map((id, index) => <span className="picker-chip" key={id} title={names[index]}>
-              <span>{names[index]}</span><button type="button" disabled={disabled} aria-label={`移除${names[index]}`}
+              <span>{names[index]}</span>{!lockedIds.includes(id) && <button type="button" disabled={disabled} aria-label={`移除${names[index]}`}
                 onPointerDown={(event) => event.preventDefault()} onClick={(event) => {
                   event.stopPropagation(); onChange(value.filter((item) => item !== id)); trigger.current?.focus();
-                }}><X size={12} aria-hidden="true" /></button>
+                }}><X size={12} aria-hidden="true" /></button>}
             </span>)}
             {value.length > 2 && <button type="button" className="picker-more" disabled={disabled}
               aria-label={`查看全部 ${value.length} 项${label}`} onClick={() => onOpenChange(true)}>＋{value.length - 2}</button>}
@@ -73,7 +74,7 @@ export const RecordPicker: React.FC<RecordPickerProps> = (props) => {
                 : <>
                   {value.length > 0 && !query && selectedOptions.length > 0 && <div className="picker-heading">已选择</div>}
                   {!query && selectedOptions.map((item) => (
-                    <CommandItem key={`selected-${item.id}`} value={`selected-${item.id}`}
+                    <CommandItem key={`selected-${item.id}`} value={`selected-${item.id}`} disabled={lockedIds.includes(item.id)}
                       aria-label={item.name} onSelect={() => {
                         if (multiple) onChange(value.filter((id) => id !== item.id));
                         else onOpenChange(false);
@@ -83,7 +84,7 @@ export const RecordPicker: React.FC<RecordPickerProps> = (props) => {
                   ))}
                   {options.filter((item) => query || !value.includes(item.id)).map((item) => (
                     <CommandItem key={item.id} value={item.id} aria-label={item.name}
-                      disabled={Boolean(item.disabledReason) && !value.includes(item.id)}
+                      disabled={lockedIds.includes(item.id) || (Boolean(item.disabledReason) && !value.includes(item.id))}
                       onSelect={() => {
                         if (multiple) onChange(value.includes(item.id) ? value.filter((id) => id !== item.id) : [...value, item.id]);
                         else if (!value.includes(item.id)) onChange([item.id]);
@@ -110,7 +111,7 @@ export const RecordPicker: React.FC<RecordPickerProps> = (props) => {
               creating.current = true; onOpenChange(false); onCreate();
             }}><Plus size={14} />{createLabel || '新建记录'}</Button>}
             <div className="picker-footer-actions">
-            {value.length > 0 && <Button type="button" size="sm" variant="ghost" onClick={() => onChange([])}>清空</Button>}
+            {value.some(id => !lockedIds.includes(id)) && <Button type="button" size="sm" variant="ghost" onClick={() => onChange(value.filter(id => lockedIds.includes(id)))}>清空</Button>}
             {multiple && <Button type="button" size="sm" variant="outline" onClick={() => onOpenChange(false)}>完成</Button>}
             </div>
           </div>}

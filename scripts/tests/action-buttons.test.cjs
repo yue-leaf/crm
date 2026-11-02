@@ -43,7 +43,7 @@ function navigation() {
  const wanted=new Set(['edit','detail','workspaceAction']);const bodies=[];
  function walk(node){if(ts.isVariableDeclaration(node)&&wanted.has(node.name.getText(ast))) bodies.push(`const ${node.getText(ast)};`);ts.forEachChild(node,walk);}walk(ast);
  const reads=[];const opened=[];const selected=[];const errors=[];const ref=()=>({current:0});
- const context={active:'customer',savingRef:{current:false},uploadingRef:{current:false},requestVersion:ref(),editorRequestVersion:ref(),detailVersion:ref(),
+ const context={loadCustomerContactDrafts:async()=>[],active:'customer',savingRef:{current:false},uploadingRef:{current:false},requestVersion:ref(),editorRequestVersion:ref(),detailVersion:ref(),
  api:{get:(kind,id)=>{const d=deferred();reads.push({kind,id,...d});return d.promise;}},
  editBlockedReason:()=>'',advancementBlocked:()=>'',message:e=>e.message,toast:{error:e=>errors.push(e)},
  openEditor:(kind,op,row)=>{context.editorRequestVersion.current++;context.detailVersion.current++;opened.push({kind,op,id:row?.id});},
