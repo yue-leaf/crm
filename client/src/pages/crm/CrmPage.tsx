@@ -1,5 +1,5 @@
 import { CustomerContactDrafts } from './CustomerContactDrafts';
-import { saveCustomerContacts, type PendingContact, type CustomerSaveProgress } from '@shared/crm-customer-create';
+import { saveCustomerContacts, loadCustomerContactDrafts, contactDraftChanged, type PendingContact, type CustomerSaveProgress } from '@shared/crm-customer-create';
 import { defaultEmployeeSelection } from '@shared/crm-people';
 import { statusFields, currentProjectStatus } from '@shared/crm-status';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -328,10 +328,11 @@ const CrmPage: React.FC = () => {
     operation = 'create',
     row?: CrmRecord,
     preset: Draft = {},
+    contacts: PendingContact[] = [],
   ) => {
     if (savingRef.current || uploadingRef.current) return;
-    if (kind === 'customer' && operation === 'create') {
-      setPendingContacts([]); setSelectedContacts([]); customerSave.current = { contacts: {} };
+    if (kind === 'customer' && ['create', 'edit'].includes(operation)) {
+      setPendingContacts(contacts); setSelectedContacts(contacts.map(c => c.key)); customerSave.current = { contacts: {} };
     }
     editorOrigin.current = currentLocation();
     planSuggestion.current = null;
@@ -402,7 +403,9 @@ const CrmPage: React.FC = () => {
         toast.error(blocked);
         return;
       }
-      openEditor(kind, operation, fresh);
+      const contacts = kind === 'customer' && operation === 'edit' ? await loadCustomerContactDrafts(fresh.id, api.customerContacts) : [];
+      if (version !== requestVersion.current || editorRequest !== editorRequestVersion.current) return;
+      openEditor(kind, operation, fresh, {}, contacts);
     } catch (e: unknown) {
       if (version === requestVersion.current && editorRequest === editorRequestVersion.current) toast.error(message(e));
     }
@@ -478,7 +481,7 @@ const CrmPage: React.FC = () => {
     if (savingRef.current || uploadingRef.current) return;
     if (!uncertain && editor && (
       Object.keys(changedFields(initialDraft.current, draft, specs(editor))).length ||
-      (editor.kind === 'customer' && editor.operation === 'create' && pendingContacts.length > 0)
+      (editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && pendingContacts.some(contactDraftChanged))
     )) {
       setDiscardOpen(true);
       return;
@@ -514,8 +517,9 @@ const CrmPage: React.FC = () => {
       const submitted = editor.operation === 'status'
         ? Object.fromEntries(specs(editor).filter(showField).map(f => [f.key, draft[f.key] ?? null]))
         : actionDraft(editor.operation, draft);
-      const r = editor.kind === 'customer' && editor.operation === 'create'
-        ? await saveCustomerContacts(draft, pendingContacts, selectedContacts, customerSave.current, api.create)
+      const r = editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation)
+        ? await saveCustomerContacts(draft, pendingContacts, selectedContacts, customerSave.current, api.create,
+          editor.operation === 'edit' && editor.row ? { row: editor.row, edit: api.edit } : undefined)
         : editor.operation === 'edit' && editor.row
           ? await api.edit(editor.kind, editor.row.id, {
               changes: changedFields(
@@ -574,7 +578,7 @@ const CrmPage: React.FC = () => {
       }
     } catch (e: unknown) {
       if (e instanceof SaveOutcomeUnknown) setUncertain(true);
-      setSaveError(editor.kind === 'customer' && editor.operation === 'create' && customerSave.current.customer
+      setSaveError(editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && customerSave.current.customer
         ? `客户已保存，部分联系人未完成。${message(e)}${e instanceof SaveOutcomeUnknown ? '' : '；可再次保存以继续未完成的联系人。'}`
         : message(e));
     } finally {
@@ -1068,12 +1072,12 @@ const CrmPage: React.FC = () => {
                       onCreateContact={editor.kind === 'followup' && f.key === '客户联系人' ? newContactDuringFollowup : undefined}
                       onChange={set}
                       onUploadBusy={onUploadBusy}
-                      disabled={saving || uploading || uncertain || (editor.kind === 'customer' && editor.operation === 'create' && !!customerSave.current.customer) || (editor.kind === 'followup' && ['关联项目', '客户联系人'].includes(f.key) && !followupCustomer) ||
+                      disabled={saving || uploading || uncertain || (editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && !!customerSave.current.customer) || (editor.kind === 'followup' && ['关联项目', '客户联系人'].includes(f.key) && !followupCustomer) ||
                         (Boolean(editor.fixedCustomerId) && (f.key === '所属企业' || f.key === FOLLOWUP_CUSTOMER)) ||
                         (Boolean(editor.fixedProjectId) && f.key === '关联项目') ||
                         (Boolean(suspendedEditor.current) && f.key === '所属企业')}
                     />
-                    {editor.kind === 'customer' && editor.operation === 'create' && f.key === '客户负责人' &&
+                    {editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && f.key === '客户负责人' &&
                       <CustomerContactDrafts customerName={String(draft['企业全称'] || '')} contacts={pendingContacts}
                         selected={selectedContacts} disabled={saving || uncertain}
                         lockedSelection={!!customerSave.current.customer} savedKeys={Object.keys(customerSave.current.contacts)}
@@ -1115,7 +1119,7 @@ const CrmPage: React.FC = () => {
       <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
         <DialogContent>
           <DialogTitle>放弃未保存的修改？</DialogTitle>
-          <DialogDescription>{editor?.kind === 'customer' && editor.operation === 'create' && customerSave.current.customer
+          <DialogDescription>{editor?.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && customerSave.current.customer
             ? '客户及已成功保存的联系人会保留，未保存的联系人草稿将丢失。' : '刚才填写的内容尚未保存，关闭后将丢失。'}</DialogDescription>
           <div className="form-actions">
             <Button variant="outline" onClick={() => setDiscardOpen(false)}>继续填写</Button>
