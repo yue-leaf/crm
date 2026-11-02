@@ -20,7 +20,8 @@ function walk(node){
 walk(ast);
 function harness(kind='customer',origin=null){
  const selected=[],receipts=[],reads=[],restored=[],resumed=[],payloads=[];let refreshes=0,creates=0;
- const context={editor:{kind,operation:'create'},draft:{},uncertain:false,savingRef:{current:false},uploadingRef:{current:false},
+ const context={pendingContacts:[],selectedContacts:[],customerSave:{current:{contacts:{}}},
+  saveCustomerContacts:require('../../dist/shared/crm-customer-create').saveCustomerContacts,editor:{kind,operation:'create'},draft:{},uncertain:false,savingRef:{current:false},uploadingRef:{current:false},
   editorOrigin:{current:origin},suspendedEditor:{current:null},requestVersion:{current:0},detailVersion:{current:0},
   planSuggestion:{current:null},data:{records:[]},specs:()=>[],showField:()=>true,requiredField:x=>x,missingFields:()=>({}),
   actionDraft:(_,draft)=>draft,followupWriteDraft:d=>d,setFieldErrors:()=>{},setSaveError:()=>{},setSaving:()=>{},

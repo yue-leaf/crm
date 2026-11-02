@@ -149,10 +149,11 @@ export const FieldInput: React.FC<{
   const set = (v: Draft[string]) => onChange(f.key, v);
   const personValue = Array.isArray(draft[f.key]) ? (draft[f.key] as string[]) : [];
   const personProps = {
-    accountType: 'apaas' as const, triggerType: 'search' as const,
+    accountType: 'apaas' as const, triggerType: 'button' as const,
+    loadOnOpen: f.key === '客户负责人',
     name: f.key, required: f.required, disabled,
     placeholder: `请选择${f.label || f.key}`,
-    emptyText: '请输入本企业员工姓名搜索',
+    emptyText: f.key === '客户负责人' ? '暂无可选员工，可输入姓名搜索' : '请输入本企业员工姓名搜索',
     className: 'crm-person-picker',
     classNames: { trigger: 'crm-person-trigger', popover: 'crm-person-popover' },
     slotProps: { popover: { collisionPadding: 12 } },

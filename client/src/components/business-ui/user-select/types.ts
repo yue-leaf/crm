@@ -59,6 +59,7 @@ type UserSelectBaseProps<
    * - 'object': value 为 User 或 User[]（与 multiple 联动）
    * @default 'string'
    */
+  loadOnOpen?: boolean;
   valueType?: V;
   /**
    * 是否多选

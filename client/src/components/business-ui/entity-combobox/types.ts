@@ -31,6 +31,7 @@ export type EntityComboboxProps<
   size?: ComboboxSize;
 
   // 数据获取
+  loadOnOpen?: boolean;
   fetchFn: (search: string) => Promise<{ items: T[] }>;
 
   // 受控/非受控
@@ -76,6 +77,7 @@ export type EntityComboboxContextValue<
   setSearchValue: (value: string) => void;
   selectedValue: TValue | TValue[] | null;
   debouncedSearch: string;
+  loadOnOpen: boolean;
 
   // 方法
   handleSelect: (value: TValue) => void;
@@ -113,6 +115,7 @@ export type BaseComboboxProps<
   size?: ComboboxSize;
 
   // 数据获取
+  loadOnOpen?: boolean;
   fetchFn: (search: string) => Promise<{ items: T[] }>;
 
   // 触发器

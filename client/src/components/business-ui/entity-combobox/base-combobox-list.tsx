@@ -51,6 +51,7 @@ export function BaseComboboxList<T>({
     isFetching,
     selectedValue,
     debouncedSearch,
+    loadOnOpen,
     isError,
     refetch,
     isSuccess,
@@ -77,7 +78,7 @@ export function BaseComboboxList<T>({
     [getItemValue, getOptionDisabled],
   );
 
-  const hasSearchQuery = debouncedSearch.trim() !== '';
+  const hasSearchQuery = loadOnOpen || debouncedSearch.trim() !== '';
 
   // 1. 没有搜索词时显示 placeholder
   const shouldShowPlaceHolder = !hasSearchQuery;

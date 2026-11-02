@@ -20,6 +20,7 @@ export function BaseCombobox<
 >(props: BaseComboboxProps<T, TRaw, TValue>) {
   const {
     fetchFn,
+    loadOnOpen = false,
     size = 'medium',
     triggerType = 'button',
     renderTrigger,
@@ -101,6 +102,7 @@ export function BaseCombobox<
 
   return (
     <EntityCombobox
+      loadOnOpen={loadOnOpen}
       fetchFn={fetchFn}
       size={size}
       multiple={multiple}
