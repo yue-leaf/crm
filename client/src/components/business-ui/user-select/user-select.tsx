@@ -94,6 +94,7 @@ const UserSelectTagWrapper = ({
 
 export const UserSelect: React.FC<UserSelectProps> = (props) => {
   const {
+    loadOnOpen = false,
     size = 'medium',
     triggerType = 'button',
     renderTrigger,
@@ -316,6 +317,7 @@ export const UserSelect: React.FC<UserSelectProps> = (props) => {
       defaultValue={internalDefaultValue}
       disabled={disabled}
       emptyText={emptyText}
+      loadOnOpen={loadOnOpen}
       fetchFn={fetchFn}
       getItemLabel={(userValue) => userValue.name}
       getItemValue={(userValue) => userValue}

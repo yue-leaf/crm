@@ -17,6 +17,7 @@ export function EntityCombobox<
   TValue extends ItemValue<TRaw> = ItemValue<TRaw>,
 >(props: EntityComboboxProps<T, TRaw, TValue>) {
   const {
+    loadOnOpen = false,
     fetchFn,
     size = 'medium',
     multiple = false,
@@ -68,6 +69,7 @@ export function EntityCombobox<
     useFetchData<T>({
       fetchFn,
       enabled: open,
+      loadOnOpen,
       search: debouncedSearch,
       onSearch,
     });
@@ -115,6 +117,7 @@ export function EntityCombobox<
 
   // Context 值
   const contextValue = {
+    loadOnOpen,
     open,
     setOpen,
     searchValue,

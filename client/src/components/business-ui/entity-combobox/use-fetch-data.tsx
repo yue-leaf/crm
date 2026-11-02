@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 export type UseFetchDataOptions<T> = {
   fetchFn: (search: string) => Promise<{ items: T[] }>;
   enabled: boolean;
+  loadOnOpen?: boolean;
   search: string;
   onSearch?: (search: string) => void;
 };
@@ -22,6 +23,7 @@ export type UseFetchDataResult<T> = {
 export function useFetchData<T>({
   fetchFn,
   enabled,
+  loadOnOpen = false,
   search,
   onSearch,
 }: UseFetchDataOptions<T>): UseFetchDataResult<T> {
@@ -31,7 +33,7 @@ export function useFetchData<T>({
   const [isSuccess, setIsSuccess] = useState(false);
 
   const fetchData = useCallback(async () => {
-    if (!enabled || search.trim() === '') {
+    if (!enabled || (!loadOnOpen && search.trim() === '')) {
       setData([]);
       setIsSuccess(true);
       return;
@@ -54,16 +56,16 @@ export function useFetchData<T>({
     } finally {
       setIsFetching(false);
     }
-  }, [enabled, search, fetchFn]);
+  }, [enabled, search, fetchFn, loadOnOpen]);
 
   useEffect(() => {
-    if (enabled && search.trim() !== '') {
+    if (enabled && (loadOnOpen || search.trim() !== '')) {
       fetchData();
     } else {
       setData(undefined);
       setIsSuccess(true);
     }
-  }, [search, enabled, fetchData]);
+  }, [search, enabled, fetchData, loadOnOpen]);
 
   // 单独处理 onSearch 回调
   useEffect(() => {
