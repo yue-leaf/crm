@@ -398,8 +398,6 @@ export class CrmService {
         )
       )
         reject('沟通 / 推进方式', '请选择外部沟通方式');
-      if (!arr('客户联系人').length)
-        reject('客户联系人', '外部沟通必须选择联系人');
       for (const id of arr('客户联系人')) {
         const c = await this.get('contact', id);
         const parents = linkIds(c.record['所属企业']);

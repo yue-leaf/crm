@@ -62,7 +62,7 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
     { key: '职务', type: 'text', required: true },
     { key: '电话', type: 'text' },
     { key: '邮箱', type: 'text' },
-    { key: '维护人', type: 'person', required: true },
+    { key: '维护人', type: 'person' },
   ],
   project: [
     { key: '项目名称', type: 'text', required: true },
@@ -73,7 +73,7 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
       options: ['MRT', 'PAT', 'automation'],
     },
     { key: '所属企业', type: 'relation', required: true, target: 'customer' },
-    { key: '项目负责人', type: 'person', required: true },
+    { key: '项目负责人', type: 'person' },
     { key: '目标 / 需求摘要', type: 'long', required: true },
     { key: '当前下一步行动', type: 'long', required: true },
     { key: '下次跟进日期', type: 'date', required: true },
@@ -117,7 +117,7 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
       ],
     },
     { key: '实际发生时间', type: 'datetime', required: true },
-    { key: '实际跟进人', type: 'person', multiple: true, required: true },
+    { key: '实际跟进人', type: 'person', multiple: true },
     { key: '客户联系人', type: 'relation', multiple: true, target: 'contact' },
     { key: '内容 / 推进结论', type: 'long', required: true },
     {
