@@ -40,8 +40,12 @@
 .followup-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 8px 0 10px; color: #646a73; font-size: 12px; }
 .followup-meta .tag { font-size: 11px; padding: 2px 6px; }
 .followup-conclusion { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; font-size: 13px; color: #4e5969; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-.followup-advice { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 12px; padding: 9px 12px; margin-top: 12px; background: #f7f9fc; border-radius: 6px; color: #4e5969; overflow-wrap: anywhere; }
-.followup-advice > span { flex-shrink: 0; color: #8a9099; }
+.followup-advice { display: flex; flex-direction: column; gap: 10px; font-size: 12px; padding: 9px 12px; margin-top: 12px; background: #f7f9fc; border-radius: 6px; color: #4e5969; overflow-wrap: anywhere; }
+.followup-advice-action { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 0; }
+.followup-advice-action > span, .followup-advice-details dt { flex-shrink: 0; color: #8a9099; }
+.followup-advice-details { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 0; }
+.followup-advice-details > div { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.followup-advice-details dd { margin: 0; min-width: 0; }
 .followup-entry-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 8px; margin-bottom: 4px; border-bottom: 1px solid #f0f2f5; }
 .related-source { display: inline-flex; align-items: center; gap: 4px; color: #646a73; font-size: 12px; text-align: left; overflow-wrap: anywhere; max-width: 100%; }
 .related-source:hover { color: #245bdb; }

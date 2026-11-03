@@ -40,6 +40,10 @@ export function FollowupFeed({ kind, id, busy, onView, view, onViewChange }: Pro
     <div className="followup-timeline">
       {page?.records.map((row: CrmRecord) => {
         const source = page.sources[row.id];
+        const suggestedPeople: unknown = row.record['建议处理人'];
+        const hasSuggestedPeople: boolean = Array.isArray(suggestedPeople) && suggestedPeople.length > 0;
+        const hasSuggestion: boolean = textValue(row.record['后续安排']) === '有下一步行动' ||
+          !!textValue(row.record['建议下一步行动']) || row.record['建议日期'] != null || hasSuggestedPeople;
         return <article key={row.id} className={`followup-entry ${textValue(row.record['记录状态']) === '已作废' ? 'followup-void' : ''}`}>
           <span className="followup-dot"><MessageSquareText size={14} /></span>
           <div className="followup-entry-heading"><button className="record-title" disabled={busy}
@@ -49,7 +53,14 @@ export function FollowupFeed({ kind, id, busy, onView, view, onViewChange }: Pro
             <span>{textValue(row.record['记录类型'])}</span>
             {textValue(row.record['记录状态']) === '已作废' && <Cell name="记录状态" value={row.record['记录状态']} />}</div>
           <p className="followup-conclusion">{textValue(row.record['内容 / 推进结论']) || '未填写推进结论'}</p>
-          {textValue(row.record['建议下一步行动']) && <p className="followup-advice"><span>下一步建议</span>{textValue(row.record['建议下一步行动'])}</p>}
+          {hasSuggestion && <div className="followup-advice">
+            {textValue(row.record['建议下一步行动']) && <p className="followup-advice-action"><span>下一步建议</span>{textValue(row.record['建议下一步行动'])}</p>}
+            <dl className="followup-advice-details">
+              <div><dt>建议跟进日期</dt><dd><Cell name="建议日期" value={row.record['建议日期']} /></dd></div>
+              <div><dt>建议执行人</dt><dd>{hasSuggestedPeople
+                ? <Cell name="建议处理人" value={suggestedPeople} /> : '未指定'}</dd></div>
+            </dl>
+          </div>}
           <div className="followup-entry-footer">{source && <button className="related-source" disabled={busy}
             onClick={() => onView({ id: source.id, record: {} }, source.kind)}>{source.kind === 'project' ? '项目' : '客户直接跟进'} · {source.name}<ArrowUpRight size={12} /></button>}
             <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => onView(row, 'followup')}>查看详情</Button></div>
