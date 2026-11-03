@@ -3,7 +3,7 @@ const {test}=require('node:test'), assert=require('node:assert/strict');
 const {followupChains,projectFollowupSummary}=require('../../dist/shared/crm-followup-chain');
 const {workspaceModel}=require('../../dist/shared/crm-workspace');
 const {followupStatus}=require('../../dist/shared/crm-followup-status');
-const {CrmService}=require('../../dist/server/modules/crm/crm.service');
+const {CrmService,MemoryFollowupWriteStore,CrmFollowupWrites}=require('../helpers/crm-service.cjs');
 const {CrmController}=require('../../dist/server/modules/crm/crm.controller');
 const {CrmNotificationsService}=require('../../dist/server/modules/crm/crm-notifications.service');
 const now=Date.parse('2026-11-02T10:00:00+08:00'), due=Date.parse('2026-11-02T00:00:00+08:00');
@@ -15,9 +15,9 @@ const log=(id,extra={})=>({id,record:{跟进归属:'项目跟进',关联项目:{
 const model=(rows,scope='all',user='123')=>workspaceModel({customer:[customer],project:[project],followup:rows},scope,user,now);
 const body={跟进归属:'项目跟进',关联项目:[project.id],记录类型:'内部推进',实际发生时间:'2026-11-02T08:30',
   '内容 / 推进结论':'对方尚未回复',后续安排:'有下一步行动',建议下一步行动:'再次联系',建议日期:'2026-11-03',上次跟进:['recFirst']};
-function harness(seed=[log('recFirst')]) {
+function harness(seed=[log('recFirst')],coordinator) {
   const rows=new Map(seed.map(row=>[row.id,structuredClone(row)]));
-  const writes=[];const svc=new CrmService({getCapability:()=>({formValue:{fields:[]}})});
+  const writes=[];const svc=new CrmService({getCapability:()=>({formValue:{fields:[]}})},undefined,undefined,coordinator);
   svc.list=async kind=>({records:kind==='followup'?[...rows.values()].map(r=>structuredClone(r)):kind==='project'?[structuredClone(project)]:[structuredClone(customer)],hasMore:false});
   svc.get=async(kind,id)=>{
     const r=kind==='followup'?rows.get(id):kind==='project'?project:customer;
@@ -161,4 +161,114 @@ test('continue UI loads current state, fixes customer/project/predecessor and ne
   assert.deepEqual(preset.上次跟进,['recFirst']);assert.deepEqual(preset.跟进客户,[customer.id]);assert.deepEqual(preset.关联项目,[project.id]);
   assert.equal(preset.附件,undefined);assert.equal(preset['内容 / 推进结论'],undefined);
   row.followup.state='已跟进';await context.run(row);assert.equal(opened.length,1);assert.equal(notices.length,1);
+});
+
+test('editing automatic no-action endings activates reminders, explicit endings require resume, history stays history',async()=>{
+  for (const stored of ['已结束','待跟进']) {
+    const h=harness([log('recFirst',{后续安排:'无后续动作',后续处理:stored,无后续动作结论:'完成',建议下一步行动:'',建议日期:null})]);
+    await h.svc.update('followup','recFirst','edit',{expectedModifiedAt:1,changes:{后续安排:'有下一步行动',建议下一步行动:'再联系',建议日期:'2026-11-03',无后续动作结论:null}},'123');
+    assert.equal((await h.svc.detail('followup','recFirst')).followup.state,'待跟进');
+    assert.equal((await h.svc.notificationTasks(now)).length,1);
+  }
+  const h=harness();
+  await h.svc.update('followup','recFirst','end-followup',{expectedModifiedAt:1},'123');
+  await h.svc.update('followup','recFirst','edit',{expectedModifiedAt:2,changes:{建议下一步行动:'修改建议'}},'123');
+  assert.equal((await h.svc.detail('followup','recFirst')).followup.state,'已结束');
+  await h.svc.update('followup','recFirst','resume-followup',{expectedModifiedAt:3},'123');
+  assert.equal((await h.svc.detail('followup','recFirst')).followup.state,'待跟进');
+  await assert.rejects(()=>h.svc.update('followup','recFirst','resume-followup',{expectedModifiedAt:4},'123'),/状态已变化/);
+  const old=harness([log('recFirst',{后续处理:null,后续安排:'无后续动作',无后续动作结论:'完毕'})]);
+  await old.svc.update('followup','recFirst','edit',{expectedModifiedAt:1,changes:{后续安排:'有下一步行动',建议下一步行动:'新建议',无后续动作结论:null}},'123');
+  assert.equal((await old.svc.detail('followup','recFirst')).followup.state,'历史记录');
+});
+
+test('fixed continuation submission rejects loss of predecessor and switching direct-customer scope to a project',()=>{
+  const {validateContinuationDraft}=require('../../dist/shared/crm-followup-target');
+  const draft={跟进客户:['recCustomer'],关联项目:[],上次跟进:['recFirst']};
+  assert.doesNotThrow(()=>validateContinuationDraft(draft,'recFirst','recCustomer'));
+  for(const patch of [{关联项目:['recProject']},{上次跟进:[]},{跟进客户:['recOther']}])
+    assert.throws(()=>validateContinuationDraft({...draft,...patch},'recFirst','recCustomer'),/已变化/);
+  assert.doesNotThrow(()=>validateContinuationDraft({...draft,关联项目:['recProject']},'recFirst','recCustomer','recProject'));
+});
+
+const sibling=(h,store)=>{
+  const other=new CrmService({getCapability:()=>({formValue:{fields:[]}})},undefined,undefined,new CrmFollowupWrites(store));
+  other.get=h.svc.get;other.list=h.svc.list;other.call=h.svc.call;return other;
+};
+test('separate server instances serialize the same predecessor, including continuation versus end',async()=>{
+  for(const mode of ['continue','end']) {
+    const store=new MemoryFollowupWriteStore(),h=harness(undefined,new CrmFollowupWrites(store)),other=sibling(h,store);
+    let release,started;const gate=new Promise(r=>release=r),entered=new Promise(r=>started=r),call=h.svc.call;
+    h.svc.call=async(...args)=>{started();await gate;return call(...args)};
+    const first=h.svc.create('followup',body);await entered;
+    await assert.rejects(()=>mode==='continue'?other.create('followup',body):other.update('followup','recFirst','end-followup',{expectedModifiedAt:1},'456'),/正在保存/);
+    release();await first;assert.equal(h.writes.length,1);
+    await assert.rejects(()=>other.create('followup',body),/已处理/);
+  }
+});
+test('completed durable claim rejects stale Base reads and allows another continuation only after the child is voided',async()=>{
+  const store=new MemoryFollowupWriteStore(),h=harness(undefined,new CrmFollowupWrites(store));
+  const saved=await h.svc.create('followup',body),other=sibling(h,store);
+  const realList=other.list;
+  other.list=async kind=>kind==='followup'?{records:[log('recFirst')],hasMore:false}:realList(kind);
+  await assert.rejects(()=>other.create('followup',body),/已处理/);assert.equal(h.writes.length,1);
+  other.list=realList;h.rows.get(saved.id).record.记录状态='已作废';
+  await other.create('followup',body);assert.equal(h.writes.length,2);
+});
+test('lost create response remains fenced across instances and recovers from positive audit evidence without another insert',async()=>{
+  const store=new MemoryFollowupWriteStore(),h=harness(undefined,new CrmFollowupWrites(store)),call=h.svc.call;
+  h.svc.call=async(...args)=>{await call(...args);throw Error('connection lost')};
+  await assert.rejects(()=>h.svc.create('followup',body),/connection lost/);
+  assert.equal(store.rows.get('recFirst').phase,'uncertain');
+  const other=sibling(h,store);other.call=call;
+  await assert.rejects(()=>other.create('followup',body),/已找到记录/);
+  await assert.rejects(()=>other.create('followup',body),/已处理/);
+  assert.equal(h.writes.length,1);
+});
+test('unconfirmed writes never unlock from age or a negative read; validation failures do unlock',async()=>{
+  const store=new MemoryFollowupWriteStore(),h=harness(undefined,new CrmFollowupWrites(store)),call=h.svc.call;
+  await assert.rejects(()=>h.svc.create('followup',{...body,实际发生时间:'2026-10-01T01:00'}),/不能早于/);
+  assert.equal(store.rows.get('recFirst').phase,'idle');
+  h.svc.call=async()=>{throw Error('unknown outcome')};
+  await assert.rejects(()=>h.svc.create('followup',body),/unknown outcome/);
+  store.rows.get('recFirst').leaseUntil=new Date(0);
+  const other=sibling(h,store);other.call=call;
+  await assert.rejects(()=>other.create('followup',body),/待核验/);
+  assert.equal(h.writes.length,0);assert.equal(store.rows.get('recFirst').phase,'uncertain');
+});
+test('an expired pre-write claim can be reclaimed, but the old worker cannot write or release the new claim',async()=>{
+  const store=new MemoryFollowupWriteStore(),first=new CrmFollowupWrites(store),second=new CrmFollowupWrites(store);
+  let permit1,release;const gate=new Promise(r=>release=r),evidence={findSaved:async()=>undefined,isVoided:async()=>false};
+  const old=first.run('recX','continue',evidence,async p=>{permit1=p;await gate;await p.beforeWrite({});});
+  while(!permit1)await new Promise(r=>setImmediate(r));
+  store.rows.get('recX').leaseUntil=new Date(0);
+  await second.run('recX','continue',evidence,async p=>{await p.beforeWrite({});p.created('recChild')});
+  release();await assert.rejects(()=>old,/失效|未确认/);
+  assert.equal(store.rows.get('recX').continuedId,'recChild');assert.equal(store.rows.get('recX').phase,'idle');
+});
+test('unknown edit result is reconciled by audit marker before a new continuation or update can proceed',async()=>{
+  const store=new MemoryFollowupWriteStore(),h=harness(undefined,new CrmFollowupWrites(store)),call=h.svc.call;
+  h.svc.call=async(...args)=>{await call(...args);throw Error('lost response')};
+  await assert.rejects(()=>h.svc.update('followup','recFirst','end-followup',{expectedModifiedAt:1},'123'),/lost response/);
+  const other=sibling(h,store);other.call=call;
+  await assert.rejects(()=>other.create('followup',body),/已找到记录/);
+  await assert.rejects(()=>other.create('followup',body),/已处理/);
+  assert.equal(h.writes.length,1);
+});
+
+test('the actual continue form handler locks an empty project selection as well as the predecessor',()=>{
+  const fs=require('node:fs'),ts=require('typescript'),vm=require('node:vm');
+  const source=fs.readFileSync(require('node:path').resolve(__dirname,'../../client/src/pages/crm/CrmPage.tsx'),'utf8');
+  const tree=ts.createSourceFile('CrmPage.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+  let code;function walk(node){if(ts.isVariableDeclaration(node)&&node.name.getText(tree)==='set')code=`const ${node.getText(tree)};`;ts.forEachChild(node,walk)}walk(tree);
+  const context={editor:{previousFollowupId:'recFirst',fixedCustomerId:'recCustomer'},FOLLOWUP_CUSTOMER:'跟进客户'};
+  vm.createContext(context);vm.runInContext(ts.transpileModule(code+'\nglobalThis.change=set;',{
+    compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,context);
+  // All must return before reaching any state updater or relation loader.
+  for(const key of ['上次跟进','关联项目','跟进客户'])assert.doesNotThrow(()=>context.change(key,['recOther']));
+});
+test('business history hides internal write markers but keeps the actual operation description',()=>{
+  const {managementLogText}=require('../../dist/shared/crm-presentation');
+  const output=managementLogText('结束跟进 · 2026-11-04T01:00:00.000Z · 123\n\n跟进保存标识 · 11111111-1111-4111-8111-111111111111');
+  assert.match(output,/结束跟进/);assert.doesNotMatch(output,/保存标识|11111111/);
 });

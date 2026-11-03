@@ -5,7 +5,7 @@ import { CONTACT_INTERVAL_PREFIX, contactIntervals } from './crm-contact-history
 
 /** Keep business history readable without exposing the machine event encoding. */
 export function managementLogText(value: unknown): string {
-  return textValue(value).split('\n').map(line => {
+  return textValue(value).split('\n').filter(line => !/^跟进保存标识 · [0-9a-f-]{36}$/.test(line)).map(line => {
     if (line.startsWith(CONTACT_INTERVAL_PREFIX)) {
       const interval = contactIntervals({ 联系人管理记录: line })[0];
       return interval ? `历史停用区间：${displayDate('停用时间', interval.disabledAt)} 至 ${displayDate('恢复时间', interval.restoredAt)}` : line;

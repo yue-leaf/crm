@@ -1,5 +1,6 @@
 import { PreviousFollowup } from './PreviousFollowup';
 import { FollowupChainPanel } from './FollowupChainPanel';
+import { explicitlyEnded } from '@shared/crm-followup-chain';
 import { CustomerContactDrafts } from './CustomerContactDrafts';
 import { saveCustomerContacts, loadCustomerContactDrafts, contactDraftChanged, type PendingContact, type CustomerSaveProgress } from '@shared/crm-customer-create';
 import { defaultEmployeeSelection } from '@shared/crm-people';
@@ -93,7 +94,7 @@ import type { RelatedPosition } from '@shared/crm-navigation';
 import { NotificationSettings } from './NotificationSettings';
 import { restoreDetailScroll } from './restoreDetailScroll';
 import {
-  FOLLOWUP_CUSTOMER, followupCreateFields, changeFollowupTarget, followupWriteDraft, projectFirstDraft,
+  FOLLOWUP_CUSTOMER, followupCreateFields, changeFollowupTarget, followupWriteDraft, projectFirstDraft, validateContinuationDraft,
 } from '@shared/crm-followup-target';
 import './crm.css';
 
@@ -141,7 +142,7 @@ interface Editor {
 interface DetailLocation { row: CrmRecord; kind: EntityKind; tab: string; customer: string | null; scroll: number }
 interface SuspendedEditor { editor: Editor; draft: Draft; initial: Draft; origin: DetailLocation | null }
 const rawSpecs = (editor: Editor): FieldSpec[] =>
-  ['end-followup', 'activate-followup'].includes(editor.operation)
+  ['end-followup', 'activate-followup', 'resume-followup'].includes(editor.operation)
     ? editor.operation === 'end-followup' ? [{ key: '结束跟进说明', label: '结束说明', type: 'long' }] : []
     : isLifecycle(editor.operation)
     ? lifecycleFields(editor.kind, editor.operation)
@@ -526,6 +527,8 @@ const CrmPage: React.FC = () => {
     setSaving(true);
     setSaveError('');
     try {
+      if (editor.kind === 'followup' && editor.operation === 'create' && editor.previousFollowupId)
+        validateContinuationDraft(draft, editor.previousFollowupId, editor.fixedCustomerId, editor.fixedProjectId);
       const submitted = actionDraft(editor.operation, draft);
       const r = editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation)
         ? await saveCustomerContacts(draft, pendingContacts, selectedContacts, customerSave.current, api.create,
@@ -608,7 +611,7 @@ const CrmPage: React.FC = () => {
     } catch (e: unknown) { if (request === editorRequestVersion.current) toast.error(message(e)); }
   };
   const set = (key: string, value: Draft[string]) => {
-    if (editor?.previousFollowupId && key === '上次跟进') return;
+    if (editor?.previousFollowupId && ['上次跟进', '关联项目', FOLLOWUP_CUSTOMER].includes(key)) return;
     if (editor?.fixedProjectId && key === '关联项目') return;
     if (editor?.fixedCustomerId && (key === '所属企业' || key === FOLLOWUP_CUSTOMER)) return;
     if (savingRef.current || (uploadingRef.current && key !== '附件')) return;
@@ -1015,6 +1018,7 @@ const CrmPage: React.FC = () => {
                 onContinue={() => continueFollowup(selection)}
                 onEnd={() => edit(selection, 'followup', 'end-followup')}
                 onActivate={() => edit(selection, 'followup', 'activate-followup')}
+                onResume={() => edit(selection, 'followup', 'resume-followup')}
                 onOpen={id => detail({ id, record: {} }, 'followup')} />}
               <DetailToolbar key={`toolbar:${selectionKind}:${selection.id}`} kind={selectionKind} row={selection} busy={saving || uploading}
                 onEdit={() => edit(selection, selectionKind)}
@@ -1066,6 +1070,7 @@ const CrmPage: React.FC = () => {
                 ? lifecycleTitles[editor.operation]
                 : editor.operation === 'end-followup' ? '结束跟进'
                 : editor.operation === 'activate-followup' ? '纳入待跟进'
+                : editor.operation === 'resume-followup' ? '恢复跟进'
                 : editor.operation === 'create'
                 ? `新建${labels[editor.kind]}`
                 : editor.operation === 'edit'
@@ -1092,6 +1097,9 @@ const CrmPage: React.FC = () => {
           <form className="crm-editor-form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
           <div className="crm-dialog-body">
           {editor?.operation === 'activate-followup' && <p className="panel-note">将按这条记录的建议执行人和建议日期显示待跟进并提醒。</p>}
+          {editor?.operation === 'resume-followup' && <p className="panel-note">恢复后，按这条记录的建议执行人和建议日期重新提醒。</p>}
+          {editor?.kind === 'followup' && editor.operation === 'edit' && editor.row && explicitlyEnded(editor.row.record) &&
+            <p className="panel-note">这条跟进已主动结束。修改资料不会恢复提醒，需要时可在详情中点击“恢复跟进”。</p>}
           {editor?.operation === 'end-followup' && <p className="panel-note">结束后停止提醒，原有内容和安排保留。</p>}
           {editor?.operation === 'plan' && editor.row && <p className="panel-note">当前计划：{textValue(editor.row.record['当前下一步行动']) || '尚未安排'}。保存后将采用下方计划。</p>}
           {editor && isLifecycle(editor.operation) && <p className="panel-note">
@@ -1119,6 +1127,7 @@ const CrmPage: React.FC = () => {
                       disabled={saving || uploading || uncertain || (editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && !!customerSave.current.customer) || (editor.kind === 'followup' && f.key === '客户联系人' && !followupCustomer) || (projectResolving && f.key === '关联项目') ||
                         (Boolean(editor.fixedCustomerId) && (f.key === '所属企业' || f.key === FOLLOWUP_CUSTOMER)) ||
                         (Boolean(editor.fixedProjectId) && f.key === '关联项目') ||
+                        (Boolean(editor.previousFollowupId) && f.key === '关联项目') ||
                         (Boolean(suspendedEditor.current) && f.key === '所属企业')}
                     />}
                     {editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && f.key === '客户负责人' &&

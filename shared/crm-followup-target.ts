@@ -4,6 +4,12 @@ import { forms, linkIds } from './crm';
 
 // This customer is form context; project followups store only the project relation.
 export const FOLLOWUP_CUSTOMER = '跟进客户';
+export function validateContinuationDraft(draft: Draft, previousId: string, customerId?: string, projectId?: string): void {
+  const matches = (key: string, ids: string[]) => JSON.stringify(draft[key] || []) === JSON.stringify(ids);
+  if (!matches('上次跟进', [previousId]) || !matches('关联项目', projectId ? [projectId] : []) ||
+    (customerId && !matches(FOLLOWUP_CUSTOMER, [customerId])))
+    throw new Error('继续跟进的客户、项目或上次跟进已变化，请关闭后重新点击继续跟进');
+}
 export const followupCreateFields: FieldSpec[] = forms.followup.flatMap((field: FieldSpec) => {
   if (['跟进归属', '跟进主题'].includes(field.key)) return [];
   if (field.key === '直接客户') return [{

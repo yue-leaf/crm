@@ -2,7 +2,7 @@ const { identityFixture } = require('./helpers/identity.cjs');
 require('reflect-metadata');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {CrmService}=require('../../dist/server/modules/crm/crm.service.js');
+const {CrmService}=require('../helpers/crm-service.cjs');
 const {textValue}=require('../../dist/shared/crm.js');
 const {recordReviewProblem}=require('../../dist/shared/crm-review.js');
 const {editBlockedReason}=require('../../dist/shared/crm-edit.js');

@@ -2,7 +2,7 @@ require('reflect-metadata');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {prepareEdit}=require('../../dist/server/modules/crm/crm-edit.js');
-const {CrmService}=require('../../dist/server/modules/crm/crm.service.js');
+const {CrmService}=require('../helpers/crm-service.cjs');
 const {recordDraft,editFields,changedFields}=require('../../dist/shared/crm-edit.js');
 const {changeDraft}=require('../../dist/shared/crm-interaction.js');
 const {contactChoiceProblem}=require('../../dist/shared/crm-ux.js');

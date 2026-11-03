@@ -117,6 +117,26 @@ export const fileAttachmentArray = customType<{
   },
 });
 
+export const crmFollowupWrite = pgTable("crm_followup_write", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  recordKey: varchar("record_key", { length: 80 }).notNull().unique(),
+  ownerToken: varchar("owner_token", { length: 36 }).notNull(),
+  operation: varchar("operation", { length: 30 }).notNull(),
+  phase: varchar("phase", { length: 20 }).notNull(),
+  leaseUntil: customTimestamptz("lease_until", { precision: 6 }).notNull(),
+  continuedId: varchar("continued_id", { length: 80 }),
+  // System field: Creation time (auto-filled, do not modify)
+  createdAt: customTimestamptz("_created_at", { precision: 3 }).notNull().default(sql`CURRENT_TIMESTAMP`),
+  // System field: Creator (auto-filled, do not modify)
+  createdBy: userProfile("_created_by"),
+  // System field: Update time (auto-filled, do not modify)
+  updatedAt: customTimestamptz("_updated_at", { precision: 3 }).notNull().default(sql`CURRENT_TIMESTAMP`),
+  // System field: Updater (auto-filled, do not modify)
+  updatedBy: userProfile("_updated_by"),
+}, (table) => [
+  uniqueIndex("crm_followup_write_record_key_key").on(table.recordKey),
+]);
+
 export const crmNotificationDelivery = pgTable("crm_notification_delivery", {
   id: uuid("id").primaryKey().defaultRandom(),
   deliveryKey: varchar("delivery_key", { length: 160 }).notNull().unique(),
@@ -161,5 +181,6 @@ export const crmNotificationSetting = pgTable("crm_notification_setting", {
 ]);
 
 // table aliases
+export const crmFollowupWriteTable = crmFollowupWrite;
 export const crmNotificationDeliveryTable = crmNotificationDelivery;
 export const crmNotificationSettingTable = crmNotificationSetting;
