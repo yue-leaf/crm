@@ -123,14 +123,15 @@ const columns: Record<EntityKind, string[]> = {
   followup: [
     '有效客户名称',
     '关联项目',
-    '内容 / 推进结论',
     '实际发生时间',
+    '建议日期',
     '实际跟进人',
     '记录类型',
     '后续状态',
   ],
   access: ['姓名', '部门', '待配置角色'],
 };
+const columnLabel = (name: string): string => name === '建议日期' ? '下次跟进时间' : detailFieldLabel(name);
 interface Editor {
   previousFollowupId?: string;
   fixedCustomerId?: string;
@@ -854,7 +855,7 @@ const CrmPage: React.FC = () => {
                       <thead role="rowgroup">
                         <tr role="row">
                           {columns[active].map((c) => (
-                            <th role="columnheader" key={c}>{detailFieldLabel(c)}</th>
+                            <th role="columnheader" key={c}>{columnLabel(c)}</th>
                           ))}
                           <th role="columnheader">操作</th>
                         </tr>
@@ -863,7 +864,7 @@ const CrmPage: React.FC = () => {
                         {data?.records.map((row) => (
                           <tr role="row" key={row.id}>
                             {columns[active].map((c) => (
-                              <td role="cell" data-label={detailFieldLabel(c)} key={c}>
+                              <td role="cell" data-label={columnLabel(c)} key={c}>
                                 {c === titles[active] ? (
                                   <button
                                     className={active === 'followup' ? 'record-title workspace-clamp' : 'record-title'}
