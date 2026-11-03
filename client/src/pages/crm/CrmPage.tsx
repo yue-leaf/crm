@@ -522,7 +522,7 @@ const CrmPage: React.FC = () => {
               changes: changedFields(
                 recordDraft(editor.row.record, specs(editor)),
                 submitted,
-                specs(editor),
+                editor.kind === 'project' ? specs(editor).filter(showField) : specs(editor),
               ),
               expectedModifiedAt: Number(editor.row.record['修改时间']),
             })
@@ -640,6 +640,13 @@ const CrmPage: React.FC = () => {
       : changeDraft(previous, key, value, initialDraft.current, editor?.operation === 'edit'));
   };
   const showField = (f: FieldSpec) => {
+    if (editor?.kind === 'project' && editor.operation === 'edit') {
+      const state = draft['项目状态'];
+      if (f.key === '当前进展') return state === '进行中';
+      if (f.key === '暂停原因') return state === '暂停';
+      if (f.key === '签约日期') return state === '已签合同';
+      if (['结束日期', '取消原因'].includes(f.key)) return state === '已取消';
+    }
     if (editor?.operation === 'confirm-end' && f.key === '结果说明') return draft['终局确认'] !== '已取消';
     if (editor?.kind === 'contact' && f.key === '停用原因') return draft['联系人状态'] === '停用';
     if (editor?.operation === 'confirm-end' && f.key === '取消原因') return draft['终局确认'] === '已取消';

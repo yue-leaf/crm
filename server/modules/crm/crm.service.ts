@@ -33,6 +33,7 @@ import {
 import type { Draft, FieldSpec } from '@shared/crm';
 import { parseDraft, reject } from './crm-validation';
 import { prepareEdit } from './crm-edit';
+import { prepareProjectEditStatus } from './crm-project-edit';
 import { changedFields, recordDraft } from '@shared/crm-edit';
 import {
   advancementBlocked, commerceKeys, existingProjectFields, progressFields,
@@ -650,6 +651,14 @@ export class CrmService {
       await this.people(peopleFields, forms[key], false, verifiedEmployeeId);
       await this.relationChecks(key, edited.draft, edited.validationFields);
       fields = edited.writes;
+      if (key === 'project') {
+        const prepared = await prepareProjectEditStatus(row, edited.draft, fields, actor, {
+          get: (kind, recordId) => this.get(kind, recordId),
+          people: (values) => this.people(values, planFields, false, verifiedEmployeeId),
+        });
+        fields = prepared.fields;
+        related = prepared.related;
+      }
     } else if (
       operation === 'plan' &&
       (key === 'customer' || key === 'project')

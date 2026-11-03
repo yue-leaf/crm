@@ -23,6 +23,47 @@ function harness(initial=row()) {
   return {service,writes,current:()=>current,update:input=>service.update('project',current.id,'status',{...input,expectedModifiedAt:current.record.修改时间},'123')};
 }
 const signed={项目状态:'已签合同',签约日期:today,当前进展:'合同已签，安排售后',当前下一步行动:'安装培训',下次跟进日期:today,行动执行人:['123']};
+
+test('project editor prefills five-state selection and saves profile plus status in one write without a plan', async () => {
+ const {editFields,recordDraft}=require('../../dist/shared/crm-edit.js');
+ const initial=row();delete initial.record.当前下一步行动;delete initial.record.下次跟进日期;
+ const h=harness(initial);
+ const fields=editFields('project');
+ assert.deepEqual(fields.find(f=>f.key==='项目状态').options,projectStatusOptions);
+ assert.equal(recordDraft(initial.record,fields).项目状态,'进行中');
+ const edit=changes=>h.service.update('project','recProject','edit',{changes,expectedModifiedAt:h.current().record.修改时间},'123');
+ await edit({项目名称:'新名称',项目状态:'已签合同',签约日期:today});
+ assert.equal(h.writes.length,1);assert.equal(h.current().record.项目名称,'新名称');
+ assert.equal(h.current().record.工作状态,'已签合同');assert.equal(h.current().record.终局确认,'未确认');
+ assert.equal(Object.hasOwn(h.writes[0],'项目状态'),false);
+ assert.equal(Object.hasOwn(h.writes[0],'下次跟进日期'),false);
+ assert.equal(projectReviewProblem(h.current().record),'');
+ await edit({项目状态:'暂停',暂停原因:'等待客户'});
+ assert.equal(h.current().record.工作状态,'暂停');
+ await edit({项目状态:'已取消',结束日期:today,取消原因:'客户取消'});
+ assert.equal(h.current().record.终局确认,'已取消');
+ assert.equal(recordDraft(h.current().record,fields).项目状态,'已取消');
+ await edit({项目名称:'取消后修正资料'});
+ assert.equal(h.current().record.终局确认,'已取消');
+ await edit({项目状态:'待启动'});
+ assert.equal(h.current().record.工作状态,'待启动');assert.equal(h.current().record.终局确认,'未确认');
+ assert.equal(lifecycleEvents(h.current().record).at(-1).operation,'reopen');
+ assert.equal(h.current().record.下次跟进日期,undefined);
+ assert.equal(h.current().record.取消原因,'');
+});
+
+test('project edit rejects invalid conditional data and stale writes without partially changing profile',async()=>{
+ for(const changes of [{项目状态:'未知'},{项目状态:'已签合同'}, {项目状态:'已签合同',签约日期:'2099-01-01'},
+  {项目状态:'暂停'}, {项目状态:'已取消',结束日期:today}, {项目状态:'已取消',结束日期:'2099-01-01',取消原因:'取消'}]) {
+  const h=harness();
+  await assert.rejects(()=>h.service.update('project','recProject','edit',{
+   changes:{项目名称:'不能部分保存',...changes},expectedModifiedAt:1},'123'));
+  assert.equal(h.writes.length,0);assert.equal(h.current().record.项目名称,'项目');
+ }
+ const h=harness();await assert.rejects(()=>h.service.update('project','recProject','edit',{
+  changes:{项目状态:'待启动'},expectedModifiedAt:0},'123'),/记录已变化/);
+ assert.equal(h.writes.length,0);
+});
 test('five states are exact and signing keeps editing, followups, tasks and monthly signature statistics active',async()=>{
  assert.deepEqual(projectStatusOptions,['待启动','进行中','暂停','已签合同','已取消']);
  const h=harness();await h.update(signed);const record=h.current();

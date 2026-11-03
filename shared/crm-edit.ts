@@ -2,6 +2,7 @@ import type { EntityKind, CrmRecord } from './api.interface';
 import { forms, textValue, linkIds } from './crm';
 import type { Draft, FieldSpec } from './crm';
 import { attachmentDraft } from './crm-attachments';
+import { currentProjectStatus, projectEditStatusFields } from './crm-status';
 
 // Parent migration and project lifecycle changes use their dedicated workflows.
 const locked = new Set([
@@ -17,6 +18,7 @@ export function editFields(kind: EntityKind): FieldSpec[] {
   if (kind === 'access') return [];
   const fields: FieldSpec[] = forms[kind].filter((f) => !locked.has(f.key) &&
     !(kind === 'project' && f.key === '目标完成日期'));
+  if (kind === 'project') fields.splice(2, 0, ...projectEditStatusFields);
   if (kind === 'contact') {
     fields.push(
       { key: '联系人状态', type: 'select', required: true, options: ['有效', '停用'] },
@@ -31,6 +33,10 @@ export function recordDraft(
 ): Draft {
   const out: Draft = {};
   for (const f of spec) {
+    if (f.key === '项目状态') {
+      out[f.key] = currentProjectStatus({ id: '', record });
+      continue;
+    }
     const value = record[f.key];
     if (value == null) out[f.key] = null;
     else if (f.type === 'person')
@@ -74,9 +80,9 @@ export function changedFields(
 export function editBlockedReason(kind: EntityKind, row: CrmRecord): string {
   if (
     kind === 'project' &&
-    textValue(row.record['终局确认']) !== '未确认'
+    !['未确认', '已取消', '已完成'].includes(textValue(row.record['终局确认']))
   )
-    return '项目已结束或终局状态异常，请先重开或核对状态';
+    return '项目终局状态异常，请先核对状态';
   if (kind === 'project' && !['待启动', '进行中', '暂停', '已签合同'].includes(textValue(row.record['工作状态'])))
     return '项目工作状态异常，请先更新项目进展';
   if (kind === 'contact' && !['有效', '停用'].includes(textValue(row.record['联系人状态'])))

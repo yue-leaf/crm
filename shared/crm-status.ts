@@ -11,6 +11,9 @@ export const statusFields: FieldSpec[] = [
   { key: '结束日期', label: '取消日期', type: 'date' },
   { key: '取消原因', type: 'long' },
 ];
+export const projectEditStatusFields: FieldSpec[] = statusFields.filter(
+  (field: FieldSpec) => !planFields.some((plan: FieldSpec) => plan.key === field.key),
+);
 export function currentProjectStatus(row: CrmRecord): string {
   const terminal = textValue(row.record['终局确认']);
   return terminal === '已取消' ? terminal : terminal === '已完成' ? '已签合同' : textValue(row.record['工作状态']);

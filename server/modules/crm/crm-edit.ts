@@ -11,6 +11,7 @@ import { parseDraft, reject } from './crm-validation';
 import { existingProjectFields } from '@shared/crm-workflow';
 import { auditNote } from '@shared/crm-lifecycle';
 import { CONTACT_INTERVAL_PREFIX } from '@shared/crm-contact-history';
+import { projectEditStatusFields } from '@shared/crm-status';
 
 export function prepareEdit(
   kind: EntityKind,
@@ -42,12 +43,13 @@ export function prepareEdit(
   const raw = input.changes as Record<string, unknown>;
   const validationSpec = kind === 'customer' ? spec : kind === 'contact'
     ? [...forms.contact, ...spec.filter((field) => ['联系人状态', '停用原因'].includes(field.key))]
-    : forms[kind];
+    : kind === 'project' ? [...forms.project, ...projectEditStatusFields] : forms[kind];
   const before = recordDraft(row.record, validationSpec);
   const merged = { ...before };
   for (const key of Object.keys(raw)) merged[key] = patch.draft[key];
   if (kind === 'contact' && merged['联系人状态'] === '有效') merged['停用原因'] = null;
-  const checked = parseDraft(merged, kind === 'project' ? existingProjectFields(row.record) : validationSpec, enums);
+  const checked = parseDraft(merged, kind === 'project'
+    ? [...existingProjectFields(row.record), ...projectEditStatusFields] : validationSpec, enums);
   const changes = changedFields(before, checked.draft, spec);
   if (!Object.keys(changes).length) reject('编辑', '没有需要保存的修改');
   const writes: Record<string, unknown> = {};
