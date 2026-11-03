@@ -834,7 +834,7 @@ const CrmPage: React.FC = () => {
                     <Button type="submit" variant="outline">
                       搜索
                     </Button>
-                    {(search || query || listCustomerId || listProjectId) && <Button type="button" variant="ghost" onClick={() => {
+                    {(search || query || listCustomerId || listProjectId) && <Button type="button" variant={active === 'followup' ? 'secondary' : 'ghost'} onClick={() => {
                       setSearch(''); setQuery('');
                       if (active === 'followup' && (listCustomerId || listProjectId)) updateFollowupTargetFilter('reset');
                       else if (!query) void reload();
