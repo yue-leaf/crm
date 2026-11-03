@@ -1075,4 +1075,5 @@
 .crm-action-button { position: relative; }
 .crm-action-label { display: inline-flex; align-items: center; justify-content: inherit; gap: inherit; min-width: 0; }
 .crm-action-spinner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-.record-actions .crm-action-button { min-width: 76px; }
+.record-actions { text-align: left; }
+.record-actions .crm-action-button { min-width: 76px; justify-content: flex-start; padding-inline-start: 0; }
