@@ -489,7 +489,7 @@ export class CrmService {
         reject('预计金额', '填写金额时必须填写币种和含税口径');
     }
   }
-  async create(kind: string, body: unknown, verifiedEmployeeId?: string): Promise<WriteResult> {
+  async create(kind: string, body: unknown, verifiedEmployeeId?: string, actor?: string): Promise<WriteResult> {
     const key = this.kind(kind);
     if (key === 'access') reject('成员', '人员由通讯录同步，请在 Base 管理');
     const { draft, fields } = parseDraft(body, forms[key], this.enums(key));
@@ -517,10 +517,46 @@ export class CrmService {
     const id = this.writtenId(result);
     if (attachmentCheck) await this.nativeAttachments.apply(attachmentCheck, id);
     await this.verifySaved(key, id, fields, attachmentCheck?.expected);
+    const projectId = key === 'followup' && Array.isArray(draft['关联项目']) ? draft['关联项目'][0] : undefined;
+    if (projectId) {
+      try {
+        const started = await this.startProjectAfterFollowup(projectId, id, textValue(fields['内容 / 推进结论']), actor);
+        if (started) return { id, message: '跟进记录已保存，项目已更新为进行中' };
+      } catch (error: unknown) {
+        this.logger.error(`跟进 ${id} 已保存，项目 ${projectId} 自动启动未确认`, error instanceof Error ? error.stack : String(error));
+        return { id, message: '跟进记录已保存',
+          warning: '跟进记录已保存，但项目状态自动更新未确认。请刷新项目核对，必要时在编辑项目中修改状态，无需重复新增跟进。' };
+      }
+    }
     return {
       id,
       message: '已保存',
     };
+  }
+  private async startProjectAfterFollowup(projectId: string, followupId: string, conclusion: string, actor?: string): Promise<boolean> {
+    const lock = `project:${projectId}`;
+    if (this.updating.has(lock)) throw new ConflictException('项目正在修改');
+    this.updating.add(lock);
+    try {
+      const row = await this.get('project', projectId);
+      if (textValue(row.record['工作状态']) !== '待启动' || textValue(row.record['终局确认']) !== '未确认') return false;
+      const note = [textValue(row.record['管理记录']),
+        `跟进自动启动 · ${new Date().toISOString()} · ${actor || '系统'}\n${auditNote(`新增跟进 ${followupId}，项目状态：待启动 → 进行中`)}`,
+      ].filter(Boolean).join('\n\n');
+      if (note.length > 20000) reject('管理记录', '历史记录已达上限');
+      const fields: Record<string, unknown> = { 工作状态: '进行中', 管理记录: note };
+      if (!textValue(row.record['当前进展']).trim()) fields['当前进展'] = Array.from(conclusion).slice(0, 2000).join('');
+      const latest = await this.get('project', projectId);
+      if (!isDeepStrictEqual(row.record, latest.record)) throw new ConflictException('项目在自动更新前已变化');
+      const written = this.writtenId(await this.call('project', 'batchUpdateRecords', {
+        records: [{ id: projectId, record: fields }],
+      }));
+      if (written !== projectId) throw new BadGatewayException('项目更新响应记录不一致');
+      await this.verifySaved('project', projectId, fields);
+      return true;
+    } finally {
+      this.updating.delete(lock);
+    }
   }
   private writtenId(result: unknown): string {
     if (

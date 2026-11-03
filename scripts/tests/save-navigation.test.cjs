@@ -41,6 +41,14 @@ test('root create closes the editor and refreshes the list without opening a det
   assert.equal(h.counts().refreshes,1);assert.equal(h.counts().creates,1);
  }
 });
+
+test('saved followup with project warning closes normally and refreshes without duplicate submission',async()=>{
+ const h=harness('followup');const notices=[];const errors=[];const create=h.context.api.create;
+ h.context.api.create=async(...args)=>({...await create(...args),warning:'跟进已保存，请核对项目状态'});
+ h.context.toast.warning=value=>notices.push(value);h.context.setSaveError=value=>{if(value)errors.push(value);};
+ await h.save();assert.equal(h.counts().creates,1);assert.equal(h.counts().refreshes,1);
+ assert.deepEqual(h.selected,[null]);assert.equal(notices.length,1);assert.deepEqual(errors,[]);
+});
 test('creating a related contact returns to its source customer without a saved/continue banner',async()=>{
  const origin={kind:'customer',row:{id:'recCustomer',record:{}},tab:'contacts'};
  const h=harness('contact',origin);await h.save();

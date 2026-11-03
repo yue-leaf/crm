@@ -77,6 +77,7 @@ export interface NotificationState {
 export interface WriteResult {
   id: string;
   message: string;
+  warning?: string;
 }
 export interface CrmEditRequest {
   changes: Record<string, string | string[] | number | boolean | null>;
