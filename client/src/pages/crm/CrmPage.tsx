@@ -875,7 +875,7 @@ const CrmPage: React.FC = () => {
                             <td role="cell" data-label="操作" className="record-actions">
                               {active === 'project' && <Button variant="ghost" size="sm" disabled={saving || uploading} onClick={() => edit(row, 'project', 'status')}><RefreshCw size={14} />更新状态</Button>}
                               {active === 'customer' && <Button variant="ghost" size="sm" disabled={saving || uploading} onClick={() => detail(row, 'customer', undefined, 'contacts')}><Users size={14} />联系人</Button>}
-                              <Button
+                              {active !== 'customer' && <Button
                                 variant="ghost"
                                 size="sm"
                                 className="gap-1.5"
@@ -888,7 +888,7 @@ const CrmPage: React.FC = () => {
                               >
                                 {active === 'access' ? <Pencil size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
                                 {active === 'access' ? '编辑' : '查看'}
-                              </Button>
+                              </Button>}
                               {active !== 'access' && (
                                 <Button
                                   variant="ghost"
