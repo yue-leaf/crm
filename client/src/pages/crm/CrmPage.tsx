@@ -120,9 +120,9 @@ const columns: Record<EntityKind, string[]> = {
     '下次跟进日期',
   ],
   followup: [
-    '内容 / 推进结论',
     '有效客户名称',
     '关联项目',
+    '内容 / 推进结论',
     '实际发生时间',
     '实际跟进人',
     '记录类型',
@@ -853,9 +853,9 @@ const CrmPage: React.FC = () => {
                       <tbody role="rowgroup">
                         {data?.records.map((row) => (
                           <tr role="row" key={row.id}>
-                            {columns[active].map((c, i) => (
+                            {columns[active].map((c) => (
                               <td role="cell" data-label={detailFieldLabel(c)} key={c}>
-                                {i === 0 ? (
+                                {c === titles[active] ? (
                                   <button
                                     className={active === 'followup' ? 'record-title workspace-clamp' : 'record-title'}
                                     title={textValue(row.record[c])}
