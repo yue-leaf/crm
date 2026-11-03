@@ -157,7 +157,7 @@ test('edit prefill preserves zero amounts, people, relations and second precisio
     {},
   );
 });
-test('optional date clearing writes null and leaves unchanged dates out of patch', () => {
+test('project editing excludes target completion date and preserves existing dates', () => {
   const row = {
     id: 'recProject',
     record: {
@@ -173,9 +173,9 @@ test('optional date clearing writes null and leaves unchanged dates out of patch
       工作状态: '待启动',
     },
   };
-  const cleared = prepareEdit('project', row, { changes: { 目标完成日期: null }, reason: 'clear' }, {}, 'unit-test');
-  assert.equal(cleared.writes.目标完成日期, null);
-  assert.ok(!Object.hasOwn(cleared.writes, '下次跟进日期'));
+  assert.ok(!editFields('project').some(field => field.key === '目标完成日期'));
+  assert.throws(() => prepareEdit('project', row,
+    { changes: { 目标完成日期: null }, reason: 'clear' }, {}, 'unit-test'), /此操作不可修改该字段/);
   const result = prepareEdit(
     'project',
     row,

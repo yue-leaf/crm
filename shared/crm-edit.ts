@@ -14,7 +14,8 @@ const locked = new Set([
 ]);
 export function editFields(kind: EntityKind): FieldSpec[] {
   if (kind === 'access') return [];
-  const fields: FieldSpec[] = forms[kind].filter((f) => !locked.has(f.key));
+  const fields: FieldSpec[] = forms[kind].filter((f) => !locked.has(f.key) &&
+    !(kind === 'project' && f.key === '目标完成日期'));
   if (kind === 'contact') {
     fields.push(
       { key: '联系人状态', type: 'select', required: true, options: ['有效', '停用'] },
