@@ -12,6 +12,16 @@ export function changeFilter(params: URLSearchParams, key: string, value: string
   return next.toString();
 }
 
+export function changeFollowupListTarget(params: URLSearchParams, key: 'customerId' | 'projectId' | 'reset', value = ''): string {
+  const next: URLSearchParams = new URLSearchParams(params);
+  if (key === 'reset') { next.delete('customerId'); next.delete('projectId'); }
+  else {
+    if (key === 'customerId' && value !== (next.get(key) || '')) next.delete('projectId');
+    if (value) next.set(key, value); else next.delete(key);
+  }
+  return next.toString();
+}
+
 export function followupTime(value: Draft[string] | undefined): number {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(value)) return NaN;
   const time: number = Date.parse(value + '+08:00');

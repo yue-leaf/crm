@@ -26,6 +26,33 @@ function service(projects,followups,{fail,projectPageSize=50}={}) {
   }})});
   return {s:instance,calls};
 }
+
+test('followup list combines customer, project and content search across pages',async()=>{
+ const ps=[project('recA'),project('recB'),project('recForeign',{所属企业:{link_record_ids:['recOther']}})];
+ const fs=[direct('recDirect',{'内容 / 推进结论':'沟通'}),linked('recBLog','recB',{'内容 / 推进结论':'沟通'}),
+  linked('recForeignLog','recForeign',{'内容 / 推进结论':'沟通'}),
+  ...Array.from({length:35},(_,i)=>linked('recLog'+i,'recA',{'内容 / 推进结论':i===34?'唯一关键词':'沟通',实际发生时间:i}))];
+ const {s}=service(ps,fs);
+ const customerPage=await s.followupList(customer.id);assert.equal(customerPage.total,37);
+ const page=await s.followupList(customer.id,'recA');assert.equal(page.total,35);assert.equal(page.records.length,30);
+ assert.ok(page.records.every(r=>r.record.关联项目.link_record_ids.includes('recA')));
+ const next=await s.followupList(customer.id,'recA',page.pageToken);assert.equal(next.records.length,5);
+ const search=await s.followupList(customer.id,'recA',undefined,'唯一关键词');
+ assert.equal(search.total,1);assert.equal(search.records[0].id,'recLog34');
+ assert.equal((await s.followupList(undefined,'recB')).records[0].id,'recBLog');
+ await assert.rejects(()=>s.followupList(customer.id,'recB',page.pageToken),/已变化/);
+ await assert.rejects(()=>s.followupList(customer.id,'recForeign'),/不属于/);
+});
+
+test('followup list rejects malformed filters and delegates unfiltered reads to existing pagination',async()=>{
+ const {s}=service([],[]);
+ for(const value of ['bad',{},['recCustomer']]) {
+  await assert.rejects(()=>s.followupList(value),/标识/);
+  await assert.rejects(()=>s.followupList(undefined,value),/标识/);
+ }
+ let args;s.list=async(...values)=>{args=values;return {records:[],hasMore:false};};
+ await s.followupList('','','cursor','关键词');assert.deepEqual(args,['followup','cursor','关键词']);
+});
 test('customer aggregates direct and every project followup, including archived/pending/void history',async()=>{
   const ps=[project('recFirst'),project('recLast',{已归档:true})];
   const fs=[direct('recDirect',{实际发生时间:300}),linked('recLinked','recLast',{核查标记:'待核查',记录状态:'已作废',实际发生时间:400}),linked('recFirstLog','recFirst',{实际发生时间:200}),linked('recForeign','recOther'),followup('recSimilar',{直接客户:{link_record_ids:['recCustomerOther']}})];

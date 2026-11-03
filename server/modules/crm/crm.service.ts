@@ -182,6 +182,21 @@ export class CrmService {
       throw new BadGatewayException('联系人归属筛选异常，请刷新重试');
     return page;
   }
+  async followupList(customerId?: string, projectId?: string, cursor?: string, search?: string): Promise<CrmPage> {
+    for (const id of [customerId, projectId]) {
+      if (id !== undefined && (typeof id !== 'string' || (id !== '' && !/^rec[A-Za-z0-9]+$/.test(id))))
+        throw new BadRequestException('客户或项目筛选标识无效');
+    }
+    if (projectId) {
+      const project = await this.get('project', projectId);
+      if (customerId && !linkIds(project.record['所属企业']).includes(customerId))
+        throw new BadRequestException('所选项目不属于所选客户，请重新选择项目');
+      return new CrmRelations((kind, input) => this.call(kind, 'searchRecords', input))
+        .followups('project', project, { cursor, search });
+    }
+    if (customerId) return this.relatedFollowups('customer', customerId, { cursor, search });
+    return this.list('followup', cursor, search);
+  }
 
   async get(kind: string, id: string): Promise<CrmRecord> {
     const key = this.kind(kind);

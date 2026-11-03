@@ -1054,6 +1054,10 @@
 .followup-filter > span { color: #646a73; white-space: nowrap; }
 .followup-filter > button { width: 148px; height: 36px; font-size: 13px; background: #fff; }
 .list-toolbar > .toolbar-count { margin-left: auto; white-space: nowrap; }
+.toolbar-relation { display: flex; align-items: center; gap: 8px; width: 240px; min-width: 0; }
+.toolbar-relation > span { flex-shrink: 0; color: #646a73; font-size: 13px; }
+.toolbar-relation > .relation-field { flex: 1; min-width: 0; }
+.toolbar-relation .record-picker-trigger { height: 36px; font-size: 13px; }
 @media (max-width: 1100px) {
   .list-toolbar > .toolbar-search { width: 300px; }
   .list-toolbar > .followup-filter { margin-left: 0; }
@@ -1064,6 +1068,7 @@
   .list-toolbar > .followup-filter { flex: 1 1 auto; }
   .followup-filter > button { width: 148px; }
   .list-toolbar > .toolbar-count { width: auto; }
+  .list-toolbar > .toolbar-relation { flex: 1 1 100%; width: 100%; }
 }
 
 /* Preserve action geometry while an individual request is pending. */
