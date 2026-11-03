@@ -21,7 +21,7 @@ walk(ast);
 function harness(kind='customer',origin=null){
  const selected=[],receipts=[],reads=[],restored=[],resumed=[],payloads=[];let refreshes=0,creates=0;
  const context={pendingContacts:[],selectedContacts:[],customerSave:{current:{contacts:{}}},
-  saveCustomerContacts:require('../../dist/shared/crm-customer-create').saveCustomerContacts,editor:{kind,operation:'create'},draft:{},uncertain:false,savingRef:{current:false},uploadingRef:{current:false},
+  saveCustomerContacts:require('../../dist/shared/crm-customer-create').saveCustomerContacts,editor:{kind,operation:'create'},draft:{},uncertain:false,projectResolution:{current:0},projectResolvingRef:{current:false},setProjectResolving:()=>{},draftCustomer:'',savingRef:{current:false},uploadingRef:{current:false},
   editorOrigin:{current:origin},suspendedEditor:{current:null},requestVersion:{current:0},detailVersion:{current:0},
   planSuggestion:{current:null},data:{records:[]},specs:()=>[],showField:()=>true,requiredField:x=>x,missingFields:()=>({}),
   actionDraft:(_,draft)=>draft,followupWriteDraft:d=>d,setFieldErrors:()=>{},setSaveError:()=>{},setSaving:()=>{},
@@ -74,7 +74,7 @@ test('successful contact creation keeps the source customer even if rereading it
  assert.equal(h.restored[0][0].row.id,'recCustomer');assert.deepEqual(h.selected,[]);
 });
 test('customer context locks contact and project parents; standalone create remains selectable and lock resets',()=>{
- const context={savingRef:{current:false},uploadingRef:{current:false},editorOrigin:{},currentLocation:()=>null,
+ const context={projectResolution:{current:0},projectResolvingRef:{current:false},setProjectResolving:()=>{},draftCustomer:'',savingRef:{current:false},uploadingRef:{current:false},editorOrigin:{},currentLocation:()=>null,
   planSuggestion:{},editorRequestVersion:{current:0},detailVersion:{current:0},initialDraft:{},session:null,
   specs:()=>[],isLifecycle:()=>false,setFollowupCustomer:()=>{},setCustomerResolveError:()=>{},
   setSaveError:()=>{},setFieldErrors:()=>{},setUncertain:()=>{},structuredClone,
@@ -130,4 +130,25 @@ test('contact and project saves always use the fixed customer from their source 
   await h.save();assert.equal(h.payloads[0].所属企业[0],'recCustomer');assert.equal(h.payloads[0].名称,'Record');
  }
 
+});
+test('project-first selection resolves its customer and ignores a late result after customer changes',async()=>{
+ const setHandler=editorHandlers.find(s=>s.startsWith('const set ='));
+ for(const supersede of [false,true]){
+  let resolve;const pending=new Promise(r=>{resolve=r;});
+  const c={editor:{kind:'followup',operation:'create'},draft:{跟进主题:'保留内容'},FOLLOWUP_CUSTOMER:'跟进客户',
+   projectResolution:{current:0},projectResolvingRef:{current:false},savingRef:{current:false},uploadingRef:{current:false},initialDraft:{current:{}},
+   setProjectResolving:()=>{},setSaveError:()=>{},setFieldErrors:()=>{},message:e=>e.message,
+   projectFirstDraft:require('../../dist/shared/crm-followup-target').projectFirstDraft,
+   changeFollowupTarget:require('../../dist/shared/crm-followup-target').changeFollowupTarget,
+   api:{get:()=>pending}};
+  c.setDraft=fn=>{c.draft=fn(c.draft);};vm.createContext(c);
+  vm.runInContext(ts.transpileModule(setHandler+'\nglobalThis.setField=set;',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,c);
+  c.setField('关联项目',['recProject']);assert.equal(c.projectResolvingRef.current,true);
+  if(supersede)c.setField('跟进客户',['recOther']);
+  resolve({id:'recProject',record:{所属企业:{link_record_ids:['recCustomer']}}});
+  await new Promise(r=>setImmediate(r));
+  assert.equal(c.draft.跟进客户[0],supersede?'recOther':'recCustomer');
+  assert.equal(c.draft.跟进主题,'保留内容');assert.equal(c.projectResolvingRef.current,false);
+  assert.equal(c.draft.关联项目.length,supersede?0:1);
+ }
 });

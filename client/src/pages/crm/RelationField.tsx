@@ -110,7 +110,7 @@ export const RelationField: React.FC<{
       const issue = contactChoiceProblem(row, occurredAt ?? NaN);
       return issue ? <p key={row.id} className="field-error" role="alert">{textValue(row.record['姓名'])}：{issue}</p> : null;
     })}
-    {field.key === '关联项目' && customerId === '' && <small>请先选择客户</small>}
+    {field.key === '关联项目' && customerId === '' && <small>选择项目后自动带出所属客户</small>}
     {field.target === 'contact' && !customerId && <small>请先选择客户</small>}
   </div>;
 };

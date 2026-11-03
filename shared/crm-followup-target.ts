@@ -1,5 +1,6 @@
 import type { Draft, FieldSpec } from './crm';
-import { forms } from './crm';
+import type { CrmRecord } from './api.interface';
+import { forms, linkIds } from './crm';
 
 // This customer is form context; project followups store only the project relation.
 export const FOLLOWUP_CUSTOMER = '跟进客户';
@@ -35,4 +36,12 @@ export function followupWriteDraft(draft: Draft): Draft {
     ...fields, 跟进归属: hasProject ? '项目跟进' : '客户直接跟进',
     直接客户: hasProject ? [] : customer || fields['直接客户'] || [],
   };
+}
+
+/** Project-first entry derives the required customer from the actual project record. */
+export function projectFirstDraft(draft: Draft, project: CrmRecord): Draft {
+  const customers = linkIds(project.record['所属企业']);
+  if (customers.length !== 1) throw new Error('项目所属客户信息不完整，请先完善项目资料');
+  const customerDraft = changeFollowupTarget(draft, FOLLOWUP_CUSTOMER, customers);
+  return changeFollowupTarget(customerDraft, '关联项目', [project.id]);
 }

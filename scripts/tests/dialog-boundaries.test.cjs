@@ -8,7 +8,7 @@ const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve
 test('cancelling an uncertain save keeps the source parent, while standalone cancel still closes',()=>{
  for(const parent of [null,{kind:'customer',row:{id:'recParent'},tab:'contacts'}]){
   const selected=[],restored=[];let reloads=0;
-  const c={savingRef:{current:false},uploadingRef:{current:false},uncertain:true,suspendedEditor:{current:null},resumeFollowup:()=>false,
+  const c={projectResolution:{current:0},projectResolvingRef:{current:false},setProjectResolving:()=>{},draftCustomer:'',savingRef:{current:false},uploadingRef:{current:false},uncertain:true,suspendedEditor:{current:null},resumeFollowup:()=>false,
    editorOrigin:{current:parent},setEditor:()=>{},setSelection:r=>selected.push(r),setDetailRevision:()=>{},restoreLocation:r=>restored.push(r),reload:()=>reloads++};
   handler('CrmPage.tsx','closeEditor',c)();assert.equal(reloads,1);
   assert.equal(restored.length,parent?1:0);assert.equal(selected.length,parent?0:1);
