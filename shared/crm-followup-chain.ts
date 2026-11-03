@@ -5,9 +5,10 @@ import { shanghaiDay } from './crm-followup-status';
 
 export const validChainTime = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && Number.isFinite(new Date(v).getTime());
 export function explicitlyEnded(record: CrmRecord['record']): boolean {
-  // The audit line also recognizes explicit endings saved before this distinction was introduced.
-  return textValue(record['后续处理']) === '已结束' &&
-    /^结束跟进 · \d{4}-\d{2}-\d{2}T[^\n]+/m.test(textValue(record['管理记录']));
+  if (textValue(record['后续处理']) !== '已结束') return false;
+  // A later resume supersedes an old end, even if a no-action edit stores 已结束 again.
+  const events = [...textValue(record['管理记录']).matchAll(/^(结束跟进|恢复跟进) · \d{4}-\d{2}-\d{2}T[^\n]+/gm)];
+  return events.at(-1)?.[1] === '结束跟进';
 }
 export function sameFollowupTarget(a: CrmRecord, b: CrmRecord): boolean {
   const first = followupTarget(a), second = followupTarget(b);

@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
-const { readRelatedPages } = require('../../dist/shared/crm-navigation.js');
+const { readRelatedPages, RecordPageChanged } = require('../../dist/shared/crm-navigation.js');
 
 const page = (n, last = false) => ({ records: [{ id: `r${n}`, record: { name: `fresh-${n}` } }],
   sources: { [`r${n}`]: { id: 'customer', kind: 'customer', name: '客户' } },
@@ -60,4 +60,30 @@ test('late response after navigation cannot update the new location', async () =
   await readRelatedPages(progress);
   assert.equal(progress.page, null);
   assert.equal(progress.depth, 0);
+});
+
+test('a stale related cursor reloads the full requested range without mixing old and new rows',async()=>{
+ const progress={...state(),page:page(1),depth:1};const requests=[];
+ progress.load=async cursor=>{
+  requests.push(cursor);
+  if(cursor==='2')throw new RecordPageChanged('关联记录已变化');
+  const n=Number(cursor||11);return page(n,n===13);
+ };
+ await readRelatedPages(progress);
+ assert.deepEqual(requests,['2',undefined,'12','13']);
+ assert.deepEqual(progress.page.records.map(row=>row.id),['r11','r12','r13']);
+ assert.deepEqual(Object.keys(progress.page.sources),['r11','r12','r13']);
+ assert.equal(progress.depth,3);
+});
+
+test('continuously changing lists stop after one restart; retry can recover and late conflicts do not restart',async()=>{
+ const progress={...state(),page:page(1),depth:1};let count=0;
+ progress.load=async cursor=>{count++;if(cursor)throw new RecordPageChanged('busy');return page(3);};
+ await assert.rejects(readRelatedPages(progress),RecordPageChanged);assert.equal(count,3);
+ progress.load=async cursor=>page(Number(cursor),true);
+ await readRelatedPages(progress);assert.deepEqual(progress.page.records.map(row=>row.id),['r3','r4']);
+ let canceled=false;count=0;
+ await readRelatedPages({...state(),page:page(1),depth:1,canceled:()=>canceled,
+  load:async()=>{count++;canceled=true;throw new RecordPageChanged('late');}});
+ assert.equal(count,1);
 });

@@ -81,6 +81,15 @@ test('successful contact creation keeps the source customer even if rereading it
  await h.save();assert.equal(h.counts().creates,1);assert.equal(h.restored.length,1);
  assert.equal(h.restored[0][0].row.id,'recCustomer');assert.deepEqual(h.selected,[]);
 });
+
+test('a delayed source refresh failure does not show a stale save warning after opening another detail',async()=>{
+ const h=harness('contact',{kind:'customer',row:{id:'recCustomer',record:{}},tab:'contacts'});
+ let fail;const notices=[];h.context.toast.info=m=>notices.push(m);
+ h.context.api.get=()=>new Promise((_,reject)=>{fail=reject;});
+ const pending=h.save();await new Promise(resolve=>setImmediate(resolve));
+ h.context.detailVersion.current++;fail(Error('late'));await pending;
+ assert.deepEqual(notices,[]);assert.equal(h.counts().creates,1);
+});
 test('customer context locks contact and project parents; standalone create remains selectable and lock resets',()=>{
  const context={projectResolution:{current:0},projectResolvingRef:{current:false},setProjectResolving:()=>{},draftCustomer:'',savingRef:{current:false},uploadingRef:{current:false},editorOrigin:{},currentLocation:()=>null,
   editorRequestVersion:{current:0},detailVersion:{current:0},initialDraft:{},session:null,
