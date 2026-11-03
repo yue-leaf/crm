@@ -77,7 +77,7 @@ import { appendPage, changeDraft, missingFields, requiredField } from '@shared/c
 import { crmAdmin } from '@shared/crm-access';
 
 import { ProjectDashboard } from './ProjectDashboard';
-import { useFollowupClock } from './FollowupStatus';
+import { FollowupDueDate, useFollowupClock } from './FollowupStatus';
 import { followupFilterLabels, validFollowupFilter, shanghaiDay } from '@shared/crm-followup-status';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { FollowupFilter } from '@shared/api.interface';
@@ -836,6 +836,7 @@ const CrmPage: React.FC = () => {
                                   <Cell name="工作状态" value={projectFacts(row, Date.now()).state || '状态异常'} />
                                  ) : c === '待办情况' ? <button className="record-title" onClick={() => { setFollowupViews(previous => ({ ...previous, [`project:${row.id}`]: { ...defaultFollowupView, status: 'pending' } })); return detail(row, 'project'); }}>{Number(row.record['待跟进数量'])
                                   ? `待跟进 ${row.record['待跟进数量']}${Number(row.record['逾期跟进数量']) ? ` · 逾期 ${row.record['逾期跟进数量']}` : ''}` : '暂无待跟进'}</button>
+                                  : active === 'followup' && c === '建议日期' ? <FollowupDueDate row={row} now={now} />
                                   : c === '后续状态' ? <span className={`tag ${row.followup?.state === '待跟进' ? 'blue' : 'neutral'}`}>{row.followup?.state || '—'}</span> : (
                                   <Cell name={c} value={row.record[c]} onOpenCustomer={id => detail({ id, record: {} }, 'customer', undefined, active === 'contact' ? 'contacts' : 'followups')}
                                     onOpenRecord={(id, kind) => detail({ id, record: {} }, kind)} />

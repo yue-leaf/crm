@@ -178,6 +178,10 @@
   background: #fff0ee;
   color: #ad3428;
 }
+.tag.followup-today {
+  background: #fff4c2;
+  color: #805b00;
+}
 .tag.neutral {
   background: #f0f2f5;
   color: #596372;
