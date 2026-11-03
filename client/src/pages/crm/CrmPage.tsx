@@ -107,7 +107,6 @@ const columns: Record<EntityKind, string[]> = {
     '企业全称',
     '行业',
     '客户负责人',
-    '跟进状态',
     '下次跟进日期',
   ],
   contact: ['姓名', '所属企业', '职务', '电话', '邮箱', '联系人状态'],
@@ -284,7 +283,7 @@ const CrmPage: React.FC = () => {
         const next = await api.workspace(scope);
         if (version === requestVersion.current) setOverview(next);
       } else {
-        const filters = active === 'project' ? { scope, projectFilter, followupFilter } : active === 'customer' ? { followupFilter } : undefined;
+        const filters = active === 'project' ? { scope, projectFilter, followupFilter } : undefined;
         let next = await api.list(active, '', query, filters);
         const cursors = new Set<string>();
         while (next.records.length < keepRows && next.hasMore && next.pageToken && version === requestVersion.current) {
@@ -817,7 +816,7 @@ const CrmPage: React.FC = () => {
                         placeholder={`请输入${active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}`}
                       />
                     </div>
-                    {(active === 'customer' || active === 'project') && <div className="followup-filter"><span>跟进状态</span>
+                    {active === 'project' && <div className="followup-filter"><span>跟进状态</span>
                       <Select value={followupFilter} onValueChange={(value: string) => {
                         updateFilter('followupFilter', value);
                       }}><SelectTrigger aria-label="筛选跟进状态"><SelectValue>{followupFilter === 'all' ? '全部' : followupFilterLabels[followupFilter]}</SelectValue></SelectTrigger>
@@ -934,7 +933,7 @@ const CrmPage: React.FC = () => {
                               active,
                               data.pageToken,
                               query,
-                              active === 'project' ? { scope, projectFilter, followupFilter } : active === 'customer' ? { followupFilter } : undefined,
+                              active === 'project' ? { scope, projectFilter, followupFilter } : undefined,
                             );
                             if (version === requestVersion.current)
                               setData((previous) => appendPage(previous, next));
