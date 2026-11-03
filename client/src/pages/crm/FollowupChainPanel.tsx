@@ -1,4 +1,3 @@
-import React from 'react';
 import type { CrmRecord } from '@shared/api.interface';
 import { textValue } from '@shared/crm';
 import { ActionButton as Button } from './ActionButton';

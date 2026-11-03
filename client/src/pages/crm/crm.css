@@ -120,12 +120,6 @@
   gap: 20px;
   margin-bottom: 28px;
 }
-.eyebrow {
-  font-size: 12px;
-  letter-spacing: 1.5px;
-  color: #68717d;
-  margin-bottom: 10px;
-}
 .page-heading h1 {
   font-size: 27px;
   line-height: 1.4;
@@ -141,95 +135,15 @@
   display: flex;
   gap: 10px;
 }
-.stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-  margin-bottom: 26px;
-}
-.stat {
-  background: white;
-  border: 1px solid #e8ebf0;
-  border-radius: 10px;
-  padding: 22px;
-  text-align: left;
-  transition: border-color 0.15s;
-}
-.stat:hover {
-  border-color: #9ab9ff;
-}
-.stat > div {
-  display: flex;
-  justify-content: space-between;
-  color: #646a73;
-}
-.stat > div svg {
-  color: #7896ce;
-}
-.stat strong {
-  font-size: 34px;
-  font-weight: 600;
-  display: block;
-  margin: 18px 0 14px;
-}
-.stat small {
-  display: flex;
-  justify-content: space-between;
-  color: #68717d;
-  font-size: 12px;
-}
-.home-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 24px;
-}
 .panel {
   background: #fff;
   border: 1px solid #e8ebf0;
   border-radius: 10px;
   overflow: hidden;
 }
-.panel-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px;
-}
-.panel h2,
-.blue-panel h2 {
+.panel h2 {
   font-size: 16px;
   font-weight: 600;
-}
-.workflow {
-  padding: 0 24px;
-}
-.workflow > button {
-  width: 100%;
-  display: flex;
-  gap: 20px;
-  align-items: center;
-  padding: 24px 0;
-  text-align: left;
-  border-top: 1px solid #eff1f4;
-}
-.workflow > button > span {
-  font-size: 18px;
-  color: #9fb5de;
-  width: 28px;
-}
-.workflow > button > div {
-  flex: 1;
-}
-.workflow h3 {
-  font-weight: 550;
-  margin-bottom: 5px;
-}
-.workflow p {
-  color: #68717d;
-  font-size: 12px;
-}
-.workflow svg {
-  color: #9ca4b1;
 }
 .panel-note {
   font-size: 13px;
@@ -238,23 +152,6 @@
   background: #f8faff;
   border-top: 1px solid #edf1f7;
   line-height: 1.8;
-}
-.blue-panel {
-  padding: 32px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #eef4ff, #f7f9ff);
-  border: 1px solid #e0e9fc;
-  color: #325a9f;
-}
-.blue-panel h2 {
-  margin: 24px 0 16px;
-  font-size: 21px;
-}
-.blue-panel p {
-  font-size: 13px;
-  line-height: 2;
-  color: #687e9f;
-  margin-bottom: 26px;
 }
 .tag {
   display: inline-flex;
@@ -733,12 +630,6 @@
   color: #bd4f40;
   font-size: 12px;
 }
-.detail-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 12px 0;
-}
 .detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -813,18 +704,6 @@
   .crm-content {
     padding: 24px;
   }
-  .stats {
-    gap: 12px;
-  }
-  .stat {
-    padding: 18px;
-  }
-  .home-grid {
-    grid-template-columns: 1fr;
-  }
-  .blue-panel {
-    display: none;
-  }
 }
 @media (max-width: 700px) {
   .crm-shell {
@@ -880,12 +759,6 @@
   .page-heading h1 {
     font-size: 24px;
   }
-  .stats {
-    grid-template-columns: 1fr 1fr;
-  }
-  .stat strong {
-    font-size: 28px;
-  }
   .list-toolbar {
     padding: 16px;
     flex-wrap: wrap;
@@ -925,10 +798,6 @@
   }
   .detail-grid {
     padding: 16px;
-  }
-  .detail-actions button {
-    min-height: 40px;
-    white-space: normal;
   }
   .list-panel {
     background: transparent;
@@ -1014,14 +883,8 @@
     margin: 20px 0;
     padding: 30px;
   }
-  .eyebrow {
-    font-size: 12px;
-  }
   .heading-actions button {
     height: 36px;
-  }
-  .stat small {
-    font-size: 12px;
   }
 }
 .customer-contacts-heading {
@@ -1080,3 +943,6 @@
 .followup-chain-panel { margin-bottom: 16px; padding: 14px; background: #f5f7fc; border-radius: 8px; }
 .followup-previous { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; }
 .followup-previous p { width: 100%; margin: 0; }
+.project-scope { height: 36px; background: #fff; border: 1px solid #e1e5eb; border-radius: 6px; padding: 0 30px 0 12px; color: #4c5664; font-size: 13px; }
+.project-scope:focus-visible { outline: 2px solid #4f7ee8; outline-offset: 3px; }
+@media (max-width: 640px) { .heading-actions:has(.project-scope) { flex-wrap: wrap; justify-content: flex-end; } }

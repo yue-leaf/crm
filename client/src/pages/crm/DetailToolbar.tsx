@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pencil, MessageSquarePlus, ArrowUpRight } from 'lucide-react';
 import { ActionButton as Button } from './ActionButton';
 import type { CrmRecord, EntityKind } from '@shared/api.interface';

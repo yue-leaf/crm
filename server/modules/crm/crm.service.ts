@@ -39,7 +39,7 @@ import { prepareEdit } from './crm-edit';
 import { prepareProjectEditStatus } from './crm-project-edit';
 import { changedFields, recordDraft } from '@shared/crm-edit';
 import {
-  followupTarget, advancementBlocked, commerceKeys, existingProjectFields, progressFields,
+  followupTarget, advancementBlocked, commerceKeys, progressFields,
 } from '@shared/crm-workflow';
 import { contactChoiceProblem } from '@shared/crm-ux';
 import { auditNote, isLifecycle } from '@shared/crm-lifecycle';

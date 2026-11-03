@@ -5,17 +5,7 @@
 .detail-toolbar-primary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .detail-toolbar button { height: 34px; min-height: 34px; font-size: 13px; gap: 6px; }
 .detail-toolbar > button { flex-shrink: 0; color: #646a73; }
-.detail-toolbar-secondary { margin-left: auto; align-self: flex-start; }
-.crm-detail-menu { width: 260px; font-family: var(--font-sans); }
-.crm-detail-menu [data-slot='dropdown-menu-item'] { align-items: center; gap: 8px; padding: 9px 12px; font-size: 13px; }
-.crm-detail-menu [data-slot='dropdown-menu-item'] > svg { color: #646a73; }
 .crm-detail-dialog .panel-note { border-radius: 6px; border: 0; padding: 10px 14px; margin: 0 0 12px; line-height: 1.7; }
-.workspace-plan { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 16px; margin-bottom: 18px; background: #f7f9fc; border: 1px solid #edf0f5; border-radius: 8px; }
-.workspace-plan > div { min-width: 0; }
-.workspace-plan > div:first-child { flex: 1; }
-.workspace-plan > div:last-child { color: #646a73; font-size: 12px; flex-shrink: 0; }
-.workspace-plan span { font-size: 12px; color: #646a73; }
-.workspace-plan p { color: #1f2329; font-size: 13px; line-height: 1.7; margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .crm-workspace .workspace-tabs { display: flex; width: 100%; height: auto; justify-content: flex-start; gap: 24px; padding: 0; background: transparent; border-radius: 0; border-bottom: 1px solid #e8ebf0; overflow-x: auto; }
 .crm-workspace .workspace-tabs [data-slot='tabs-trigger'] { flex: 0 0 auto; height: 42px; padding: 0 2px; font-size: 13px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; color: #646a73; box-shadow: none; background: transparent; }
 .crm-workspace .workspace-tabs [data-state='active'] { color: #245bdb; border-bottom-color: #245bdb; font-weight: 600; }
@@ -95,7 +85,6 @@
   .detail-toolbar-primary { gap: 6px; }
   .detail-toolbar button { padding-inline: 9px; font-size: 12px; }
   .crm-workspace .workspace-tabs { gap: 20px; }
-  .workspace-plan { padding: 12px; gap: 12px; }
   .customer-projects { grid-template-columns: minmax(0, 1fr); }
   .followup-entry { padding-left: 22px; }
   .related-search > div { max-width: none; }

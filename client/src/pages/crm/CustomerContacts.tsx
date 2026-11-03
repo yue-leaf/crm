@@ -10,17 +10,16 @@ import { useRelatedPage } from './useRelatedPage';
 
 export const CustomerContacts: React.FC<{
   customerId: string;
-  createBlocked: boolean;
   busy: boolean;
   onCreate?: () => void;
   onView: (row: CrmRecord) => void | Promise<void>;
   onEdit: (row: CrmRecord) => void | Promise<void>;
-}> = ({ customerId, createBlocked, busy, onCreate, onView, onEdit }) => {
+}> = ({ customerId, busy, onCreate, onView, onEdit }) => {
   const load = useCallback((cursor?: string): Promise<CrmPage> => api.customerContacts(customerId, { cursor }), [customerId]);
   const { page, loading, error, more, retry } = useRelatedPage(load, JSON.stringify(['contacts', customerId]));
   return <section className="detail-section customer-contacts" aria-label="客户联系人" data-page-loading={loading}>
     <div className="customer-contacts-heading"><h3>客户联系人{page && <span className="contact-count">{page.hasMore ? '已加载 ' : ''}{page.records.length} 人</span>}</h3>
-      {onCreate && <Button type="button" variant="outline" size="sm" disabled={createBlocked || busy} title={createBlocked ? '客户归档后不能新建联系人' : undefined} onClick={onCreate}><Plus size={14} />新建联系人</Button>}
+      {onCreate && <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onCreate}><Plus size={14} />新建联系人</Button>}
     </div>
     <div className="customer-contact-list">{page?.records.map((row: CrmRecord) => {
       const phone: string = textValue(row.record['电话']).trim();
