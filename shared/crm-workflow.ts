@@ -4,7 +4,7 @@ import { forms, linkIds, planFields, textValue } from './crm';
 
 export const commerceKeys = ['预计金额', '币种', '金额含税口径'];
 
-/** Existing paused/terminal records do not need an active plan. Creation still does. */
+/** Basic project creation/editing allows no plan; advancement validates plans separately. */
 export function existingProjectFields(record: CrmRecord['record']): FieldSpec[] {
   const noPlan = ['暂停', '已签合同'].includes(textValue(record['工作状态'])) ||
     ['已完成', '已取消'].includes(textValue(record['终局确认']));

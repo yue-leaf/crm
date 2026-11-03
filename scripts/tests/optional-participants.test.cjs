@@ -8,8 +8,7 @@ const { requiredField, missingFields } = require('../../dist/shared/crm-interact
 
 const bodies = {
   contact: { 所属企业: ['recCustomer'], 姓名: 'Contact', 职务: 'Engineer', 电话: '123456' },
-  project: { 所属企业: ['recCustomer'], 项目名称: 'Project', 项目类型: 'MRT', '目标 / 需求摘要': 'Goal',
-    当前下一步行动: 'Next', 下次跟进日期: '2026-11-03' },
+  project: { 所属企业: ['recCustomer'], 项目名称: 'Project', 项目类型: 'MRT', '目标 / 需求摘要': 'Goal' },
   followup: { 跟进主题: 'Call', 跟进归属: '客户直接跟进', 直接客户: ['recCustomer'], 记录类型: '外部沟通',
     '沟通 / 推进方式': '电话', 实际发生时间: '2026-10-01T10:00', '内容 / 推进结论': 'Discussed',
     后续安排: '无后续动作', 无后续动作结论: 'Done' },

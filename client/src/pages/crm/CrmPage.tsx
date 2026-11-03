@@ -44,6 +44,7 @@ import type {
 import {
   BASE_URL,
   forms,
+  projectCreateFields,
   labels,
   titles,
   planFields,
@@ -148,7 +149,8 @@ const rawSpecs = (editor: Editor): FieldSpec[] =>
       ? planFields
       : editor.operation === 'suggest-end'
         ? endFields
-        : editor.kind === 'followup' ? followupCreateFields : forms[editor.kind];
+        : editor.kind === 'followup' ? followupCreateFields
+          : editor.kind === 'project' ? projectCreateFields : forms[editor.kind];
 const specs = (editor: Editor): FieldSpec[] => rawSpecs(editor)
   .filter((field: FieldSpec) => !(editor.operation === 'progress' && field.key === '变更说明') &&
     !(editor.operation === 'confirm-end' && field.key === '操作原因'))
