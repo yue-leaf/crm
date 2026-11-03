@@ -11,7 +11,7 @@ export interface CrmRecord {
   followup?: FollowupChain;
 }
 export interface FollowupChain {
-  state: '待跟进' | '已跟进' | '已结束' | '历史记录' | '已作废' | '待核对';
+  state: '待跟进' | '已跟进' | '无需跟进' | '已结束' | '已作废' | '待核对';
   previousId?: string;
   nextIds: string[];
 }
