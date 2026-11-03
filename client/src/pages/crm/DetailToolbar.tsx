@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pencil, MessageSquarePlus, ArrowUpRight, TrendingUp } from 'lucide-react';
+import { Pencil, MessageSquarePlus, ArrowUpRight } from 'lucide-react';
 import { ActionButton as Button } from './ActionButton';
 import type { CrmRecord, EntityKind } from '@shared/api.interface';
 import { advancementBlocked, followupTarget } from '@shared/crm-workflow';
@@ -10,11 +10,10 @@ interface Props {
   row: CrmRecord;
   busy: boolean;
   onEdit: () => void | Promise<void>;
-  onAction: (operation: string) => void | Promise<void>;
   onFollowup: () => void;
   onTarget: () => void | Promise<void>;
 }
-export function DetailToolbar({ kind, row, busy, onEdit, onAction, onFollowup, onTarget }: Props) {
+export function DetailToolbar({ kind, row, busy, onEdit, onFollowup, onTarget }: Props) {
   const business: boolean = kind === 'customer' || kind === 'project';
   const editReason: string = editBlockedReason(kind, row);
   const advanceReason: string = advancementBlocked(kind, row);
@@ -22,8 +21,6 @@ export function DetailToolbar({ kind, row, busy, onEdit, onAction, onFollowup, o
     <div className="detail-toolbar-primary">
       {business && <Button size="sm" disabled={busy}
         onClick={onFollowup}><MessageSquarePlus size={15} />{advanceReason ? '补录历史跟进' : '记录跟进'}</Button>}
-      {kind === 'project' && <Button size="sm" variant="outline" disabled={busy}
-        onClick={() => onAction('status')}><TrendingUp size={15} />更新状态</Button>}
       {kind !== 'access' && <Button size="sm" variant="outline" disabled={busy || !!editReason}
         title={editReason || '编辑资料'} onClick={onEdit}><Pencil size={15} />编辑资料</Button>}
       {kind === 'followup' && followupTarget(row) && <Button size="sm" variant="outline" disabled={busy}
