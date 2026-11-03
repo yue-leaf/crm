@@ -152,7 +152,7 @@ test('continue UI loads current state, fixes customer/project/predecessor and ne
   const tree=ts.createSourceFile('CrmPage.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
   let code;function walk(node){if(ts.isVariableDeclaration(node)&&node.name.getText(tree)==='continueFollowup')code=`const ${node.getText(tree)};`;ts.forEachChild(node,walk)}walk(tree);
   const row={...log('recFirst'),followup:{state:'待跟进',nextIds:[]}},opened=[],notices=[];
-  const context={savingRef:{current:false},uploadingRef:{current:false},editorRequestVersion:{current:0},
+  const context={savingRef:{current:false},uploadingRef:{current:false},editorRequestVersion:{current:0},requestVersion:{current:0},detailVersion:{current:0},
     api:{get:async kind=>kind==='followup'?row:project},followupTarget,relatedDraft,openEditor:(...args)=>opened.push(args),
     toast:{info:m=>notices.push(m),error:m=>notices.push(m)},message:e=>e.message};
   vm.createContext(context);vm.runInContext(ts.transpileModule(code+'\nglobalThis.run=continueFollowup;',{
@@ -161,6 +161,33 @@ test('continue UI loads current state, fixes customer/project/predecessor and ne
   assert.deepEqual(preset.上次跟进,['recFirst']);assert.deepEqual(preset.跟进客户,[customer.id]);assert.deepEqual(preset.关联项目,[project.id]);
   assert.equal(preset.附件,undefined);assert.equal(preset['内容 / 推进结论'],undefined);
   row.followup.state='已跟进';await context.run(row);assert.equal(opened.length,1);assert.equal(notices.length,1);
+  row.followup.state='待跟进';
+  for(const stage of ['followup','project'])for(const fail of [false,true]) {
+    let finish;
+    context.api.get=async kind=>kind===stage?await new Promise((resolve,reject)=>{finish=()=>fail?reject(Error('late failure')):resolve(kind==='followup'?row:project);}):row;
+    const pending=context.run(row);await new Promise(resolve=>setImmediate(resolve));
+    context.requestVersion.current++;finish();await pending;
+    assert.equal(opened.length,1,'navigation must cancel continuation during either read');
+    assert.equal(notices.length,1,'late errors belong to the previous page');
+  }
+});
+
+test('end, resume, no-action edit and replan follow the latest lifecycle action across details, workbench and notifications',async()=>{
+  const h=harness();
+  const edit=changes=>h.svc.update('followup','recFirst','edit',{expectedModifiedAt:h.rows.get('recFirst').record.修改时间,changes},'123');
+  const action=operation=>h.svc.update('followup','recFirst',operation,{expectedModifiedAt:h.rows.get('recFirst').record.修改时间},'123');
+  await action('end-followup');await action('resume-followup');
+  await edit({后续安排:'无后续动作',无后续动作结论:'已沟通完成',建议下一步行动:null,建议日期:null,建议处理人:[]});
+  assert.equal((await h.svc.detail('followup','recFirst')).followup.state,'无需跟进');
+  assert.equal((await h.svc.notificationTasks(now)).length,0);
+  await edit({后续安排:'有下一步行动',无后续动作结论:null,建议下一步行动:'安排下一次沟通',建议日期:'2026-11-02'});
+  assert.equal((await h.svc.detail('followup','recFirst')).followup.state,'待跟进');
+  assert.equal(model([...h.rows.values()]).data.counts.today,1);
+  assert.equal((await h.svc.notificationTasks(now)).length,1);
+  await action('end-followup');
+  await edit({'内容 / 推进结论':'补充说明，不恢复提醒'});
+  assert.equal((await h.svc.detail('followup','recFirst')).followup.state,'已结束');
+  assert.equal((await h.svc.notificationTasks(now)).length,0);
 });
 
 test('editing automatic no-action endings activates reminders, explicit endings require resume, older records obey the same rules',async()=>{

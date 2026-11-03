@@ -544,7 +544,8 @@ const CrmPage: React.FC = () => {
           restoreLocation(origin, parent);
         }
       } catch {
-        toast.info('保存已完成，客户详情暂未刷新，请稍后重新打开核对');
+        if (version === requestVersion.current && detailRequest === detailVersion.current)
+          toast.info('保存已完成，详情暂未刷新，请稍后重新打开核对');
       }
     } catch (e: unknown) {
       if (e instanceof SaveOutcomeUnknown) setUncertain(true);
@@ -558,17 +559,21 @@ const CrmPage: React.FC = () => {
   };
   const continueFollowup = async (record: CrmRecord) => {
     if (savingRef.current || uploadingRef.current) return;
+    detailVersion.current++;
+    const version = requestVersion.current;
     const request = ++editorRequestVersion.current;
     try {
       const row = await api.get('followup', record.id);
-      if (request !== editorRequestVersion.current) return;
+      if (request !== editorRequestVersion.current || version !== requestVersion.current) return;
       if (row.followup?.state !== '待跟进') { toast.info('此记录已处理，请刷新查看'); return; }
       const target = followupTarget(row);
       if (!target) throw new Error('跟进所属客户或项目不完整');
       const parent = await api.get(target.kind, target.id);
-      if (request !== editorRequestVersion.current) return;
+      if (request !== editorRequestVersion.current || version !== requestVersion.current) return;
       openEditor('followup', 'create', undefined, { ...relatedDraft(target.kind, parent, 'followup'), 上次跟进: [row.id] });
-    } catch (e: unknown) { if (request === editorRequestVersion.current) toast.error(message(e)); }
+    } catch (e: unknown) {
+      if (request === editorRequestVersion.current && version === requestVersion.current) toast.error(message(e));
+    }
   };
   const set = (key: string, value: Draft[string]) => {
     if (editor?.previousFollowupId && ['上次跟进', '关联项目', FOLLOWUP_CUSTOMER].includes(key)) return;

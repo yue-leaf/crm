@@ -19,6 +19,7 @@ import type {
 } from '@shared/api.interface';
 import type { Draft } from '@shared/crm';
 import type { WorkspaceData, WorkspaceKind } from '@shared/crm-workspace';
+import { RecordPageChanged } from '@shared/crm-navigation';
 export class SaveOutcomeUnknown extends Error {}
 async function request<T>(
   url: string,
@@ -36,6 +37,8 @@ async function request<T>(
       throw new Error(r.data?.error?.message || '当前操作未获允许，请核对企业登录身份');
     if (r.status >= 500 && method !== 'GET')
       throw new SaveOutcomeUnknown(r.data?.error?.message || '保存结果未确认，请关闭窗口并刷新核对，避免重复提交');
+    if (r.status === 409 && method === 'GET')
+      throw new RecordPageChanged(r.data?.error?.message || '列表已变化，请刷新');
     if (r.status >= 400)
       throw new Error(r.data?.error?.message || '操作未完成');
     return r.data as T;
@@ -43,6 +46,8 @@ async function request<T>(
     if (isAxiosError(e)) {
       if (method !== 'GET' && (!e.response || e.response.status >= 500))
         throw new SaveOutcomeUnknown(e.response?.data?.error?.message || '保存结果未确认，请关闭窗口并刷新核对，避免重复提交');
+      if (method === 'GET' && e.response?.status === 409)
+        throw new RecordPageChanged(e.response.data?.error?.message || '列表已变化，请刷新');
       throw new Error(
         e.response?.status === 403
           ? e.response?.data?.error?.message || '当前操作未获允许，请核对企业登录身份'

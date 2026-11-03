@@ -7,6 +7,7 @@ import type { CrmPage, CrmRecord, ProjectScope } from '@shared/api.interface';
 import type { WorkspaceKind } from '@shared/crm-workspace';
 import { textValue, titles } from '@shared/crm';
 import { appendPage } from '@shared/crm-interaction';
+import { RecordPageChanged } from '@shared/crm-navigation';
 import { Cell, message } from './Fields';
 export interface WorkspaceDrilldown { kind: WorkspaceKind; filter: string; title: string }
 export const WorkspaceRecords: React.FC<{ selection: WorkspaceDrilldown; scope: ProjectScope; onClose: () => void;
@@ -31,7 +32,12 @@ export const WorkspaceRecords: React.FC<{ selection: WorkspaceDrilldown; scope: 
     try {
       const next = await api.workspaceRecords(scope, selection.kind, selection.filter, data.pageToken, query);
       if (version === generation.current) setData(previous => appendPage(previous, next));
-    } catch (e) { if (version === generation.current) setError(message(e)); }
+    } catch (e) {
+      if (version === generation.current) {
+        if (e instanceof RecordPageChanged) setRetry(n => n + 1);
+        else setError(message(e));
+      }
+    }
     finally { if (version === generation.current) { setBusy(false); paging.current = false; } }
   };
   const openRecord = async (row: CrmRecord) => {

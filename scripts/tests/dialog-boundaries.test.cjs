@@ -28,6 +28,20 @@ test('closing summary during a pending read prevents a late detail from opening'
  const h=workspace();const p=h.open({id:'recRow'});h.c.generation.current++;
  h.read.resolve({id:'recRow',record:{}});await p;assert.deepEqual(h.calls,[]);
 });
+
+test('stale workspace pagination refreshes the list, while network errors keep the failed page retryable',async()=>{
+ const {RecordPageChanged}=require('../../dist/shared/crm-navigation');
+ for(const stale of [true,false]) {
+  let refreshes=0;const errors=[];
+  const c={busy:false,paging:{current:false},data:{pageToken:'offset:20'},generation:{current:0},
+   scope:'all',selection:{kind:'project',filter:'all'},query:'',setBusy:()=>{},setError:e=>errors.push(e),
+   setRetry:()=>refreshes++,RecordPageChanged,message:e=>e.message,
+   api:{workspaceRecords:async()=>{throw stale?new RecordPageChanged('changed'):Error('offline');}}};
+  await handler('WorkspaceRecords.tsx','more',c)();
+  assert.equal(refreshes,stale?1:0);assert.equal(errors.at(-1),stale?'':'offline');
+  assert.equal(c.paging.current,false);
+ }
+});
 test('day rollover refreshes data without clearing dialogs or drafts and runs once per day',()=>{
  const {node,ast}=find('CrmPage.tsx',(n,a)=>ts.isCallExpression(n)&&n.expression.getText(a)==='useEffect'&&n.arguments[0]?.getText(a).includes('lastRefreshDay.current === currentDay'));
  let refreshes=0;const c={lastRefreshDay:{current:10},currentDay:11,reload:()=>refreshes++,setSelection:()=>assert.fail('parent cleared'),setEditor:()=>assert.fail('editor cleared'),setDraft:()=>assert.fail('draft cleared')};
