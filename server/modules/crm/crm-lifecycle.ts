@@ -8,6 +8,7 @@ import { parseDraft, reject } from './crm-validation';
 
 export interface RelatedSnapshot { kind: EntityKind; row: CrmRecord }
 interface LifecycleContext {
+  allowUnplanned?: boolean;
   get: (kind: EntityKind, id: string) => Promise<CrmRecord>;
   people: (fields: Record<string, unknown>) => Promise<void>;
 }
@@ -19,7 +20,9 @@ export async function prepareLifecycle(
 ): Promise<{ fields: Record<string, unknown>; related: RelatedSnapshot[] }> {
   const blocked = lifecycleBlocked(kind, operation, row);
   if (blocked) reject('操作', blocked);
-  const parsed = parseDraft(input, lifecycleFields(kind, operation), {});
+  const spec = lifecycleFields(kind, operation).map(field => context.allowUnplanned && field.key === '当前进展'
+    ? { ...field, required: false } : field);
+  const parsed = parseDraft(input, spec, {});
   const fields = parsed.fields;
   const now = Date.now();
   const related: RelatedSnapshot[] = [];
@@ -64,11 +67,11 @@ export async function prepareLifecycle(
     validateSignedDate(fields);
     if (fields['工作状态'] === '暂停') {
       if (!fields['暂停原因']) reject('暂停原因', '暂停时必填');
-      fields['当前下一步行动'] = ''; fields['下次跟进日期'] = null;
-    } else if (!fields['当前下一步行动'] || !fields['下次跟进日期']) reject('当前计划', '恢复项目时请确认下一步行动和日期');
+      if (!context.allowUnplanned) { fields['当前下一步行动'] = ''; fields['下次跟进日期'] = null; }
+    } else if (!context.allowUnplanned && (!fields['当前下一步行动'] || !fields['下次跟进日期'])) reject('当前计划', '恢复项目时请确认下一步行动和日期');
     Object.assign(fields, { 终局确认: '未确认', 结果说明: '', 取消原因: '',
       暂停原因: fields['工作状态'] === '暂停' ? fields['暂停原因'] : '', 结束建议: '', 建议说明: '', 最近重开原因: fields['操作原因'] });
-    fields['行动执行人'] ||= [];
+    if (!context.allowUnplanned) fields['行动执行人'] ||= [];
     await context.people(fields);
   }
   const event: LifecycleEvent = {

@@ -50,10 +50,11 @@ test('adding synchronized participants preserves history but rejects unknown ide
  assert.deepEqual(f.row.record.实际跟进人,[123,456]);
  await assert.rejects(()=>f.update('edit',{changes:{实际跟进人:['123','456','789']},reason:'Reject unregistered new colleague'}),/人员/);
 });
-test('cancelled projects cannot be edited directly and retired review does not write',async()=>{
+test('cancelled projects can correct profile without reopening and retired review does not write',async()=>{
  const f=fixture('project',{终局确认:'已取消',结束日期:old,结果说明:'Stopped',取消原因:'Stopped'});
- await assert.rejects(()=>f.update('edit',{changes:{项目名称:'Changed'}}),/已结束/);
- await assert.rejects(f.review,/不支持/);assert.equal(f.writes.length,0);
+ await f.update('edit',{changes:{项目名称:'Changed'}});
+ assert.equal(f.row.record.终局确认,'已取消');assert.equal(f.row.record.结束日期,old);
+ await assert.rejects(f.review,/不支持/);assert.equal(f.writes.length,1);
 });
 
 test('invalid project work state does not permit ordinary edits',()=>{
