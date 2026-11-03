@@ -120,6 +120,8 @@ export type ProjectScope = 'all' | 'mine';
 export type FollowupStatus = 'waiting' | 'tomorrow' | 'today' | 'overdue' | 'unplanned' | 'none';
 export type FollowupFilter = 'all' | FollowupStatus;
 export interface BusinessListQuery {
+  customerId?: string;
+  projectId?: string;
   scope?: ProjectScope;
   projectFilter?: ProjectFilter;
   followupFilter?: FollowupFilter;

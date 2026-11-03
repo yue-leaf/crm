@@ -11,6 +11,27 @@ const { parseDraft } = require('../../dist/server/modules/crm/crm-validation.js'
 const { CrmService } = require('../../dist/server/modules/crm/crm.service.js');
 const { CrmController } = require('../../dist/server/modules/crm/crm.controller.js');
 
+test('followup customer changes reset dependent project, independent project choice and reset retain unrelated query',()=>{
+ const {changeFollowupListTarget}=require('../../dist/shared/crm-ux.js');
+ const params=new URLSearchParams('customerId=recA&projectId=recP&other=keep');
+ const changed=new URLSearchParams(changeFollowupListTarget(params,'customerId','recB'));
+ assert.equal(changed.get('customerId'),'recB');assert.equal(changed.has('projectId'),false);
+ assert.equal(changed.get('other'),'keep');
+ assert.equal(new URLSearchParams(changeFollowupListTarget(params,'customerId','recA')).get('projectId'),'recP');
+ assert.equal(new URLSearchParams(changeFollowupListTarget(params,'projectId','recQ')).get('customerId'),'recA');
+ assert.equal(changeFollowupListTarget(params,'reset'),'other=keep');
+ assert.equal(new URLSearchParams(changeFollowupListTarget(new URLSearchParams(),'projectId','recQ')).get('projectId'),'recQ');
+});
+
+test('followup list controller forwards both filters with login and rejects filters on other entities',async()=>{
+ let received;const controller=new CrmController({followupList:async(...args)=>{received=args;return {records:[],hasMore:false};}});
+ const req={userContext:{userId:'123'}};
+ assert.throws(()=>controller.list({},'followup'),e=>e.getStatus()===403);
+ await controller.list(req,'followup','cursor','query',undefined,undefined,undefined,'recC','recP');
+ assert.deepEqual(received,['recC','recP','cursor','query']);
+ assert.throws(()=>controller.list(req,'project',undefined,undefined,undefined,undefined,undefined,'recC'),/仅用于跟进记录/);
+});
+
 test('scope and individual filter changes retain the other filters', () => {
   const params = new URLSearchParams('projectFilter=overdue&followupFilter=today&scope=mine');
   const scope = new URLSearchParams(changeFilter(params, 'scope', 'all'));

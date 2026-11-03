@@ -63,6 +63,7 @@ import {
   editBlockedReason,
 } from '@shared/crm-edit';
 import { Cell, FieldInput, message } from './Fields';
+import { RelationField } from './RelationField';
 import { RecordDetails } from './RecordDetails';
 import { DetailToolbar } from './DetailToolbar';
 import { CustomerWorkspace } from './CustomerWorkspace';
@@ -83,7 +84,7 @@ import type { FollowupFilter } from '@shared/api.interface';
 import { projectFacts, validProjectFilter } from '@shared/crm-dashboard';
 import { numberValue, detailFieldLabel } from '@shared/crm-presentation';
 import { projectFilterLabels } from '@shared/crm-dashboard';
-import { changeFilter, actionDraft, suggestedPlan, suggestionKey, readPlanSuggestion } from '@shared/crm-ux';
+import { changeFilter, changeFollowupListTarget, actionDraft, suggestedPlan, suggestionKey, readPlanSuggestion } from '@shared/crm-ux';
 import { defaultFollowupView, type FollowupView } from './FollowupFeed';
 import { RelatedPageMemory } from './RelatedPageMemory';
 import type { RelatedPosition } from '@shared/crm-navigation';
@@ -164,6 +165,8 @@ const CrmPage: React.FC = () => {
   const currentDay = shanghaiDay(now);
   const rawFollowupFilter = params.get('followupFilter') || 'all';
   const followupFilter: FollowupFilter = validFollowupFilter(rawFollowupFilter) ? rawFollowupFilter : 'all';
+  const listCustomerId = active === 'followup' ? params.get('customerId') || '' : '';
+  const listProjectId = active === 'followup' ? params.get('projectId') || '' : '';
   const profile = useCurrentUserProfile();
   const [session, setSession] = useState<CrmSession | null>(null);
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -281,7 +284,8 @@ const CrmPage: React.FC = () => {
         const next = await api.workspace(scope);
         if (version === requestVersion.current) setOverview(next);
       } else {
-        const filters = active === 'project' ? { scope, projectFilter, followupFilter } : undefined;
+        const filters = active === 'project' ? { scope, projectFilter, followupFilter }
+          : active === 'followup' ? { customerId: listCustomerId, projectId: listProjectId } : undefined;
         let next = await api.list(active, '', query, filters);
         const cursors = new Set<string>();
         while (next.records.length < keepRows && next.hasMore && next.pageToken && version === requestVersion.current) {
@@ -296,7 +300,7 @@ const CrmPage: React.FC = () => {
     } finally {
       if (version === requestVersion.current) setLoading(false);
     }
-  }, [active, authorized, query, scope, projectFilter, followupFilter]);
+  }, [active, authorized, query, scope, projectFilter, followupFilter, listCustomerId, listProjectId]);
   useEffect(() => {
     setData(null);
     setOverview(null);
@@ -324,6 +328,11 @@ const CrmPage: React.FC = () => {
     // Read the latest URL so consecutive changes cannot overwrite a pending router render.
     const next = changeFilter(new URLSearchParams(window.location.search), key, value);
     navigate(`${active === 'home' ? '/' : '/crm/' + active}?${next}`);
+  };
+  const updateFollowupTargetFilter = (key: 'customerId' | 'projectId' | 'reset', value = '') => {
+    requestVersion.current++;
+    const next = changeFollowupListTarget(new URLSearchParams(window.location.search), key, value);
+    navigate(`/crm/followup?${next}`);
   };
   const openEditor = (
     kind: EntityKind,
@@ -806,6 +815,16 @@ const CrmPage: React.FC = () => {
                         placeholder={`请输入${active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}`}
                       />
                     </div>
+                    {active === 'followup' && <>
+                      <div className="toolbar-relation"><span>客户</span><RelationField
+                        field={{ key: '筛选客户', label: '客户', type: 'relation', target: 'customer' }}
+                        value={listCustomerId ? [listCustomerId] : []}
+                        onChange={(ids) => updateFollowupTargetFilter('customerId', ids[0] || '')} /></div>
+                      <div className="toolbar-relation"><span>项目</span><RelationField key={listCustomerId}
+                        field={{ key: '筛选项目', label: '项目', type: 'relation', target: 'project' }}
+                        customerId={listCustomerId || undefined} value={listProjectId ? [listProjectId] : []}
+                        onChange={(ids) => updateFollowupTargetFilter('projectId', ids[0] || '')} /></div>
+                    </>}
                     {active === 'project' && <div className="followup-filter"><span>跟进状态</span>
                       <Select value={followupFilter} onValueChange={(value: string) => {
                         updateFilter('followupFilter', value);
@@ -815,9 +834,11 @@ const CrmPage: React.FC = () => {
                     <Button type="submit" variant="outline">
                       搜索
                     </Button>
-                    {(search || query) && <Button type="button" variant="ghost" onClick={() => {
-                      setSearch(''); if (query) setQuery(''); else void reload();
-                    }}>清空搜索</Button>}
+                    {(search || query || listCustomerId || listProjectId) && <Button type="button" variant="ghost" onClick={() => {
+                      setSearch(''); setQuery('');
+                      if (active === 'followup' && (listCustomerId || listProjectId)) updateFollowupTargetFilter('reset');
+                      else if (!query) void reload();
+                    }}>{active === 'followup' ? '重置' : '清空搜索'}</Button>}
                     {active === 'project' && projectFilter !== 'all' && <Button type="button" size="sm" variant="secondary"
                       aria-label={`清除${projectFilterLabels[projectFilter]}筛选`}
                       onClick={() => updateFilter('projectFilter', 'all')}>{projectFilterLabels[projectFilter]} ×</Button>}
@@ -922,7 +943,8 @@ const CrmPage: React.FC = () => {
                               active,
                               data.pageToken,
                               query,
-                              active === 'project' ? { scope, projectFilter, followupFilter } : undefined,
+                              active === 'project' ? { scope, projectFilter, followupFilter }
+                                : active === 'followup' ? { customerId: listCustomerId, projectId: listProjectId } : undefined,
                             );
                             if (version === requestVersion.current)
                               setData((previous) => appendPage(previous, next));
