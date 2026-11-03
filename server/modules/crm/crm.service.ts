@@ -1,4 +1,6 @@
-import { followupChains, projectFollowupSummary, sameFollowupTarget, validChainTime } from '@shared/crm-followup-chain';
+import { explicitlyEnded, followupChains, projectFollowupSummary, sameFollowupTarget, validChainTime } from '@shared/crm-followup-chain';
+import { CrmFollowupWrites, writeMarker } from './crm-followup-writes';
+import type { FollowupWritePermit } from './crm-followup-writes';
 import { statusInput, validateSignedDate } from './crm-status';
 import {
   BadGatewayException,
@@ -64,6 +66,7 @@ export class CrmService {
     @Inject(CapabilityService) private readonly capability: CapabilityService,
     @Inject(AuthNPaasService) private readonly identities: AuthNPaasService,
     @Inject(FileService) private readonly files: FileService,
+    @Inject(CrmFollowupWrites) private readonly followupWrites: CrmFollowupWrites,
   ) {}
 
   private kind(value: string): EntityKind {
@@ -552,10 +555,23 @@ export class CrmService {
     const lock = typeof previous === 'string' ? `followup:${previous}` : undefined;
     if (lock && this.updating.has(lock)) throw new ConflictException('上次跟进正在处理，请稍后刷新');
     if (lock) this.updating.add(lock);
-    try { return await this.createRecord(kind, body, verifiedEmployeeId, actor); }
+    try { return typeof previous === 'string'
+      ? await this.followupWrite(previous, 'continue', permit => this.createRecord(kind, body, verifiedEmployeeId, actor, permit))
+      : await this.createRecord(kind, body, verifiedEmployeeId, actor); }
     finally { if (lock) this.updating.delete(lock); }
   }
-  private async createRecord(kind: string, body: unknown, verifiedEmployeeId?: string, actor?: string): Promise<WriteResult> {
+  private async followupWrite<T>(id: string, operation: string, work: (permit: FollowupWritePermit) => Promise<T>): Promise<T> {
+    if (!/^rec[A-Za-z0-9]+$/.test(id)) reject('跟进记录', '标识无效');
+    return this.followupWrites.run(id, operation, {
+      isVoided: async childId => textValue((await this.get('followup', childId)).record['记录状态']) === '已作废',
+      findSaved: async (token, pendingOperation) => {
+        const rows = pendingOperation === 'continue' ? await this.allBusiness('followup') : [await this.get('followup', id)];
+        return rows.find(row => textValue(row.record['管理记录']).split('\n').includes(writeMarker(token)) &&
+          (pendingOperation !== 'continue' || linkIds(row.record['上次跟进']).includes(id)))?.id;
+      },
+    }, work);
+  }
+  private async createRecord(kind: string, body: unknown, verifiedEmployeeId?: string, actor?: string, permit?: FollowupWritePermit): Promise<WriteResult> {
     const key = this.kind(kind);
     if (key === 'access') reject('成员', '人员由通讯录同步，请在 Base 管理');
     const { draft, fields } = parseDraft(body, forms[key], this.enums(key));
@@ -578,10 +594,12 @@ export class CrmService {
     );
     const attachmentCheck = key === 'followup' ? await this.prepareAttachments(fields) : undefined;
     if (key === 'followup') await this.continuationParent(fields);
+    await permit?.beforeWrite(fields);
     const result = await this.call(key, 'batchAddRecords', {
       records: [{ record: fields }],
     });
     const id = this.writtenId(result);
+    permit?.created(id);
     if (attachmentCheck) await this.nativeAttachments.apply(attachmentCheck, id);
     await this.verifySaved(key, id, fields, attachmentCheck?.expected);
     const projectId = key === 'followup' && Array.isArray(draft['关联项目']) ? draft['关联项目'][0] : undefined;
@@ -698,7 +716,9 @@ export class CrmService {
     if (this.updating.has(lock)) throw new ConflictException('此记录正在保存，请稍后刷新再操作');
     this.updating.add(lock);
     try {
-      return await this.updateRecord(key, id, operation, body, actor, verifiedEmployeeId);
+      return key === 'followup'
+        ? await this.followupWrite(id, operation, permit => this.updateRecord(key, id, operation, body, actor, verifiedEmployeeId, permit))
+        : await this.updateRecord(key, id, operation, body, actor, verifiedEmployeeId);
     } finally {
       this.updating.delete(lock);
     }
@@ -710,6 +730,7 @@ export class CrmService {
     body: unknown,
     actor: string,
     verifiedEmployeeId?: string,
+    permit?: FollowupWritePermit,
   ): Promise<WriteResult> {
     const row = await this.get(key, id);
     if (!body || typeof body !== 'object' || Array.isArray(body))
@@ -729,18 +750,19 @@ export class CrmService {
     }
     let fields: Record<string, unknown>;
     let related: RelatedSnapshot[] = [];
-    if (key === 'followup' && ['end-followup', 'activate-followup'].includes(operation)) {
+    if (key === 'followup' && ['end-followup', 'activate-followup', 'resume-followup'].includes(operation)) {
       const current = (await this.chainRows()).find(item => item.id === id);
-      const activation = operation === 'activate-followup';
-      if (!current || current.followup?.state !== (activation ? '历史记录' : '待跟进'))
+      const activation = operation !== 'end-followup';
+      if (!current || current.followup?.state !== (operation === 'resume-followup' ? '已结束' : activation ? '历史记录' : '待跟进'))
         throw new ConflictException('跟进状态已变化，请刷新后再操作');
       if (activation && (textValue(row.record['后续安排']) !== '有下一步行动' || textValue(row.record['数据检查']).trim() || !textValue(row.record['建议下一步行动']).trim() ||
         !validChainTime(row.record['实际发生时间']) || Number(row.record['实际发生时间']) > Date.now() || !followupTarget(row)))
         reject('后续安排', '请先完善下一步建议');
       const parsed = parseDraft(input, [{ key: '结束跟进说明', type: 'long' }], {});
+      const action = operation === 'resume-followup' ? '恢复跟进' : activation ? '纳入待跟进' : '结束跟进';
       fields = { 后续处理: activation ? '待跟进' : '已结束',
         结束跟进说明: activation ? '' : textValue(parsed.fields['结束跟进说明']),
-        管理记录: [textValue(row.record['管理记录']), `${activation ? '纳入待跟进' : '结束跟进'} · ${new Date().toISOString()} · ${actor}`].filter(Boolean).join('\n\n') };
+        管理记录: [textValue(row.record['管理记录']), `${action} · ${new Date().toISOString()} · ${actor}`].filter(Boolean).join('\n\n') };
       if (textValue(fields['管理记录']).length > 20000) reject('管理记录', '历史记录已达上限');
     } else if (isLifecycle(operation)) {
       const prepared = await prepareLifecycle(key, row, operation, input, actor, {
@@ -767,6 +789,10 @@ export class CrmService {
       await this.people(peopleFields, forms[key], false, verifiedEmployeeId);
       await this.relationChecks(key, edited.draft, edited.validationFields);
       fields = edited.writes;
+      if (key === 'followup' && ['待跟进', '已结束'].includes(textValue(row.record['后续处理'])) && !explicitlyEnded(row.record)) {
+        // Enable reminders again after changing an automatic no-action ending; keep explicit endings closed.
+        fields['后续处理'] = edited.draft['后续安排'] === '有下一步行动' ? '待跟进' : '已结束';
+      }
       if (key === 'followup' && Object.hasOwn(fields, '实际发生时间')) {
         const chain = await this.chainRows();
         const before = chain.find(item => item.id === id);
@@ -835,6 +861,7 @@ export class CrmService {
       ? { ...record, 附件: attachmentSignature(record['附件']) } : record;
     if (!isDeepStrictEqual(comparable(row.record), comparable(latest.record)))
       throw new ConflictException('记录在校验期间已变化，请刷新后重新操作');
+    await permit?.beforeWrite(fields);
     const written = this.writtenId(
       await this.call(key, 'batchUpdateRecords', {
         records: [{ id, record: fields }],
