@@ -107,7 +107,6 @@ const columns: Record<EntityKind, string[]> = {
     '企业全称',
     '行业',
     '客户负责人',
-    '下次跟进日期',
   ],
   contact: ['姓名', '所属企业', '职务', '电话', '邮箱', '联系人状态'],
   project: [
