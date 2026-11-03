@@ -72,7 +72,7 @@ test('five states are exact and signing keeps editing, followups, tasks and mont
  assert.doesNotThrow(()=>historicalContext('project',record,Date.now()));
  const f=projectFacts(record,Date.now());assert.equal(f.active,true);assert.equal(f.followup.key,'today');
  const {data}=workspaceModel({customer:[customer],project:[record],followup:[]},'all','123');
- assert.equal(data.project.states.已签合同,1);assert.equal(data.project.monthCompleted,1);assert.ok(data.tasks.some(t=>t.id===record.id));
+ assert.equal(data.project.states.已签合同,1);assert.equal(data.project.monthCompleted,1);assert.equal(data.tasks.length,0);
 });
 test('cancellation and reopening through the same entry preserve lifecycle audit and inactive boundaries',async()=>{
  const h=harness();await h.update(signed);

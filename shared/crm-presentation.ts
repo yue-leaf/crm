@@ -27,7 +27,7 @@ export function managementLogText(value: unknown): string {
   }).join('\n');
 }
 
-const dateFields = new Set(['下次跟进日期', '目标完成日期', '签约日期', '结束日期', '预计成交日期', '建议日期']);
+const dateFields = new Set(['最近待跟进日期', '下次跟进日期', '目标完成日期', '签约日期', '结束日期', '预计成交日期', '建议日期']);
 const timeFields = new Set(['最近整体互动', '最近直接跟进', '最近有效跟进', '最后目录同步']);
 function scalar(value: unknown): unknown {
   if (Array.isArray(value)) return value.length === 1 ? scalar(value[0]) : null;
@@ -131,6 +131,7 @@ export function detailGroups(record: CrmRecord['record']): DetailGroup[] {
     const fields: [string, unknown][] = [];
     for (const key of keys) {
       if (!Object.prototype.hasOwnProperty.call(record, key)) continue;
+      if (title === '当前计划') continue;
       if (key === '结束日期' && textValue(record['终局确认']) === '未确认') continue;
       if (key === '有效客户名称' && record['直接客户'] && hasDetailValue(record['直接客户'])) continue;
       const value = record[key];

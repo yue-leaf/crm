@@ -1,3 +1,4 @@
+import { followupChains, projectFollowupSummary, sameFollowupTarget, validChainTime } from '@shared/crm-followup-chain';
 import { statusInput, validateSignedDate } from './crm-status';
 import {
   BadGatewayException,
@@ -36,7 +37,7 @@ import { prepareEdit } from './crm-edit';
 import { prepareProjectEditStatus } from './crm-project-edit';
 import { changedFields, recordDraft } from '@shared/crm-edit';
 import {
-  advancementBlocked, commerceKeys, existingProjectFields, progressFields,
+  followupTarget, advancementBlocked, commerceKeys, existingProjectFields, progressFields,
 } from '@shared/crm-workflow';
 import { contactChoiceProblem } from '@shared/crm-ux';
 import { auditNote, isLifecycle } from '@shared/crm-lifecycle';
@@ -133,8 +134,9 @@ export class CrmService {
   }
   async customerProjects(id: string, query: RelatedRecordsQuery): Promise<CrmPage> {
     await this.get('customer', id);
-    return new CrmRelations((kind: EntityKind, input: Record<string, unknown>) =>
+    const page = await new CrmRelations((kind: EntityKind, input: Record<string, unknown>) =>
       this.call(kind, 'searchRecords', input)).customerProjects(id, query);
+    return { ...page, records: projectFollowupSummary(page.records, await this.allBusiness('followup')) };
   }
   async relatedFollowups(kind: 'customer' | 'project', id: string, query: RelatedRecordsQuery): Promise<FollowupPage> {
     const row: CrmRecord = await this.get(kind, id);
@@ -195,7 +197,7 @@ export class CrmService {
         .followups('project', project, { cursor, search });
     }
     if (customerId) return this.relatedFollowups('customer', customerId, { cursor, search });
-    return this.list('followup', cursor, search);
+    return this.decorateFollowups(await this.list('followup', cursor, search));
   }
 
   async get(kind: string, id: string): Promise<CrmRecord> {
@@ -211,6 +213,46 @@ export class CrmService {
     )
       throw new NotFoundException('记录不存在');
     return result as CrmRecord;
+  }
+  async detail(kind: string, id: string): Promise<CrmRecord> {
+    const row = await this.get(kind, id);
+    if (kind === 'followup') return (await this.chainRows()).find(item => item.id === id) || row;
+    if (kind === 'project') return projectFollowupSummary([row], await this.allBusiness('followup'))[0];
+    return row;
+  }
+  private async chainRows(): Promise<CrmRecord[]> {
+    return followupChains(await this.allBusiness('followup'));
+  }
+  async decorateFollowups<T extends CrmPage>(page: T): Promise<T> {
+    if (!page.records.length) return page;
+    const chains = new Map((await this.chainRows()).map(row => [row.id, row.followup]));
+    return { ...page, records: page.records.map(row => ({ ...row, followup: chains.get(row.id) })) };
+  }
+  async pendingFollowups(customerId?: string, projectId?: string): Promise<CrmPage> {
+    for (const id of [customerId, projectId]) if (id !== undefined && (typeof id !== 'string' || (id && !/^rec[A-Za-z0-9]+$/.test(id))))
+      throw new BadRequestException('客户或项目标识无效');
+    if (!customerId && !projectId) return { records: [], hasMore: false };
+    if (projectId) {
+      const project = await this.get('project', projectId);
+      if (customerId && !linkIds(project.record['所属企业']).includes(customerId)) reject('项目', '不属于当前客户');
+    } else await this.get('customer', customerId!);
+    const rows = (await this.chainRows()).filter(row => {
+      const target = followupTarget(row);
+      return row.followup?.state === '待跟进' && target?.kind === (projectId ? 'project' : 'customer') && target.id === (projectId || customerId);
+    });
+    rows.sort((a, b) => Number(a.record['建议日期'] || Infinity) - Number(b.record['建议日期'] || Infinity) || a.id.localeCompare(b.id));
+    return { records: rows, total: rows.length, hasMore: false };
+  }
+  private async continuationParent(fields: Record<string, unknown>): Promise<CrmRecord | undefined> {
+    const parentIds = fields['上次跟进'];
+    if (!Array.isArray(parentIds) || !parentIds.length) return undefined;
+    const parent = (await this.chainRows()).find(row => row.id === parentIds[0]);
+    if (!parent || parent.followup?.state !== '待跟进') throw new ConflictException('上次跟进已处理或不可继续，请刷新后重新选择');
+    const row: CrmRecord = { id: '', record: { ...fields,
+      直接客户: { link_record_ids: fields['直接客户'] || [] }, 关联项目: { link_record_ids: fields['关联项目'] || [] } } };
+    if (!sameFollowupTarget(parent, row)) reject('上次跟进', '必须属于同一客户和同一项目');
+    if (Number(fields['实际发生时间']) < Number(parent.record['实际发生时间'])) reject('跟进时间', '不能早于上次跟进时间');
+    return parent;
   }
   async summary(): Promise<CrmSummary> {
     const out: CrmSummary = {
@@ -276,10 +318,10 @@ export class CrmService {
     return (await this.workspaceModel(scope, userId)).data;
   }
   async notificationTasks(now: number) {
-    const [customer, project] = await Promise.all([
-      this.allBusiness('customer'), this.allBusiness('project'),
+    const [customer, project, followup] = await Promise.all([
+      this.allBusiness('customer'), this.allBusiness('project'), this.allBusiness('followup'),
     ]);
-    return workspaceModel({ customer, project, followup: [] }, 'all', '', now).data.tasks;
+    return workspaceModel({ customer, project, followup }, 'all', '', now).data.tasks;
   }
   async workspaceList(scope: string, userId: string, kind: string, filter: string, cursor?: string, search?: string): Promise<CrmPage> {
     if (!['customer', 'project', 'followup'].includes(kind)) throw new BadRequestException('工作台数据类型无效');
@@ -299,7 +341,7 @@ export class CrmService {
   }
   async overview(scope: string, userId: string): Promise<ProjectOverview> {
     const checked = this.projectScope(scope);
-    return buildProjectOverview(await this.allBusiness('project'), checked, userId);
+    return buildProjectOverview(projectFollowupSummary(await this.allBusiness('project'), await this.allBusiness('followup')), checked, userId);
   }
   async projectList(scope: string, filter: string, cursor: string | undefined, search: string | undefined, userId: string, followupFilter = 'all'): Promise<CrmPage> {
     const checked = this.projectScope(scope);
@@ -309,9 +351,9 @@ export class CrmService {
     if (cursor !== undefined && cursor !== '' && (typeof cursor !== 'string' || !/^offset:\d{1,6}$/.test(cursor))) throw new BadRequestException('分页标记无效');
     const offset = cursor ? Number(cursor.slice(7)) : 0;
     const now = Date.now();
-    const rows = sortProjects(scopedProjects(await this.allBusiness('project'), checked, userId)
+    const rows = sortProjects(scopedProjects(projectFollowupSummary(await this.allBusiness('project'), await this.allBusiness('followup'), now), checked, userId)
       .filter(row => projectMatches(row, filter === 'all' && followupFilter === 'none' ? 'none' : filter, now)
-        && (followupFilter === 'all' || followupStatus(row.record, now).key === followupFilter)
+        && (followupFilter === 'all' || projectMatches(row, followupFilter, now))
         && (!search || textValue(row.record['项目名称']).toLocaleLowerCase().includes(search.toLocaleLowerCase()))), now);
     if (offset > rows.length) throw new ConflictException('项目列表已变化，请刷新');
     const more = offset + 50 < rows.length;
@@ -505,6 +547,15 @@ export class CrmService {
     }
   }
   async create(kind: string, body: unknown, verifiedEmployeeId?: string, actor?: string): Promise<WriteResult> {
+    const previous = kind === 'followup' && body && typeof body === 'object' && '上次跟进' in body && Array.isArray(body['上次跟进'])
+      ? body['上次跟进'][0] : undefined;
+    const lock = typeof previous === 'string' ? `followup:${previous}` : undefined;
+    if (lock && this.updating.has(lock)) throw new ConflictException('上次跟进正在处理，请稍后刷新');
+    if (lock) this.updating.add(lock);
+    try { return await this.createRecord(kind, body, verifiedEmployeeId, actor); }
+    finally { if (lock) this.updating.delete(lock); }
+  }
+  private async createRecord(kind: string, body: unknown, verifiedEmployeeId?: string, actor?: string): Promise<WriteResult> {
     const key = this.kind(kind);
     if (key === 'access') reject('成员', '人员由通讯录同步，请在 Base 管理');
     const { draft, fields } = parseDraft(body, forms[key], this.enums(key));
@@ -523,9 +574,10 @@ export class CrmService {
           ? { 工作状态: '待启动', 终局确认: '未确认' }
           : key === 'contact'
             ? { 联系人状态: '有效' }
-            : { 记录状态: '正常' },
+            : { 记录状态: '正常', 后续处理: draft['后续安排'] === '有下一步行动' ? '待跟进' : '已结束' },
     );
     const attachmentCheck = key === 'followup' ? await this.prepareAttachments(fields) : undefined;
+    if (key === 'followup') await this.continuationParent(fields);
     const result = await this.call(key, 'batchAddRecords', {
       records: [{ record: fields }],
     });
@@ -677,7 +729,20 @@ export class CrmService {
     }
     let fields: Record<string, unknown>;
     let related: RelatedSnapshot[] = [];
-    if (isLifecycle(operation)) {
+    if (key === 'followup' && ['end-followup', 'activate-followup'].includes(operation)) {
+      const current = (await this.chainRows()).find(item => item.id === id);
+      const activation = operation === 'activate-followup';
+      if (!current || current.followup?.state !== (activation ? '历史记录' : '待跟进'))
+        throw new ConflictException('跟进状态已变化，请刷新后再操作');
+      if (activation && (textValue(row.record['后续安排']) !== '有下一步行动' || textValue(row.record['数据检查']).trim() || !textValue(row.record['建议下一步行动']).trim() ||
+        !validChainTime(row.record['实际发生时间']) || Number(row.record['实际发生时间']) > Date.now() || !followupTarget(row)))
+        reject('后续安排', '请先完善下一步建议');
+      const parsed = parseDraft(input, [{ key: '结束跟进说明', type: 'long' }], {});
+      fields = { 后续处理: activation ? '待跟进' : '已结束',
+        结束跟进说明: activation ? '' : textValue(parsed.fields['结束跟进说明']),
+        管理记录: [textValue(row.record['管理记录']), `${activation ? '纳入待跟进' : '结束跟进'} · ${new Date().toISOString()} · ${actor}`].filter(Boolean).join('\n\n') };
+      if (textValue(fields['管理记录']).length > 20000) reject('管理记录', '历史记录已达上限');
+    } else if (isLifecycle(operation)) {
       const prepared = await prepareLifecycle(key, row, operation, input, actor, {
         get: (kind, recordId) => this.get(kind, recordId),
         people: (values) => this.people(values, planFields, false, verifiedEmployeeId),
@@ -702,6 +767,15 @@ export class CrmService {
       await this.people(peopleFields, forms[key], false, verifiedEmployeeId);
       await this.relationChecks(key, edited.draft, edited.validationFields);
       fields = edited.writes;
+      if (key === 'followup' && Object.hasOwn(fields, '实际发生时间')) {
+        const chain = await this.chainRows();
+        const before = chain.find(item => item.id === id);
+        const parent = chain.find(item => item.id === before?.followup?.previousId);
+        const time = Number(fields['实际发生时间']);
+        if (parent && time < Number(parent.record['实际发生时间'])) reject('跟进时间', '不能早于上次跟进');
+        if (chain.some(item => before?.followup?.nextIds.includes(item.id) && time > Number(item.record['实际发生时间'])))
+          reject('跟进时间', '不能晚于后续跟进');
+      }
       if (key === 'project') {
         const prepared = await prepareProjectEditStatus(row, edited.draft, fields, actor, {
           get: (kind, recordId) => this.get(kind, recordId),

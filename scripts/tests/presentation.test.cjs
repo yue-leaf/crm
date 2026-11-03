@@ -22,7 +22,7 @@ test('time boundaries display Shanghai seconds; date-only fields keep calendar d
 test('detail sections retain selected business values and hide retired or unknown fields',()=>{
  const record={项目名称:'Example',当前下一步行动:'Next',预计金额:0,已归档:false,核查说明:'Note',管理记录:'History',修改时间:1,新增系统字段:'Hidden'};
  const groups=detailGroups(record),fields=groups.flatMap(g=>g.fields);
- assert.deepEqual(Object.fromEntries(fields),{项目名称:'Example',当前下一步行动:'Next',预计金额:0,管理记录:'History',修改时间:1});
+ assert.deepEqual(Object.fromEntries(fields),{项目名称:'Example',预计金额:0,管理记录:'History',修改时间:1});
  assert.equal(fields.length,new Set(fields.map(([key])=>key)).size);
  assert.equal(groups.find(g=>g.title==='基本资料').collapsed,false);
  assert.equal(groups.find(g=>g.title==='管理记录').collapsed,true);

@@ -1,3 +1,4 @@
+import { followupChains } from '@shared/crm-followup-chain';
 import { BadGatewayException, BadRequestException, ConflictException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { CrmPage, CrmRecord, EntityKind, FollowupPage, RelatedRecordsQuery, RelatedSource } from '@shared/api.interface';
@@ -40,6 +41,7 @@ export class CrmRelations {
   }
 
   private validate(query: RelatedRecordsQuery): void {
+    if (query.status !== undefined && !['all', 'pending'].includes(query.status)) throw new BadRequestException('后续状态筛选无效');
     if (query.cursor !== undefined && (typeof query.cursor !== 'string' || query.cursor.length > 100))
       throw new BadRequestException('分页标记无效');
     if (query.search !== undefined && (typeof query.search !== 'string' || query.search.length > 200))
@@ -49,7 +51,7 @@ export class CrmRelations {
   }
 
   private page(rows: CrmRecord[], query: RelatedRecordsQuery, context: string): CrmPage {
-    const signature = createHash('sha256').update(JSON.stringify([context, query.search || '', query.scope || 'all',
+    const signature = createHash('sha256').update(JSON.stringify([context, query.search || '', query.scope || 'all', query.status || 'all',
       rows.map((row: CrmRecord) => [row.id, modified(row)])])).digest('hex').slice(0, 16);
     let offset = 0;
     if (query.cursor) {
@@ -105,8 +107,9 @@ export class CrmRelations {
       }
     }
     const search = (query.search || '').trim().toLocaleLowerCase();
-    const rows = [...found.values()].filter((row: CrmRecord) => !search ||
-      textValue(row.record['内容 / 推进结论']).toLocaleLowerCase().includes(search));
+    const rows = followupChains([...found.values()]).filter((row: CrmRecord) =>
+      (query.status !== 'pending' || row.followup?.state === '待跟进') &&
+      (!search || textValue(row.record['内容 / 推进结论']).toLocaleLowerCase().includes(search)));
     rows.sort((a: CrmRecord, b: CrmRecord) => time(b) - time(a) || modified(b) - modified(a) || a.id.localeCompare(b.id));
     const page = this.page(rows, query, `${kind}:${parent.id}:followups`);
     const sources: Record<string, RelatedSource> = {};

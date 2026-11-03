@@ -19,12 +19,12 @@ export function changeFollowupTarget(draft: Draft, key: string, ids: string[]): 
   if (JSON.stringify(previous || []) === JSON.stringify(ids)) return draft;
   if (key === FOLLOWUP_CUSTOMER) return {
     ...draft, [FOLLOWUP_CUSTOMER]: ids, 直接客户: ids, 关联项目: [],
-    跟进归属: '客户直接跟进', 客户联系人: [],
+    跟进归属: '客户直接跟进', 客户联系人: [], 上次跟进: [],
   };
   if (key === '关联项目') return {
     ...draft, 关联项目: ids,
     直接客户: ids.length ? [] : draft[FOLLOWUP_CUSTOMER] || [],
-    跟进归属: ids.length ? '项目跟进' : '客户直接跟进', 客户联系人: [],
+    跟进归属: ids.length ? '项目跟进' : '客户直接跟进', 客户联系人: [], 上次跟进: [],
   };
   return draft;
 }

@@ -1,14 +1,13 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { CrmRecord, EntityKind } from '@shared/api.interface';
-import { linkIds, textValue } from '@shared/crm';
+import { linkIds } from '@shared/crm';
 import { RecordDetails } from './RecordDetails';
 import { CustomerContacts } from './CustomerContacts';
 import { CustomerProjects } from './CustomerProjects';
 import { FollowupFeed } from './FollowupFeed';
 import type { FollowupView } from './FollowupFeed';
 import { FollowupBadge } from './FollowupStatus';
-import { Cell } from './Fields';
 
 interface Props {
   kind: 'customer' | 'project';
@@ -19,21 +18,19 @@ interface Props {
   onView: (row: CrmRecord, kind: EntityKind, customerId?: string) => void | Promise<void>;
   onEditContact: (row: CrmRecord) => void | Promise<void>;
   onCreate: (kind: 'contact' | 'project') => void;
+  onContinue: (row: CrmRecord) => void | Promise<void>;
+  onEnd: (row: CrmRecord) => void | Promise<void>;
   followupView: FollowupView;
   onFollowupViewChange: (view: FollowupView) => void;
 }
 export function CustomerWorkspace({ kind, row, busy, tab, onTabChange, onView, onEditContact, onCreate,
-  followupView, onFollowupViewChange }: Props) {
+  followupView, onFollowupViewChange, onContinue, onEnd }: Props) {
   const parents: string[] = linkIds(row.record['所属企业']);
   const customerId: string | undefined = kind === 'customer' ? row.id : parents.length === 1 ? parents[0] : undefined;
   const blocked = false;
   const view = (record: CrmRecord, type: EntityKind) => onView(record, type, customerId);
-  const action: string = textValue(row.record['当前下一步行动']);
-  const inactive: boolean = ['已完成', '已取消'].includes(textValue(row.record['终局确认']));
   return <div className="crm-workspace">
     {kind === 'project' && <div className="workspace-followup-status"><span>跟进状态</span><FollowupBadge record={row.record} /></div>}
-    {!inactive && action && <div className="workspace-plan"><div><span>当前下一步</span><p>{action}</p></div>
-      <div><Cell name="下次跟进日期" value={row.record['下次跟进日期']} /></div></div>}
     <Tabs value={tab} onValueChange={onTabChange}>
       <TabsList className="workspace-tabs" aria-label={kind === 'customer' ? '客户全览' : '项目全览'}>
         <TabsTrigger value="followups">跟进记录</TabsTrigger>
@@ -42,7 +39,7 @@ export function CustomerWorkspace({ kind, row, busy, tab, onTabChange, onView, o
         <TabsTrigger value="details">资料详情</TabsTrigger>
       </TabsList>
       <TabsContent value="followups"><FollowupFeed kind={kind} id={row.id} busy={busy} onView={view}
-        view={followupView} onViewChange={onFollowupViewChange} /></TabsContent>
+        onContinue={onContinue} onEnd={onEnd} view={followupView} onViewChange={onFollowupViewChange} /></TabsContent>
       <TabsContent value="contacts">{customerId ? <CustomerContacts key={customerId} customerId={customerId}
         busy={busy} createBlocked={blocked} onView={(record: CrmRecord) => view(record, 'contact')}
         onEdit={onEditContact} onCreate={kind === 'customer' ? () => onCreate('contact') : undefined} />

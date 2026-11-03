@@ -26,7 +26,7 @@ function harness(results = [], messageResult = { success: true }) {
   const capability = { load(id) { assert.equal(id, 'crm-daily-notice'); return { async call(action, data) {
     calls.push({ action, data }); if (messageResult instanceof Error) throw messageResult; return messageResult;
   } }; } };
-  const service = new CrmNotificationsService(db, capability, {}, {});
+  const service = new CrmNotificationsService(db, capability, {}, {notificationTasks:async()=>[]});
   const finishes = [], advances = [];
   service.finish = async (...args) => finishes.push(args);
   service.advance = async (...args) => advances.push(args);
@@ -45,17 +45,12 @@ test('time selection has Shanghai boundaries, midnight rollover and no immediate
   assert.throws(() => validateNotificationSettings({ enabled: true, sendTime: '08:00', recipientIds: [123], revision: 1 }));
 });
 
-test('digest shares workspace rules: signed and paused included, canceled and historical suggestions excluded', () => {
-  const project = (id, state) => ({ id, record: { 项目名称: id, 工作状态: state, 终局确认: '未确认',
-    所属企业: { link_record_ids: ['recC'] }, 当前下一步行动: '售后回访', 下次跟进日期: due, 行动执行人: [] } });
-  const data = workspaceModel({ customer: [{ id: 'recC', record: { 企业全称: '客户', 下次跟进日期: due + 86400000 } }],
-    project: [project('recSigned', '已签合同'), project('recPaused', '暂停'), project('recCanceled', '已取消')],
-    followup: [{ id: 'recF', record: { 建议日期: due } }] }, 'all', '', now).data;
+test('digest ignores all legacy project plans and untracked historical suggestions', () => {
+  const data = workspaceModel({ customer: [{ id: 'recC', record: { 企业全称: '客户', 下次跟进日期: due } }],
+    project: [], followup: [{ id: 'recF', record: { 建议日期: due } }] }, 'all', '', now).data;
   const card = buildNotification(data.tasks, now, 'https://example.com/app/test');
-  assert.equal(card.todayCount, 2); assert.equal(card.tomorrowCount, 1);
-  assert.match(card.content, /未指定/); assert.match(card.content, /待补充下一步行动/);
-  assert.doesNotMatch(card.content, /recCanceled|recF/);
-  assert.match(card.content, /taskFilter=tomorrow/); assert.match(card.content, /record=recSigned/);
+  assert.equal(card.todayCount, 0); assert.equal(card.tomorrowCount, 0);
+  assert.doesNotMatch(card.content, /record=recC|record=recF/);
 });
 
 test('card escapes user markup and respects message size while preserving total counts', () => {

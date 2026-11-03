@@ -96,6 +96,7 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
     },
     { key: '直接客户', type: 'relation', target: 'customer' },
     { key: '关联项目', type: 'relation', target: 'project' },
+    { key: '上次跟进', label: '接着哪次跟进', type: 'relation', target: 'followup' },
     {
       key: '记录类型',
       type: 'select',

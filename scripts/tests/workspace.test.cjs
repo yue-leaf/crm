@@ -14,22 +14,22 @@ const followup = (id, kind, target, record = {}) => ({ id, record: { 跟进主�
   跟进归属: kind === 'customer' ? '客户直接跟进' : '项目跟进', [kind === 'customer' ? '直接客户' : '关联项目']: { link_record_ids: [target] },
   记录状态: '正常', '内容 / 推进结论': '已沟通', ...record } });
 
-test('workspace includes former archived customers and signed projects while deduplicating missing plans', () => {
+test('workspace preserves customer/project totals without converting legacy plans into reminders', () => {
   const src = { customer: [customer('recToday'), customer('recOverdue', { 下次跟进日期: t('2026-10-26'), 当前下一步行动: '' }),
     customer('recEnded', { 已归档: true }), customer('recArchived', { 已归档: true })],
     project: [project('recTomorrow', 'recToday'), project('recMissing', 'recToday', { 当前下一步行动: '', 下次跟进日期: null }),
       project('recClosed', 'recToday', { 工作状态: '已签合同', 签约日期: t('2026-10-26'), 已归档: true })], followup: [] };
   const { data } = workspaceModel(src, 'all', '1', now);
-  assert.deepEqual(data.counts, { today: 3, tomorrow: 2, overdue: 1, missing: 2 });
-  assert.equal(data.tasks.length, 7);
+  assert.deepEqual(data.counts, { today: 0, tomorrow: 0, overdue: 0, missing: 0 });
+  assert.equal(data.tasks.length, 0);
   assert.equal(data.totals.customer.total, 4); assert.equal(data.totals.project.total, 3);
   assert.equal(data.project.monthCompleted, 1); assert.equal(data.project.archived, undefined);
   assert.equal(data.project.states.已签合同, 1);
-  assert.deepEqual(data.tasks.filter(row => taskMatches(row, 'priority', now)).map(row => row.id), ['recOverdue', 'recArchived', 'recEnded', 'recToday', 'recClosed', 'recTomorrow']);
+  assert.deepEqual(data.tasks.filter(row => taskMatches(row, 'priority', now)).map(row => row.id), []);
 });
 test('personal scope includes collaborators, executors, related customers and participant followups without inflating all-team totals', () => {
   const src = { customer: [customer('recC1', { 客户负责人: [2] }), customer('recC2', { 客户负责人: [3] }), customer('recC3', { 客户负责人: [3] })],
-    project: [project('recP1', 'recC1', { 项目负责人: [2], 协同人员: [1] }), project('recP2', 'recC2', { 项目负责人: [3], 行动执行人: [1] }), project('recP3', 'recC3', { 项目负责人: [3] })],
+    project: [project('recP1', 'recC1', { 项目负责人: [2], 协同人员: [1] }), project('recP2', 'recC2', { 项目负责人: [3], 协同人员: [1] }), project('recP3', 'recC3', { 项目负责人: [3] })],
     followup: [followup('recF1', 'project', 'recP1'), followup('recF2', 'project', 'recP3'), followup('recF3', 'project', 'recP3', { 实际跟进人: [1] })] };
   const personal = workspaceModel(src, 'mine', '1', now);
   assert.deepEqual(personal.records.project.map(row => row.id), ['recP1', 'recP2']);
@@ -75,10 +75,12 @@ test('every total and project status drills down with exactly the same scope and
 });
 test('tomorrow and calendar-week filters handle Sunday, Monday and cross-month correctly', () => {
   const sunday = Date.parse('2026-11-01T23:00:00+08:00');
-  const m = workspaceModel({ customer: [customer('recMonday', { 下次跟进日期: t('2026-11-02') }), customer('recSunday', { 下次跟进日期: t('2026-11-01') })], project: [], followup: [] }, 'all', '1', sunday);
+  const m = workspaceModel({ customer: [customer('recMonday', { 下次跟进日期: t('2026-11-02') }), customer('recSunday', { 下次跟进日期: t('2026-11-01') })], project: [], followup: [
+    followup('recSundayLog', 'customer', 'recSunday', { 后续处理: '待跟进', 后续安排: '有下一步行动', 建议日期: t('2026-11-01') }),
+    followup('recMondayLog', 'customer', 'recMonday', { 后续处理: '待跟进', 后续安排: '有下一步行动', 建议日期: t('2026-11-02') })] }, 'all', '1', sunday);
   assert.equal(m.data.counts.tomorrow, 1);
-  assert.deepEqual(m.data.tasks.filter(row => taskMatches(row, 'week', sunday)).map(row => row.id), ['recSunday']);
-  assert.equal(taskMatches(m.data.tasks.find(row => row.id === 'recMonday'), 'week', t('2026-11-02')), true);
+  assert.deepEqual(m.data.tasks.filter(row => taskMatches(row, 'week', sunday)).map(row => row.id), ['recSundayLog']);
+  assert.equal(taskMatches(m.data.tasks.find(row => row.id === 'recMondayLog'), 'week', t('2026-11-02')), true);
 });
 test('service traverses all three tables, pages drilldowns and rejects partial/inconsistent pages', async () => {
   const rows = Array.from({ length: 63 }, (_, index) => customer(`recC${index}`, { 创建时间: now - index * 1000 }));

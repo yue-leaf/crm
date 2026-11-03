@@ -104,6 +104,12 @@ export class CrmController {
     return this.crm.relatedFollowups('project', id, query);
   }
 
+  @Get('followups/pending')
+  pendingFollowups(@Req() req: Request, @Query('customerId') customerId?: string, @Query('projectId') projectId?: string) {
+    this.session(req);
+    return this.crm.pendingFollowups(customerId, projectId);
+  }
+
   @Post('records/:kind')
   create(
     @Req() req: Request,
@@ -133,7 +139,7 @@ export class CrmController {
     @Param('id') id: string,
   ) {
     this.session(req, kind);
-    return this.crm.get(kind, id);
+    return this.crm.detail(kind, id);
   }
 
   @Get('records/:kind')

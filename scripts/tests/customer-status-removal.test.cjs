@@ -19,12 +19,11 @@ test('removing customer status does not drop active customer tasks or stale-cust
   for (const legacy of [undefined, '结束合作', '暂停合作']) {
     const row = { ...customer, record: { ...customer.record, ...(legacy ? { 客户关系状态: legacy } : {}) } };
     const { data } = workspaceModel({ customer: [row], project: [], followup: [] }, 'all', '123', now);
-    assert.equal(data.counts.overdue, 1);
-    assert.equal(data.tasks.length, 1);
+    assert.equal(data.counts.overdue, 0);
+    assert.equal(data.tasks.length, 0);
     assert.equal(data.attentionTotal, 1);
-    assert.equal(data.tasks[0].state, '');
   }
   const { data } = workspaceModel({ customer: [{ ...customer, record: { ...customer.record, 已归档: true } }], project: [], followup: [] }, 'all', '123', now);
-  assert.equal(data.tasks.length, 1);
+  assert.equal(data.tasks.length, 0);
   assert.equal(data.attentionTotal, 1);
 });

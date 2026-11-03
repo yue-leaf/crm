@@ -3,7 +3,7 @@ import { textValue } from './crm';
 
 export const followupFilterLabels: Record<FollowupFilter, string> = {
   all: '全部跟进状态', waiting: '等待中', tomorrow: '明日跟进', today: '今日跟进',
-  overdue: '已逾期', unplanned: '未安排', none: '无需跟进',
+  overdue: '已逾期', unplanned: '未安排', none: '暂无待跟进',
 };
 export const shanghaiDay = (time: number): number => Math.floor((time + 8 * 3600000) / 86400000);
 export function validFollowupFilter(value: string): value is FollowupFilter {
@@ -12,9 +12,12 @@ export function validFollowupFilter(value: string): value is FollowupFilter {
 export function followupStatus(record: CrmRecord['record'], now = Date.now()): {
   key: FollowupStatus; label: string; tone: string; priority: number; due: number;
 } {
-  if (['已完成', '已取消'].includes(textValue(record['终局确认'])))
+  const aggregated = typeof record['待跟进数量'] === 'number';
+  if (aggregated && record['待跟进数量'] === 0)
+    return { key: 'none', label: '暂无待跟进', tone: 'neutral', priority: 5, due: Infinity };
+  if (!aggregated && ['已完成', '已取消'].includes(textValue(record['终局确认'])))
     return { key: 'none', label: '无需跟进', tone: 'neutral', priority: 5, due: Infinity };
-  const due = record['下次跟进日期'];
+  const due = record[aggregated ? '最近待跟进日期' : '下次跟进日期'];
   if (typeof due !== 'number' || !Number.isFinite(due) || !Number.isFinite(new Date(due).getTime()))
     return { key: 'unplanned', label: '未安排', tone: 'neutral', priority: 3, due: Infinity };
   const distance = shanghaiDay(due) - shanghaiDay(now);
