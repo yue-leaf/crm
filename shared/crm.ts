@@ -75,8 +75,8 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
     { key: '所属企业', type: 'relation', required: true, target: 'customer' },
     { key: '项目负责人', type: 'person' },
     { key: '目标 / 需求摘要', type: 'long', required: true },
-    { key: '当前下一步行动', type: 'long', required: true },
-    { key: '下次跟进日期', type: 'date', required: true },
+    { key: '当前下一步行动', type: 'long' },
+    { key: '下次跟进日期', type: 'date' },
     { key: '目标完成日期', type: 'date' },
     { key: '预计金额', type: 'number' },
     { key: '币种', type: 'select', options: ['CNY', 'USD', 'EUR', '其他'] },
@@ -142,6 +142,10 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
     },
   ],
 };
+// Project creation collects basic information; plans are maintained separately.
+export const projectCreateFields: FieldSpec[] = forms.project.filter(
+  (field: FieldSpec) => !['当前下一步行动', '下次跟进日期', '目标完成日期'].includes(field.key),
+);
 export const planFields: FieldSpec[] = [
   { key: '当前下一步行动', type: 'long', required: true },
   { key: '行动执行人', type: 'person' },
