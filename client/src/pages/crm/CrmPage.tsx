@@ -90,7 +90,7 @@ import type { RelatedPosition } from '@shared/crm-navigation';
 import { NotificationSettings } from './NotificationSettings';
 import { restoreDetailScroll } from './restoreDetailScroll';
 import {
-  FOLLOWUP_CUSTOMER, followupCreateFields, changeFollowupTarget, followupWriteDraft,
+  FOLLOWUP_CUSTOMER, followupCreateFields, changeFollowupTarget, followupWriteDraft, projectFirstDraft,
 } from '@shared/crm-followup-target';
 import './crm.css';
 
@@ -188,6 +188,9 @@ const CrmPage: React.FC = () => {
   const planSuggestion = useRef<string | null>(null);
   const [adoptedSuggestions, setAdoptedSuggestions] = useState<Set<string>>(new Set());
   const [followupCustomer, setFollowupCustomer] = useState('');
+  const [projectResolving, setProjectResolving] = useState(false);
+  const projectResolution = useRef(0);
+  const projectResolvingRef = useRef(false);
   const [customerResolveError, setCustomerResolveError] = useState('');
   const [customerResolveRetry, setCustomerResolveRetry] = useState(0);
   const [customerContext, setCustomerContext] = useState<string | null>(null);
@@ -334,6 +337,7 @@ const CrmPage: React.FC = () => {
     if (kind === 'customer' && ['create', 'edit'].includes(operation)) {
       setPendingContacts(contacts); setSelectedContacts(contacts.map(c => c.key)); customerSave.current = { contacts: {} };
     }
+    projectResolution.current++; projectResolvingRef.current = false; setProjectResolving(false);
     editorOrigin.current = currentLocation();
     planSuggestion.current = null;
     setFollowupCustomer(''); setCustomerResolveError('');
@@ -479,6 +483,7 @@ const CrmPage: React.FC = () => {
   };
   const closeEditor = () => {
     if (savingRef.current || uploadingRef.current) return;
+    projectResolution.current++; projectResolvingRef.current = false; setProjectResolving(false);
     if (!uncertain && editor && (
       Object.keys(changedFields(initialDraft.current, draft, specs(editor))).length ||
       (editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && pendingContacts.some(contactDraftChanged))
@@ -498,7 +503,7 @@ const CrmPage: React.FC = () => {
     }
   };
   const save = async () => {
-    if (!editor || savingRef.current || uploadingRef.current || uncertain) return;
+    if (!editor || savingRef.current || uploadingRef.current || projectResolvingRef.current || uncertain) return;
     const errors = missingFields(specs(editor).filter(showField).map((field) => requiredField(field, editor.kind, editor.operation, draft)), draft);
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
@@ -610,6 +615,26 @@ const CrmPage: React.FC = () => {
     if (editor?.fixedProjectId && key === '关联项目') return;
     if (editor?.fixedCustomerId && (key === '所属企业' || key === FOLLOWUP_CUSTOMER)) return;
     if (savingRef.current || (uploadingRef.current && key !== '附件')) return;
+    if (key === FOLLOWUP_CUSTOMER || key === '关联项目') {
+      const request = ++projectResolution.current;
+      projectResolvingRef.current = false; setProjectResolving(false);
+      if (editor?.kind === 'followup' && editor.operation === 'create' && key === '关联项目' &&
+        !(Array.isArray(draft[FOLLOWUP_CUSTOMER]) && draft[FOLLOWUP_CUSTOMER].length) && Array.isArray(value) && value.length === 1) {
+        projectResolvingRef.current = true; setProjectResolving(true); setSaveError('');
+        void api.get('project', value[0]).then(row => {
+          if (request !== projectResolution.current) return;
+          // Validate before entering a React updater so errors stay in this promise chain.
+          const resolved = projectFirstDraft({}, row);
+          setDraft(previous => ({ ...previous, ...resolved }));
+          setFieldErrors(previous => { const next = { ...previous }; delete next[FOLLOWUP_CUSTOMER]; delete next['关联项目']; delete next['客户联系人']; return next; });
+        }).catch((error: unknown) => {
+          if (request === projectResolution.current) setSaveError(message(error));
+        }).finally(() => {
+          if (request === projectResolution.current) { projectResolvingRef.current = false; setProjectResolving(false); }
+        });
+        return;
+      }
+    }
     setFieldErrors((previous) => {
       const next = { ...previous }; delete next[key];
       if (key === FOLLOWUP_CUSTOMER) { delete next['关联项目']; delete next['客户联系人']; }
@@ -1072,7 +1097,7 @@ const CrmPage: React.FC = () => {
                       onCreateContact={editor.kind === 'followup' && f.key === '客户联系人' ? newContactDuringFollowup : undefined}
                       onChange={set}
                       onUploadBusy={onUploadBusy}
-                      disabled={saving || uploading || uncertain || (editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && !!customerSave.current.customer) || (editor.kind === 'followup' && ['关联项目', '客户联系人'].includes(f.key) && !followupCustomer) ||
+                      disabled={saving || uploading || uncertain || (editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && !!customerSave.current.customer) || (editor.kind === 'followup' && f.key === '客户联系人' && !followupCustomer) || (projectResolving && f.key === '关联项目') ||
                         (Boolean(editor.fixedCustomerId) && (f.key === '所属企业' || f.key === FOLLOWUP_CUSTOMER)) ||
                         (Boolean(editor.fixedProjectId) && f.key === '关联项目') ||
                         (Boolean(suspendedEditor.current) && f.key === '所属企业')}
@@ -1085,6 +1110,7 @@ const CrmPage: React.FC = () => {
                     </React.Fragment>
                   ))}
             </fieldset>
+            {projectResolving && <p className="panel-note" role="status">正在读取项目所属客户…</p>}
             {customerResolveError && <div role="alert" className="error-banner">{customerResolveError}
               <Button type="button" size="sm" variant="ghost" onClick={() => setCustomerResolveRetry((n) => n + 1)}>重新加载客户</Button></div>}
             </div>
@@ -1102,7 +1128,7 @@ const CrmPage: React.FC = () => {
               >
                 {suspendedEditor.current ? '返回跟进' : '取消'}
               </Button>
-              <Button type="submit" disabled={saving || uploading || uncertain}>
+              <Button type="submit" disabled={saving || uploading || projectResolving || uncertain}>
                 {saving ? (
                   <>
                     <LoaderCircle size={16} className="spin" />
