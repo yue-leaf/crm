@@ -2,13 +2,14 @@ import type { CrmRecord, ProjectScope } from './api.interface';
 import { linkIds, textValue, titles } from './crm';
 import { followupStatus, shanghaiDay } from './crm-followup-status';
 import { projectFacts, projectStates } from './crm-dashboard';
+import { followupChains, projectFollowupSummary } from './crm-followup-chain';
 import { followupTarget } from './crm-workflow';
 
 export type WorkspaceKind = 'customer' | 'project' | 'followup';
 export type TaskFilter = 'priority' | 'overdue' | 'today' | 'tomorrow' | 'week' | 'missing' | 'all';
-export const taskLabels: Record<TaskFilter, string> = { priority: '优先处理', overdue: '已逾期', today: '今日', tomorrow: '明日', week: '本周', missing: '待完善计划', all: '全部事项' };
+export const taskLabels: Record<TaskFilter, string> = { priority: '优先处理', overdue: '已逾期', today: '今日', tomorrow: '明日', week: '本周', missing: '待安排日期', all: '全部事项' };
 export interface WorkspaceTask {
-  id: string; kind: 'customer' | 'project'; name: string; customerId?: string; customerName: string;
+  id: string; kind: 'customer' | 'project' | 'followup'; targetKind?: 'customer' | 'project'; targetId?: string; name: string; customerId?: string; customerName: string;
   action: string; people: string[]; due: number | null; status: string; state: string; missing: boolean;
 }
 export interface WorkspaceActivity {
@@ -32,6 +33,7 @@ const inMonth = (v: unknown, now: number): boolean => validWorkspaceTime(v) && v
 
 export function workspaceModel(source: WorkspaceSource, scope: ProjectScope, userId: string, now = Date.now()) {
   const customers = new Map(source.customer.map(row => [row.id, row]));
+  source = { ...source, project: projectFollowupSummary(source.project, source.followup, now), followup: followupChains(source.followup, now) };
   const projects = new Map(source.project.map(row => [row.id, row]));
   const validFollowups = source.followup.filter(row => {
     const target = followupTarget(row);
@@ -39,14 +41,15 @@ export function workspaceModel(source: WorkspaceSource, scope: ProjectScope, use
       validWorkspaceTime(row.record['实际发生时间']) && row.record['实际发生时间'] <= now &&
       !!target && (target.kind === 'customer' ? customers.has(target.id) : projects.has(target.id));
   });
-  const scopedProjects = source.project.filter(row => scope === 'all' || mine(row, ['项目负责人', '协同人员', '行动执行人'], userId));
+  const scopedProjects = source.project.filter(row => scope === 'all' || mine(row, ['项目负责人', '协同人员', '待跟进执行人'], userId));
   const projectIds = new Set(scopedProjects.map(row => row.id));
   const projectCustomers = new Set(scopedProjects.flatMap(row => linkIds(row.record['所属企业'])));
-  const scopedCustomers = source.customer.filter(row => scope === 'all' || mine(row, ['客户负责人', '行动执行人'], userId) || projectCustomers.has(row.id));
+  const assignedCustomers = new Set(validFollowups.filter(row => row.followup?.state === '待跟进' && mine(row, ['建议处理人'], userId)).flatMap(row => linkIds(row.record['直接客户'])));
+  const scopedCustomers = source.customer.filter(row => scope === 'all' || mine(row, ['客户负责人', '行动执行人'], userId) || projectCustomers.has(row.id) || assignedCustomers.has(row.id));
   const customerIds = new Set(scopedCustomers.map(row => row.id));
   const scopedFollowups = validFollowups.filter(row => {
     const target = followupTarget(row)!;
-    return scope === 'all' || mine(row, ['实际跟进人'], userId) ||
+    return scope === 'all' || mine(row, ['实际跟进人', '建议处理人'], userId) ||
       (target.kind === 'customer' ? customerIds.has(target.id) : projectIds.has(target.id));
   });
   const records: WorkspaceSource = { customer: scopedCustomers, project: scopedProjects, followup: scopedFollowups };
@@ -54,15 +57,19 @@ export function workspaceModel(source: WorkspaceSource, scope: ProjectScope, use
     ? linkIds(row.record['所属企业'])[0] : linkIds(row.record['直接客户'])[0] || linkIds(projects.get(linkIds(row.record['关联项目'])[0])?.record['所属企业'])[0];
   const nameOf = (id: string | undefined): string => textValue(id ? customers.get(id)?.record['企业全称'] : '') || '未关联客户';
   const tasks: WorkspaceTask[] = [];
-  for (const kind of ['customer', 'project'] as const) for (const row of records[kind]) {
-    const fact = kind === 'project' ? projectFacts(row, now) : null;
-    if (fact && !fact.active) continue;
-    const status = followupStatus(row.record, now);
-    const action = textValue(row.record['当前下一步行动']).trim();
-    const customerId = customerOf(row, kind);
-    tasks.push({ id: row.id, kind, name: textValue(row.record[titles[kind]]) || '未命名', customerId, customerName: nameOf(customerId),
-      action, people: people(row.record['行动执行人']), due: validWorkspaceTime(row.record['下次跟进日期']) ? row.record['下次跟进日期'] : null,
-      status: status.key, state: fact?.state || '', missing: !action || status.key === 'unplanned' });
+  for (const row of validFollowups) {
+    if (row.followup?.state !== '待跟进' || (scope === 'mine' && !mine(row, ['建议处理人'], userId))) continue;
+    const target = followupTarget(row)!;
+    const targetRow = target.kind === 'project' ? projects.get(target.id) : customers.get(target.id);
+    if (!targetRow) continue;
+    const due = row.record['建议日期'];
+    const status = followupStatus({ 下次跟进日期: due }, now);
+    const customerId = customerOf(row, 'followup');
+    tasks.push({ id: row.id, kind: 'followup', targetKind: target.kind, targetId: target.id,
+      name: textValue(targetRow.record[titles[target.kind]]) || '未命名', customerId, customerName: nameOf(customerId),
+      action: textValue(row.record['建议下一步行动']), people: people(row.record['建议处理人']),
+      due: validWorkspaceTime(due) ? due : null, status: status.key,
+      state: target.kind === 'project' ? projectFacts(targetRow, now).state : '', missing: status.key === 'unplanned' });
   }
   const rank: Record<string, number> = { overdue: 0, today: 1, tomorrow: 2, unplanned: 3, waiting: 4 };
   tasks.sort((a, b) => rank[a.status] - rank[b.status] || (a.due ?? Infinity) - (b.due ?? Infinity) || a.id.localeCompare(b.id));

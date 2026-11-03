@@ -50,13 +50,13 @@ export const NotificationSettings: React.FC<{ onClose: () => void }> = ({ onClos
         {error && <div role="alert" className="notice-error">{error}<Button variant="ghost" size="sm" disabled={!!busy} onClick={() => void refresh()}>刷新配置</Button></div>}
         {!draft && !error && <p role="status">正在加载设置…</p>}
         {draft && <>
-          <div className="notice-toggle"><div><strong>每日待办提醒</strong><p>汇总全部客户和项目的今日、明日待处理事项。无待办时不发送。</p></div>
+          <div className="notice-toggle"><div><strong>每日待办提醒</strong><p>按建议执行人发送今日、明日待跟进记录。已处理或未指定执行人的记录不发送。</p></div>
             <Switch checked={draft.enabled} disabled={!!busy} aria-label="开启每日待办提醒" onCheckedChange={enabled => setDraft({ ...draft, enabled })} /></div>
           <div className="notice-fields">
             <div><label id="notice-time-label">发送时间</label><Select value={draft.sendTime} disabled={!!busy} onValueChange={sendTime => setDraft({ ...draft, sendTime })}>
               <SelectTrigger aria-labelledby="notice-time-label"><SelectValue /></SelectTrigger><SelectContent>{notificationTimes.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}</SelectContent>
             </Select><small>每天 · 中国时区 · 每半小时可选</small></div>
-            <div><label>接收人</label><UserSelect triggerType="search" loadOnOpen loadOptions={loadEmployeeOptions} className="crm-person-picker"
+            <div><label>启用提醒的成员</label><UserSelect triggerType="search" loadOnOpen loadOptions={loadEmployeeOptions} className="crm-person-picker"
               classNames={{ trigger: 'crm-person-trigger', popover: 'crm-person-popover' }}
               slotProps={{ popover: { collisionPadding: 12 } }} value={draft.recipientIds} multiple disabled={!!busy} placeholder="选择本企业接收人" onChange={recipientIds => setDraft({ ...draft, recipientIds })} /></div>
           </div>

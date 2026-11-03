@@ -17,7 +17,7 @@ test('legacy archive flags no longer hide statistics, block editing or prevent c
  assert.equal(editBlockedReason('project',project),'');assert.equal(editBlockedReason('customer',customer),'');assert.equal(advancementBlocked('project',project),'');
  assert.equal(projectReviewProblem(project.record),'');assert.doesNotThrow(()=>historicalContext('project',project,now));
  const {data}=workspaceModel({customer:[customer],project:[project],followup:[]},'all','123',now);
- assert.equal(data.project.states.已签合同,1);assert.equal(data.project.active,1);assert.equal(data.project.archived,undefined);assert.equal(data.tasks.length,2);assert.equal(data.counts.missing,2);
+ assert.equal(data.project.states.已签合同,1);assert.equal(data.project.active,1);assert.equal(data.project.archived,undefined);assert.equal(data.tasks.length,0);assert.equal(data.counts.missing,0);
  assert.equal(projectFacts(project,now).followup.key,'unplanned');
  assert.equal(statusInput(project,{项目状态:'进行中',当前进展:'售后',当前下一步行动:'回访',下次跟进日期:today}).operation,'progress');
 });

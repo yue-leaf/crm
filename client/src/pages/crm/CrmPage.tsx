@@ -1,3 +1,5 @@
+import { PreviousFollowup } from './PreviousFollowup';
+import { FollowupChainPanel } from './FollowupChainPanel';
 import { CustomerContactDrafts } from './CustomerContactDrafts';
 import { saveCustomerContacts, loadCustomerContactDrafts, contactDraftChanged, type PendingContact, type CustomerSaveProgress } from '@shared/crm-customer-create';
 import { defaultEmployeeSelection } from '@shared/crm-people';
@@ -77,14 +79,14 @@ import { crmAdmin } from '@shared/crm-access';
 import { isLifecycle, lifecycleFields, lifecycleTitles } from '@shared/crm-lifecycle';
 
 import { ProjectDashboard } from './ProjectDashboard';
-import { FollowupBadge, useFollowupClock } from './FollowupStatus';
+import { useFollowupClock } from './FollowupStatus';
 import { followupFilterLabels, validFollowupFilter, shanghaiDay } from '@shared/crm-followup-status';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { FollowupFilter } from '@shared/api.interface';
 import { projectFacts, validProjectFilter } from '@shared/crm-dashboard';
 import { numberValue, detailFieldLabel } from '@shared/crm-presentation';
 import { projectFilterLabels } from '@shared/crm-dashboard';
-import { changeFilter, changeFollowupListTarget, actionDraft, suggestedPlan, suggestionKey, readPlanSuggestion } from '@shared/crm-ux';
+import { changeFilter, changeFollowupListTarget, actionDraft } from '@shared/crm-ux';
 import { defaultFollowupView, type FollowupView } from './FollowupFeed';
 import { RelatedPageMemory } from './RelatedPageMemory';
 import type { RelatedPosition } from '@shared/crm-navigation';
@@ -114,8 +116,8 @@ const columns: Record<EntityKind, string[]> = {
     '项目类型',
     '所属企业',
     '工作状态',
-    '跟进状态',
-    '下次跟进日期',
+    '待办情况',
+    '最近待跟进日期',
   ],
   followup: [
     '有效客户名称',
@@ -124,10 +126,12 @@ const columns: Record<EntityKind, string[]> = {
     '实际发生时间',
     '实际跟进人',
     '记录类型',
+    '后续状态',
   ],
   access: ['姓名', '部门', '待配置角色'],
 };
 interface Editor {
+  previousFollowupId?: string;
   fixedCustomerId?: string;
   fixedProjectId?: string;
   kind: EntityKind;
@@ -137,7 +141,9 @@ interface Editor {
 interface DetailLocation { row: CrmRecord; kind: EntityKind; tab: string; customer: string | null; scroll: number }
 interface SuspendedEditor { editor: Editor; draft: Draft; initial: Draft; origin: DetailLocation | null }
 const rawSpecs = (editor: Editor): FieldSpec[] =>
-  isLifecycle(editor.operation)
+  ['end-followup', 'activate-followup'].includes(editor.operation)
+    ? editor.operation === 'end-followup' ? [{ key: '结束跟进说明', label: '结束说明', type: 'long' }] : []
+    : isLifecycle(editor.operation)
     ? lifecycleFields(editor.kind, editor.operation)
     : editor.operation === 'progress'
     ? progressFields
@@ -186,9 +192,7 @@ const CrmPage: React.FC = () => {
   const [scrollRequest, setScrollRequest] = useState<{ key: string; tab: string; top: number } | null>(null);
   const editorOrigin = useRef<DetailLocation | null>(null);
   const suspendedEditor = useRef<SuspendedEditor | null>(null);
-  const [receipt, setReceipt] = useState<{ kind: EntityKind; row: CrmRecord } | null>(null);
-  const planSuggestion = useRef<string | null>(null);
-  const [adoptedSuggestions, setAdoptedSuggestions] = useState<Set<string>>(new Set());
+  const [, setReceipt] = useState<{ kind: EntityKind; row: CrmRecord } | null>(null);
   const [followupCustomer, setFollowupCustomer] = useState('');
   const [projectResolving, setProjectResolving] = useState(false);
   const projectResolution = useRef(0);
@@ -347,7 +351,6 @@ const CrmPage: React.FC = () => {
     }
     projectResolution.current++; projectResolvingRef.current = false; setProjectResolving(false);
     editorOrigin.current = currentLocation();
-    planSuggestion.current = null;
     setFollowupCustomer(''); setCustomerResolveError('');
     editorRequestVersion.current++;
     detailVersion.current++;
@@ -357,7 +360,8 @@ const CrmPage: React.FC = () => {
     const projects = preset['关联项目'];
     const fixedProjectId = kind === 'followup' && operation === 'create' &&
       Array.isArray(projects) && projects.length === 1 ? projects[0] : undefined;
-    const ed: Editor = { kind, operation, row, fixedCustomerId, fixedProjectId };
+    const ed: Editor = { kind, operation, row, fixedCustomerId, fixedProjectId,
+      previousFollowupId: Array.isArray(preset['上次跟进']) ? preset['上次跟进'][0] : undefined };
     const initial: Draft =
       row ? recordDraft(row.record, specs(ed)) : {};
     if (operation === 'create')
@@ -444,7 +448,7 @@ const CrmPage: React.FC = () => {
   useEffect(() => {
     const key = `${active}:${recordLink}`;
     if (!recordLink) { openedDeepLink.current = ''; return; }
-    if (!authorized || loading || (active !== 'customer' && active !== 'project') || openedDeepLink.current === key) return;
+    if (!authorized || loading || (active !== 'customer' && active !== 'project' && active !== 'followup') || openedDeepLink.current === key) return;
     openedDeepLink.current = key;
     if (/^rec[A-Za-z0-9]+$/.test(recordLink)) void detail({ id: recordLink, record: {} }, active);
     // Open once when the linked page finishes its initial load; closing stays closed.
@@ -550,10 +554,6 @@ const CrmPage: React.FC = () => {
               : editor.fixedCustomerId ? { ...draft, 所属企业: [editor.fixedCustomerId] } : draft);
       if (r.warning) toast.warning(r.warning);
       else toast.success(r.message);
-      if (editor.operation === 'plan' && planSuggestion.current) {
-        const id = planSuggestion.current;
-        setAdoptedSuggestions((previous) => new Set([...previous, id]));
-      }
       if (suspendedEditor.current) { resumeFollowup(r.id); return; }
       const origin = editorOrigin.current;
       if (origin) {
@@ -593,27 +593,22 @@ const CrmPage: React.FC = () => {
       setSaving(false);
     }
   };
-  const adoptPlan = async (followup: CrmRecord) => {
+  const continueFollowup = async (record: CrmRecord) => {
     if (savingRef.current || uploadingRef.current) return;
-    const version = requestVersion.current;
-    const detailRequest = ++detailVersion.current;
-    const editorRequest = ++editorRequestVersion.current;
-
+    const request = ++editorRequestVersion.current;
     try {
-      const next = await readPlanSuggestion(followup.id, api.get);
-      if (version !== requestVersion.current || detailRequest !== detailVersion.current ||
-        editorRequest !== editorRequestVersion.current) return;
-      setReceipt((previous) => previous?.kind === 'followup' && previous.row.id === next.followup.id
-        ? { kind: 'followup', row: next.followup } : previous);
-      if (selectionKind === 'followup' && selection?.id === next.followup.id) setSelection(next.followup);
-      openEditor(next.target.kind, 'plan', next.row, next.preset);
-      planSuggestion.current = next.key;
-    } catch (e: unknown) {
-      if (version === requestVersion.current && detailRequest === detailVersion.current &&
-        editorRequest === editorRequestVersion.current) toast.error(message(e));
-    }
+      const row = await api.get('followup', record.id);
+      if (request !== editorRequestVersion.current) return;
+      if (row.followup?.state !== '待跟进') { toast.info('此记录已处理，请刷新查看'); return; }
+      const target = followupTarget(row);
+      if (!target) throw new Error('跟进所属客户或项目不完整');
+      const parent = await api.get(target.kind, target.id);
+      if (request !== editorRequestVersion.current) return;
+      openEditor('followup', 'create', undefined, { ...relatedDraft(target.kind, parent, 'followup'), 上次跟进: [row.id] });
+    } catch (e: unknown) { if (request === editorRequestVersion.current) toast.error(message(e)); }
   };
   const set = (key: string, value: Draft[string]) => {
+    if (editor?.previousFollowupId && key === '上次跟进') return;
     if (editor?.fixedProjectId && key === '关联项目') return;
     if (editor?.fixedCustomerId && (key === '所属企业' || key === FOLLOWUP_CUSTOMER)) return;
     if (savingRef.current || (uploadingRef.current && key !== '附件')) return;
@@ -795,6 +790,7 @@ const CrmPage: React.FC = () => {
                   onRetry={() => void reload()} onOpen={(row, kind) => detail(row, kind)}
                   onOpenLoaded={(row, kind) => detail(row, kind, undefined, 'followups', true)}
                   onAction={(kind, id, operation) => workspaceAction(kind, id, operation)}
+                  onContinue={continueFollowup} onEnd={row => edit(row, 'followup', 'end-followup')}
                   onCreate={() => openEditor('followup', 'create')} />
               ) : (
                 <section className="panel list-panel">
@@ -876,13 +872,16 @@ const CrmPage: React.FC = () => {
                                   </button>
                                 ) : active === 'project' && c === '工作状态' ? (
                                   <Cell name="工作状态" value={projectFacts(row, Date.now()).state || '状态异常'} />
-                                ) : c === '跟进状态' ? <FollowupBadge record={row.record} /> : (
+                                 ) : c === '待办情况' ? <button className="record-title" onClick={() => { setFollowupViews(previous => ({ ...previous, [`project:${row.id}`]: { ...defaultFollowupView, status: 'pending' } })); return detail(row, 'project'); }}>{Number(row.record['待跟进数量'])
+                                  ? `待跟进 ${row.record['待跟进数量']}${Number(row.record['逾期跟进数量']) ? ` · 逾期 ${row.record['逾期跟进数量']}` : ''}` : '暂无待跟进'}</button>
+                                  : c === '后续状态' ? <span className={`tag ${row.followup?.state === '待跟进' ? 'blue' : 'neutral'}`}>{row.followup?.state || '—'}</span> : (
                                   <Cell name={c} value={row.record[c]} onOpenCustomer={id => detail({ id, record: {} }, 'customer', undefined, active === 'contact' ? 'contacts' : 'followups')}
                                     onOpenRecord={(id, kind) => detail({ id, record: {} }, kind)} />
                                 )}
                               </td>
                             ))}
                             <td role="cell" data-label="操作" className="record-actions">
+                              {active === 'followup' && row.followup?.state === '待跟进' && <Button size="sm" variant="ghost" disabled={saving || uploading} onClick={() => continueFollowup(row)}>继续跟进</Button>}
                               {active === 'customer' && <Button variant="ghost" size="sm" disabled={saving || uploading} onClick={() => detail(row, 'customer', undefined, 'contacts')}><Users size={14} />联系人</Button>}
                               {active !== 'customer' && <Button
                                 variant="ghost"
@@ -1012,12 +1011,11 @@ const CrmPage: React.FC = () => {
           <div className="crm-dialog-body">
           {selection && (
             <>
-              {((receipt?.kind === 'followup' && !adoptedSuggestions.has(suggestionKey(receipt.row)) && suggestedPlan(receipt.row.record)) ||
-                (selectionKind === 'followup' && !adoptedSuggestions.has(suggestionKey(selection)) && suggestedPlan(selection.record))) && <div className="panel-note flex flex-wrap items-center gap-2">
-                <span>下一步建议已记录，当前计划需单独确认更新。</span>
-                <Button size="sm" variant="outline" disabled={saving || uploading}
-                  onClick={() => adoptPlan(receipt?.kind === 'followup' ? receipt.row : selection)}>采用建议更新计划</Button>
-              </div>}
+              {selectionKind === 'followup' && <FollowupChainPanel row={selection} busy={saving || uploading}
+                onContinue={() => continueFollowup(selection)}
+                onEnd={() => edit(selection, 'followup', 'end-followup')}
+                onActivate={() => edit(selection, 'followup', 'activate-followup')}
+                onOpen={id => detail({ id, record: {} }, 'followup')} />}
               <DetailToolbar key={`toolbar:${selectionKind}:${selection.id}`} kind={selectionKind} row={selection} busy={saving || uploading}
                 onEdit={() => edit(selection, selectionKind)}
                 onFollowup={() => openEditor('followup', 'create', undefined, relatedDraft(
@@ -1038,6 +1036,7 @@ const CrmPage: React.FC = () => {
                     tab={detailTab} onTabChange={(tab) => { setScrollRequest(null); setDetailTab(tab); }}
                     busy={saving || uploading}
                     onView={(row: CrmRecord, kind: EntityKind, customerId?: string) => detail(row, kind, customerId)}
+                    onContinue={continueFollowup} onEnd={row => edit(row, 'followup', 'end-followup')}
                     onEditContact={(row: CrmRecord) => edit(row, 'contact')}
                     onCreate={(kind: 'contact' | 'project') => openEditor(kind, 'create', undefined,
                       relatedDraft('customer', selection, kind))} />
@@ -1065,6 +1064,8 @@ const CrmPage: React.FC = () => {
             {editor
               ? isLifecycle(editor.operation)
                 ? lifecycleTitles[editor.operation]
+                : editor.operation === 'end-followup' ? '结束跟进'
+                : editor.operation === 'activate-followup' ? '纳入待跟进'
                 : editor.operation === 'create'
                 ? `新建${labels[editor.kind]}`
                 : editor.operation === 'edit'
@@ -1090,6 +1091,8 @@ const CrmPage: React.FC = () => {
           </header>
           <form className="crm-editor-form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
           <div className="crm-dialog-body">
+          {editor?.operation === 'activate-followup' && <p className="panel-note">将按这条记录的建议执行人和建议日期显示待跟进并提醒。</p>}
+          {editor?.operation === 'end-followup' && <p className="panel-note">结束后停止提醒，原有内容和安排保留。</p>}
           {editor?.operation === 'plan' && editor.row && <p className="panel-note">当前计划：{textValue(editor.row.record['当前下一步行动']) || '尚未安排'}。保存后将采用下方计划。</p>}
           {editor && isLifecycle(editor.operation) && <p className="panel-note">
             {editor.operation === 'confirm-end' ? '确认后项目停止活动推进，可在结束后归档。取消项目必须说明原因。'
@@ -1100,7 +1103,11 @@ const CrmPage: React.FC = () => {
                 specs(editor)
                   .filter(showField)
                   .map((f) => (
-                    <React.Fragment key={f.key}><FieldInput
+                    <React.Fragment key={f.key}>{f.key === '上次跟进'
+                      ? <PreviousFollowup customerId={followupCustomer} projectId={Array.isArray(draft['关联项目']) ? draft['关联项目'][0] || '' : ''}
+                          value={Array.isArray(draft['上次跟进']) ? draft['上次跟进'] : []} disabled={saving || uploading || uncertain}
+                          fixed={!!editor.previousFollowupId} onChange={ids => set('上次跟进', ids)} />
+                      : <FieldInput
                       key={f.key}
                       field={requiredField(f, editor.kind, editor.operation, draft)}
                       error={fieldErrors[f.key]}
@@ -1113,7 +1120,7 @@ const CrmPage: React.FC = () => {
                         (Boolean(editor.fixedCustomerId) && (f.key === '所属企业' || f.key === FOLLOWUP_CUSTOMER)) ||
                         (Boolean(editor.fixedProjectId) && f.key === '关联项目') ||
                         (Boolean(suspendedEditor.current) && f.key === '所属企业')}
-                    />
+                    />}
                     {editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && f.key === '客户负责人' &&
                       <CustomerContactDrafts customerName={String(draft['企业全称'] || '')} contacts={pendingContacts}
                         selected={selectedContacts} disabled={saving || uncertain}

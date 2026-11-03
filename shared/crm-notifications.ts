@@ -47,7 +47,7 @@ export function buildNotification(tasks: WorkspaceTask[], now: number, appUrl: s
   const tomorrow = tasks.filter(row => row.due !== null && notificationDay(row.due) === notificationDay(now + DAY));
   const section = (name: string, rows: WorkspaceTask[], filter: string): string => {
     const lines = rows.slice(0, 5).map(row => {
-      const target = row.kind === 'project' ? `${noticeText(row.name, 45)} · ${noticeText(row.customerName, 35)}` : noticeText(row.name, 70);
+      const target = (row.targetKind || row.kind) === 'project' ? `${noticeText(row.name, 45)} · ${noticeText(row.customerName, 35)}` : noticeText(row.name, 70);
       const url = `${appUrl}/crm/${row.kind}?record=${encodeURIComponent(row.id)}`;
       const people = row.people.filter(id => /^[1-9]\d{0,18}$/.test(id));
       return `• [${target}](${url})\n  ${noticeText(row.action || '待补充下一步行动')}\n  执行人：${people.length ? `<person ids="${people.slice(0, 3).join(',')}">` : '未指定'}`;

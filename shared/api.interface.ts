@@ -8,7 +8,15 @@ export type EntityKind =
 export interface CrmRecord {
   id: string;
   record: Record<string, unknown>;
+  followup?: FollowupChain;
 }
+export interface FollowupChain {
+  state: '待跟进' | '已跟进' | '已结束' | '历史记录' | '已作废' | '待核对';
+  previousId?: string;
+  nextIds: string[];
+}
+export interface PendingFollowupsQuery { customerId?: string; projectId?: string }
+export interface EndFollowupRequest { expectedModifiedAt: number; 结束跟进说明?: string }
 export interface CrmPage {
   records: CrmRecord[];
   hasMore: boolean;
@@ -21,6 +29,7 @@ export interface CustomerContactsQuery {
 }
 export type FollowupScope = 'all' | 'direct' | 'project';
 export interface RelatedRecordsQuery {
+  status?: 'all' | 'pending';
   cursor?: string;
   search?: string;
   scope?: FollowupScope;

@@ -1,0 +1,25 @@
+[
+  {
+    "type": "link",
+    "name": "上次跟进",
+    "link_table": "tbllvWMuZ8GSZnv9",
+    "bidirectional": false
+  },
+  {
+    "type": "select",
+    "name": "后续处理",
+    "multiple": false,
+    "options": [
+      {
+        "name": "待跟进"
+      },
+      {
+        "name": "已结束"
+      }
+    ]
+  },
+  {
+    "type": "text",
+    "name": "结束跟进说明"
+  }
+]

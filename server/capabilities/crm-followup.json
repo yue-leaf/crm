@@ -301,9 +301,37 @@
         "bizType": "Text",
         "readable": true,
         "writeable": true
+      },
+      {
+        "id": "fld6StTnay",
+        "name": "上次跟进",
+        "type": 18,
+        "bizType": "SingleLink",
+        "readable": true,
+        "writeable": true
+      },
+      {
+        "id": "fldCKXuuy0",
+        "name": "后续处理",
+        "type": 3,
+        "bizType": "SingleSelect",
+        "readable": true,
+        "writeable": true,
+        "enumValues": [
+          "待跟进",
+          "已结束"
+        ]
+      },
+      {
+        "id": "fld3VJeWl9",
+        "name": "结束跟进说明",
+        "type": 1,
+        "bizType": "Text",
+        "readable": true,
+        "writeable": true
       }
     ]
   },
   "createdAt": 1792795161508,
-  "updatedAt": 1793030197824
+  "updatedAt": 1793722149197
 }

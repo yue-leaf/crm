@@ -17,10 +17,10 @@ function service(projects,followups,{fail,projectPageSize=50}={}) {
       if(name==='crm-customer'&&input.recordID===customer.id)return customer;
       const p=projects.find(r=>r.id===input.recordID);if(p)return p;return {};
     }
-    assert.equal(action,'searchRecords');assert.ok(input.filter);
+    assert.equal(action,'searchRecords');
     const all=name==='crm-project'?projects:followups;
     const checks=r=>input.filter.conditions.map(c=>r.record[c.fieldName]?.link_record_ids?.includes(c.value[0])||false);
-    const rows=all.filter(r=>input.filter.conjunction==='or'?checks(r).some(Boolean):checks(r).every(Boolean));
+    const rows=!input.filter ? all : all.filter(r=>input.filter.conjunction==='or'?checks(r).some(Boolean):checks(r).every(Boolean));
     const size=name==='crm-project'?projectPageSize:50,offset=Number(input.pageToken||0),hasMore=offset+size<rows.length;
     return {records:structuredClone(rows.slice(offset,offset+size)),hasMore,...(hasMore?{pageToken:String(offset+size)}:{})};
   }})});

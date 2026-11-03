@@ -56,6 +56,7 @@ async function request<T>(
   }
 }
 export const api = {
+  pendingFollowups: (customerId = '', projectId = '') => request<CrmPage>(`followups/pending?${new URLSearchParams({ customerId, projectId })}`),
   members: () => request<CrmMemberOption[]>('members'),
   notificationState: () => request<NotificationState>('notifications'),
   notificationSave: (value: NotificationSettingsUpdate) => request<NotificationSettings>('notifications', 'PATCH', value),
@@ -67,7 +68,7 @@ export const api = {
   customerProjects: (customerId: string, query: RelatedRecordsQuery = {}) =>
     request<CrmPage>(`customers/${encodeURIComponent(customerId)}/projects?${new URLSearchParams({ cursor: query.cursor || '', search: query.search || '' })}`),
   relatedFollowups: (kind: 'customer' | 'project', id: string, query: RelatedRecordsQuery = {}) =>
-    request<FollowupPage>(`${kind === 'customer' ? 'customers' : 'projects'}/${encodeURIComponent(id)}/followups?${new URLSearchParams({ cursor: query.cursor || '', search: query.search || '', scope: query.scope || 'all' })}`),
+    request<FollowupPage>(`${kind === 'customer' ? 'customers' : 'projects'}/${encodeURIComponent(id)}/followups?${new URLSearchParams({ cursor: query.cursor || '', search: query.search || '', scope: query.scope || 'all', status: query.status || 'all' })}`),
   customerContacts: (customerId: string, query: CustomerContactsQuery = {}) =>
     request<CrmPage>(`customers/${encodeURIComponent(customerId)}/contacts?${new URLSearchParams({ cursor: query.cursor || '', search: query.search || '' })}`),
   session: () => request<CrmSession>('session'),

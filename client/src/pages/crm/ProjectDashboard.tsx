@@ -17,9 +17,11 @@ interface Props {
   onOpen: (row: CrmRecord, kind: WorkspaceKind) => void | Promise<void>;
   onOpenLoaded: (row: CrmRecord, kind: WorkspaceKind) => void | Promise<void>;
   onAction: (kind: 'customer' | 'project', id: string, action: 'followup' | 'plan') => void | Promise<void>;
+  onContinue: (row: CrmRecord) => void | Promise<void>;
+  onEnd: (row: CrmRecord) => void | Promise<void>;
   onCreate: () => void;
 }
-export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, onRetry, onOpen, onOpenLoaded, onAction, onCreate }) => {
+export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, onRetry, onOpen, onOpenLoaded, onAction, onCreate, onContinue, onEnd }) => {
   const [params] = useSearchParams();
   const linkedFilter = params.get('taskFilter');
   const initialFilter: TaskFilter = linkedFilter === 'today' || linkedFilter === 'tomorrow' ? linkedFilter : 'priority';
@@ -39,10 +41,10 @@ export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, 
   const count = (n: number | undefined) => loading || n === undefined ? '—' : n;
   const disabled = loading || !data;
   const metrics = [
-    { key: 'overdue', label: '已逾期', icon: Clock3, tone: 'red', hint: '已超过跟进日期的客户和项目' },
-    { key: 'today', label: '今日待跟进', icon: CalendarDays, tone: 'orange', hint: '今天需要跟进的客户和项目' },
-    { key: 'tomorrow', label: '明日待跟进', icon: CalendarDays, tone: 'blue', hint: '明天需要跟进的客户和项目' },
-    { key: 'missing', label: '待完善计划', icon: ListTodo, tone: 'neutral', hint: '缺少下一步行动或有效跟进日期，按业务记录去重' },
+    { key: 'overdue', label: '已逾期', icon: Clock3, tone: 'red', hint: '已超过建议日期的待跟进记录' },
+    { key: 'today', label: '今日待跟进', icon: CalendarDays, tone: 'orange', hint: '建议今天处理的待跟进记录' },
+    { key: 'tomorrow', label: '明日待跟进', icon: CalendarDays, tone: 'blue', hint: '建议明天处理的待跟进记录' },
+    { key: 'missing', label: '待安排日期', icon: ListTodo, tone: 'neutral', hint: '有后续安排但尚未设置建议日期' },
   ] as const;
   const empty = (label: string) => <div className="workspace-empty" role="status">{loading ? '正在加载…' : data ? label : '数据暂不可用'}</div>;
   return <div className="workspace-dashboard" aria-busy={loading}>
@@ -59,16 +61,16 @@ export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, 
         </div>
         {!disabled && tasks.length > 0 ? <><div className="workspace-table-scroll"><table className="workspace-task-table"><thead><tr><th>客户 / 项目</th><th>下一步行动</th><th>执行人</th><th>计划日期</th><th>操作</th></tr></thead>
           <tbody>{tasks.slice(0, limit).map(row => <tr key={`${row.kind}:${row.id}`}>
-            <td data-label="客户 / 项目"><button className="workspace-name" onClick={() => open(row.kind, row.id)}>{row.name}</button>
-              {row.kind === 'project' && <button className="workspace-subname" disabled={!row.customerId} onClick={() => row.customerId && open('customer', row.customerId)}>{row.customerName}</button>}
+            <td data-label="客户 / 项目"><button className="workspace-name" onClick={() => open(row.targetKind || row.kind, row.targetId || row.id)}>{row.name}</button>
+              {(row.targetKind || row.kind) === 'project' && <button className="workspace-subname" disabled={!row.customerId} onClick={() => row.customerId && open('customer', row.customerId)}>{row.customerName}</button>}
               {row.state === '暂停' && <small className="workspace-muted">项目已暂停</small>}</td>
             <td data-label="下一步行动"><span className="workspace-clamp" title={row.action}>{row.action || '待补充下一步行动'}</span></td>
             <td data-label="执行人">{row.people.length ? <Cell name="行动执行人" value={row.people} /> : <span className="workspace-muted">未指定</span>}</td>
             <td data-label="计划日期"><span className={`workspace-due due-${row.status}`}>{row.status === 'today' ? '今日' : row.status === 'tomorrow' ? '明日' : row.status === 'overdue'
               ? `逾期 ${Math.floor((data.generatedAt + 28800000) / 86400000) - Math.floor((row.due! + 28800000) / 86400000)} 天` : row.due ? displayDate('下次跟进日期', row.due) : '待安排'}</span>
               {row.due && ['today', 'tomorrow', 'overdue'].includes(row.status) && <small className="workspace-muted">{displayDate('下次跟进日期', row.due)}</small>}</td>
-            <td data-label="操作"><div className="workspace-row-actions"><Button variant="ghost" size="sm" disabled={busy} onClick={() => onAction(row.kind, row.id, 'followup')}>记录跟进</Button>
-              <Button variant="ghost" size="sm" disabled={busy} onClick={() => onAction(row.kind, row.id, 'plan')}>调整计划</Button></div></td>
+            <td data-label="操作"><div className="workspace-row-actions"><Button variant="ghost" size="sm" disabled={busy} onClick={() => onContinue({ id: row.id, record: {} })}>继续跟进</Button>
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => onEnd({ id: row.id, record: {} })}>结束跟进</Button></div></td>
           </tr>)}</tbody></table></div><div className="workspace-list-end"><span>共 {tasks.length} 项</span>{limit < tasks.length && <Button size="sm" variant="ghost" onClick={() => setLimit(n => n + 8)}>加载更多</Button>}</div></>
           : empty(filter === 'priority' ? '暂无逾期、今日或明日待跟进事项' : `暂无${taskLabels[filter]}事项`)}
       </section>

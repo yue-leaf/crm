@@ -19,7 +19,8 @@ export function projectFacts(row: CrmRecord, now: number) {
   const due = r['下次跟进日期'];
   const validDue = validTime(due);
   const advancing = ['待启动', '进行中', '已签合同'].includes(state);
-  const missingPlan = advancing && (!textValue(r['当前下一步行动']).trim() || !validDue);
+  const missingPlan = typeof r['待安排数量'] === 'number' ? r['待安排数量'] > 0
+    : advancing && (!textValue(r['当前下一步行动']).trim() || !validDue);
   const overdue = followup.key === 'overdue';
   const end = r['签约日期'];
   const monthCompleted = state === '已签合同' && validTime(end)
@@ -31,6 +32,8 @@ export function projectFacts(row: CrmRecord, now: number) {
 export function projectMatches(row: CrmRecord, filter: ProjectFilter, now: number): boolean {
   const f = projectFacts(row, now);
   if (filter === 'all') return true;
+  const countKey = ({ today: '今日跟进数量', tomorrow: '明日跟进数量', overdue: '逾期跟进数量', unplanned: '待安排数量', waiting: '等待跟进数量' } as Record<string, string>)[filter];
+  if (countKey && typeof row.record['待跟进数量'] === 'number') return Number(row.record[countKey]) > 0;
   if (filter === 'none') return f.followup.key === 'none';
   if (filter === 'active') return f.active;
   if (filter === 'attention') return f.attention;
@@ -41,7 +44,7 @@ export function projectMatches(row: CrmRecord, filter: ProjectFilter, now: numbe
   return f.state === filter;
 }
 export function scopedProjects(rows: CrmRecord[], scope: ProjectScope, userId: string): CrmRecord[] {
-  return rows.filter(row => scope === 'all' || (Array.isArray(row.record['项目负责人']) && row.record['项目负责人'].some(id => String(id) === userId)));
+  return rows.filter(row => scope === 'all' || ['项目负责人', '待跟进执行人'].some(key => Array.isArray(row.record[key]) && row.record[key].some(id => String(id) === userId)));
 }
 export function sortProjects(rows: CrmRecord[], now: number): CrmRecord[] {
   return sortFollowups(rows, now);

@@ -13,6 +13,7 @@ const locked = new Set([
   '当前下一步行动',
   '下次跟进日期',
   '跟进主题',
+  '上次跟进',
 ]);
 export function editFields(kind: EntityKind): FieldSpec[] {
   if (kind === 'access') return [];

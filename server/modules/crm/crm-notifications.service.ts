@@ -1,3 +1,4 @@
+import type { WorkspaceTask } from '@shared/crm-workspace';
 import { BadRequestException, ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
 import { AuthNPaasService, CapabilityService, DRIZZLE_DATABASE, type PostgresJsDatabase } from '@lark-apaas/fullstack-nestjs-core';
 import { and, desc, eq, lt, or, sql } from 'drizzle-orm';
@@ -60,8 +61,9 @@ export class CrmNotificationsService {
     return this.view(row);
   }
 
-  async preview(now = Date.now()): Promise<NotificationPreview> {
-    return buildNotification(await this.crm.notificationTasks(now), now, APP_URL.replace(/\/$/, ''));
+  async preview(now = Date.now(), recipient?: string, snapshot?: WorkspaceTask[]): Promise<NotificationPreview> {
+    const tasks = snapshot ?? await this.crm.notificationTasks(now);
+    return buildNotification(recipient ? tasks.filter(row => row.people.includes(recipient)) : tasks, now, APP_URL.replace(/\/$/, ''));
   }
 
   private async finish(id: string, status: string, detail: string, preview?: NotificationPreview): Promise<void> {
@@ -139,7 +141,12 @@ export class CrmNotificationsService {
       await this.advance(config, now); return;
     }
     let preview: NotificationPreview;
-    try { preview = await this.preview(now); }
+    const personal = new Map<string, NotificationPreview>();
+    try {
+      const snapshot = await this.crm.notificationTasks(now);
+      preview = await this.preview(now, undefined, snapshot);
+      for (const recipient of config.recipientIds) personal.set(recipient, await this.preview(now, recipient, snapshot));
+    }
     catch {
       await this.finish(claim.id, 'read_failed', claim.attempts >= 3 ? '待办读取失败，已停止重试' : '待办读取失败，将在下次检查时重试');
       this.logger.warn('Daily notification data read failed');
@@ -159,7 +166,8 @@ export class CrmNotificationsService {
       if (!current.enabled || current.revision !== config.revision) {
         await this.finish(claim.id, 'stopped', '设置已变更，停止本次尚未发送的消息', preview); return;
       }
-      await this.deliver(`daily:${day}:${recipient}`, recipient, 'daily', preview);
+      const digest = personal.get(recipient)!;
+      if (digest.todayCount || digest.tomorrowCount) await this.deliver(`daily:${day}:${recipient}`, recipient, 'daily', digest);
     }
     await this.finish(claim.id, 'complete', '本次处理结束，接收人结果见明细', preview);
     await this.advance(config, now);
