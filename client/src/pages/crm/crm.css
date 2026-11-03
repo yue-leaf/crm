@@ -1042,7 +1042,6 @@
   border: 1px solid #e9a0a8;
   font-weight: 600;
 }
-.workspace-followup-status { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 13px; color: #646a73; }
 
 /* Compact search and filters share a single, aligned toolbar. */
 .list-toolbar { flex-wrap: wrap; gap: 12px; padding: 18px 24px; }

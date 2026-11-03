@@ -7,7 +7,6 @@ import { CustomerContacts } from './CustomerContacts';
 import { CustomerProjects } from './CustomerProjects';
 import { FollowupFeed } from './FollowupFeed';
 import type { FollowupView } from './FollowupFeed';
-import { FollowupBadge } from './FollowupStatus';
 
 interface Props {
   kind: 'customer' | 'project';
@@ -30,7 +29,6 @@ export function CustomerWorkspace({ kind, row, busy, tab, onTabChange, onView, o
   const blocked = false;
   const view = (record: CrmRecord, type: EntityKind) => onView(record, type, customerId);
   return <div className="crm-workspace">
-    {kind === 'project' && <div className="workspace-followup-status"><span>跟进状态</span><FollowupBadge record={row.record} /></div>}
     <Tabs value={tab} onValueChange={onTabChange}>
       <TabsList className="workspace-tabs" aria-label={kind === 'customer' ? '客户全览' : '项目全览'}>
         <TabsTrigger value="followups">跟进记录</TabsTrigger>
