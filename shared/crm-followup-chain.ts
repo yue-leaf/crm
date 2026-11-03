@@ -31,11 +31,11 @@ export function followupChains(rows: CrmRecord[], now = Date.now()): CrmRecord[]
     if (textValue(r['记录状态']) === '已作废') state = '已作废';
     else if (textValue(r['记录状态']) !== '正常') state = '待核对';
     else if (nextIds.length) state = '已跟进';
-    else if (textValue(r['后续处理']) === '已结束') state = '已结束';
-    else if (!textValue(r['后续处理'])) state = '历史记录';
-    else if (textValue(r['后续处理']) !== '待跟进' || textValue(r['数据检查']).trim() ||
+    else if (explicitlyEnded(r)) state = '已结束';
+    else if (!['', '待跟进', '已结束'].includes(textValue(r['后续处理'])) || textValue(r['数据检查']).trim() ||
       !validChainTime(r['实际发生时间']) || r['实际发生时间'] > now || !followupTarget(row)) state = '待核对';
-    else state = textValue(r['后续安排']) === '有下一步行动' ? '待跟进' : '已结束';
+    else state = textValue(r['后续安排']) === '有下一步行动' ? '待跟进'
+      : textValue(r['后续安排']) === '无后续动作' ? '无需跟进' : '待核对';
     return { ...row, followup: { state, previousId: linkIds(r['上次跟进'])[0], nextIds } };
   });
 }

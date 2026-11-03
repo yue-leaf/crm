@@ -44,8 +44,8 @@ test('parallel followups in one project keep separate owners and deadlines; only
   assert.equal(summary.record.待跟进数量,2);assert.equal(summary.record.逾期跟进数量,1);
   assert.equal(summary.record.最近待跟进日期,due-86400000);assert.equal(followupStatus(summary.record,now).key,'overdue');
 });
-test('history, ended, void, invalid and no-next-action logs never create pending reminders',()=>{
-  for(const patch of [{后续处理:null},{后续处理:'已结束'},{记录状态:'已作废'},{数据检查:'异常'},
+test('explicitly ended, void, invalid and no-next-action logs never create pending reminders',()=>{
+  for(const patch of [{后续处理:'已结束',管理记录:'结束跟进 · 2026-11-01T10:00:00Z · 123'},{记录状态:'已作废'},{数据检查:'异常'},
     {后续安排:'无后续动作'},{实际发生时间:now+1}])assert.equal(model([log('recLog',patch)]).data.tasks.length,0);
   const pending=log('recUndated',{建议日期:null,建议处理人:[]});
   assert.equal(model([pending]).data.counts.missing,1);assert.equal(model([pending],'mine').data.tasks.length,0);
@@ -72,7 +72,7 @@ test('continuation rejects cross-target, earlier timestamps and stale ended stat
   for(const patch of [{实际发生时间:'2026-10-30T08:30'}, {关联项目:[],直接客户:[customer.id],跟进归属:'客户直接跟进'}]){
     const h=harness();await assert.rejects(()=>h.svc.create('followup',{...body,...patch}),/上次跟进|同一/);assert.equal(h.writes.length,0);
   }
-  const h=harness([log('recFirst',{后续处理:'已结束'})]);await assert.rejects(()=>h.svc.create('followup',body),/已处理/);
+  const h=harness([log('recFirst',{后续处理:'已结束',管理记录:'结束跟进 · 2026-11-01T10:00:00Z · 123'})]);await assert.rejects(()=>h.svc.create('followup',body),/已处理/);
 });
 test('overlapping continuation and end in one process cannot both pass the parent check',async()=>{
   const h=harness();let release;const gate=new Promise(r=>release=r);const call=h.svc.call;
@@ -91,10 +91,10 @@ test('save failure does not mark predecessor processed; explicit end preserves h
   for(const key of ['附件','建议日期','建议下一步行动','内容 / 推进结论'])assert.deepEqual(h.rows.get('recFirst').record[key],before[key]);
   assert.equal((await h.svc.notificationTasks(now)).length,0);
 });
-test('historical reminders activate only explicitly; pending dropdown is exact target and includes all records',async()=>{
+test('older records follow the same pending rules; dropdown is exact target and includes all records',async()=>{
   const seed=[log('recFirst',{后续处理:null}),...Array.from({length:65},(_,i)=>log('recF'+i)),log('recOther',{关联项目:{link_record_ids:['recOtherProject']}})];
-  const h=harness(seed);assert.equal((await h.svc.pendingFollowups(customer.id,project.id)).records.length,65);
-  await h.svc.update('followup','recFirst','activate-followup',{expectedModifiedAt:1},'123');
+  const h=harness(seed);assert.equal((await h.svc.pendingFollowups(customer.id,project.id)).records.length,66);
+  await assert.rejects(()=>h.svc.update('followup','recFirst','activate-followup',{expectedModifiedAt:1},'123'),/不支持/);
   assert.equal((await h.svc.pendingFollowups(customer.id,project.id)).records.length,66);
   assert.equal((await h.svc.pendingFollowups(customer.id)).records.length,0);
   await assert.rejects(()=>h.svc.pendingFollowups('bad'),/标识/);
@@ -163,7 +163,7 @@ test('continue UI loads current state, fixes customer/project/predecessor and ne
   row.followup.state='已跟进';await context.run(row);assert.equal(opened.length,1);assert.equal(notices.length,1);
 });
 
-test('editing automatic no-action endings activates reminders, explicit endings require resume, history stays history',async()=>{
+test('editing automatic no-action endings activates reminders, explicit endings require resume, older records obey the same rules',async()=>{
   for (const stored of ['已结束','待跟进']) {
     const h=harness([log('recFirst',{后续安排:'无后续动作',后续处理:stored,无后续动作结论:'完成',建议下一步行动:'',建议日期:null})]);
     await h.svc.update('followup','recFirst','edit',{expectedModifiedAt:1,changes:{后续安排:'有下一步行动',建议下一步行动:'再联系',建议日期:'2026-11-03',无后续动作结论:null}},'123');
@@ -179,7 +179,7 @@ test('editing automatic no-action endings activates reminders, explicit endings 
   await assert.rejects(()=>h.svc.update('followup','recFirst','resume-followup',{expectedModifiedAt:4},'123'),/状态已变化/);
   const old=harness([log('recFirst',{后续处理:null,后续安排:'无后续动作',无后续动作结论:'完毕'})]);
   await old.svc.update('followup','recFirst','edit',{expectedModifiedAt:1,changes:{后续安排:'有下一步行动',建议下一步行动:'新建议',无后续动作结论:null}},'123');
-  assert.equal((await old.svc.detail('followup','recFirst')).followup.state,'历史记录');
+  assert.equal((await old.svc.detail('followup','recFirst')).followup.state,'待跟进');
 });
 
 test('fixed continuation submission rejects loss of predecessor and switching direct-customer scope to a project',()=>{
@@ -271,4 +271,29 @@ test('business history hides internal write markers but keeps the actual operati
   const {managementLogText}=require('../../dist/shared/crm-presentation');
   const output=managementLogText('结束跟进 · 2026-11-04T01:00:00.000Z · 123\n\n跟进保存标识 · 11111111-1111-4111-8111-111111111111');
   assert.match(output,/结束跟进/);assert.doesNotMatch(output,/保存标识|11111111/);
+});
+
+test('old and new rows share four business states across detail, project counts, workspace and personal reminders without rewriting data',async()=>{
+  const rows=[log('recOld',{后续处理:null}),log('recNew'),log('recNone',{后续处理:null,后续安排:'无后续动作'}),
+    log('recAutoEnd',{后续处理:'已结束',后续安排:'无后续动作'}),
+    log('recEnd',{后续处理:'已结束',管理记录:'结束跟进 · 2026-11-01T10:00:00.000Z · 123'}),
+    log('recParent',{后续处理:null}),log('recChild',{上次跟进:{link_record_ids:['recParent']},实际发生时间:due,后续安排:'无后续动作'})];
+  const before=structuredClone(rows),chains=followupChains(rows,now),states=Object.fromEntries(chains.map(r=>[r.id,r.followup.state]));
+  assert.deepEqual(states,{recOld:'待跟进',recNew:'待跟进',recNone:'无需跟进',recAutoEnd:'无需跟进',recEnd:'已结束',recParent:'已跟进',recChild:'无需跟进'});
+  assert.equal(projectFollowupSummary([project],rows,now)[0].record.待跟进数量,2);
+  assert.deepEqual(model(rows).data.tasks.map(r=>r.id).sort(),['recNew','recOld']);
+  const notices=new CrmNotificationsService({}, {}, {}, {notificationTasks:async()=>model(rows).data.tasks});
+  const digest=await notices.preview(now,'123');assert.equal(digest.todayCount,2);assert.match(digest.content,/record=recOld/);
+  assert.deepEqual(rows,before);
+});
+test('older pending records can be ended and resumed without changing the project or another employee followup',async()=>{
+  const h=harness([log('recFirst',{后续处理:null}),log('recOther',{后续处理:null,建议处理人:[456]})]);
+  const untouched=structuredClone(h.rows.get('recOther'));
+  await h.svc.update('followup','recFirst','end-followup',{expectedModifiedAt:1,结束跟进说明:'暂不需要'},'123');
+  assert.equal((await h.svc.detail('followup','recFirst')).followup.state,'已结束');
+  await h.svc.update('followup','recFirst','resume-followup',{expectedModifiedAt:2},'123');
+  const restored=await h.svc.detail('followup','recFirst');
+  assert.equal(restored.followup.state,'待跟进');assert.equal(restored.record.建议日期,due);assert.deepEqual(restored.record.建议处理人,[123]);
+  assert.deepEqual(h.rows.get('recOther'),untouched);assert.equal(h.writes.length,2);
+  assert.ok(h.writes.every(w=>w.id==='recFirst'));
 });

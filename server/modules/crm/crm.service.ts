@@ -750,16 +750,16 @@ export class CrmService {
     }
     let fields: Record<string, unknown>;
     let related: RelatedSnapshot[] = [];
-    if (key === 'followup' && ['end-followup', 'activate-followup', 'resume-followup'].includes(operation)) {
+    if (key === 'followup' && ['end-followup', 'resume-followup'].includes(operation)) {
       const current = (await this.chainRows()).find(item => item.id === id);
       const activation = operation !== 'end-followup';
-      if (!current || current.followup?.state !== (operation === 'resume-followup' ? '已结束' : activation ? '历史记录' : '待跟进'))
+      if (!current || current.followup?.state !== (activation ? '已结束' : '待跟进'))
         throw new ConflictException('跟进状态已变化，请刷新后再操作');
       if (activation && (textValue(row.record['后续安排']) !== '有下一步行动' || textValue(row.record['数据检查']).trim() || !textValue(row.record['建议下一步行动']).trim() ||
         !validChainTime(row.record['实际发生时间']) || Number(row.record['实际发生时间']) > Date.now() || !followupTarget(row)))
         reject('后续安排', '请先完善下一步建议');
       const parsed = parseDraft(input, [{ key: '结束跟进说明', type: 'long' }], {});
-      const action = operation === 'resume-followup' ? '恢复跟进' : activation ? '纳入待跟进' : '结束跟进';
+      const action = activation ? '恢复跟进' : '结束跟进';
       fields = { 后续处理: activation ? '待跟进' : '已结束',
         结束跟进说明: activation ? '' : textValue(parsed.fields['结束跟进说明']),
         管理记录: [textValue(row.record['管理记录']), `${action} · ${new Date().toISOString()} · ${actor}`].filter(Boolean).join('\n\n') };
@@ -789,7 +789,7 @@ export class CrmService {
       await this.people(peopleFields, forms[key], false, verifiedEmployeeId);
       await this.relationChecks(key, edited.draft, edited.validationFields);
       fields = edited.writes;
-      if (key === 'followup' && ['待跟进', '已结束'].includes(textValue(row.record['后续处理'])) && !explicitlyEnded(row.record)) {
+      if (key === 'followup' && ['', '待跟进', '已结束'].includes(textValue(row.record['后续处理'])) && !explicitlyEnded(row.record)) {
         // Enable reminders again after changing an automatic no-action ending; keep explicit endings closed.
         fields['后续处理'] = edited.draft['后续安排'] === '有下一步行动' ? '待跟进' : '已结束';
       }

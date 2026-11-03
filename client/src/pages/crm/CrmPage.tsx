@@ -142,7 +142,7 @@ interface Editor {
 interface DetailLocation { row: CrmRecord; kind: EntityKind; tab: string; customer: string | null; scroll: number }
 interface SuspendedEditor { editor: Editor; draft: Draft; initial: Draft; origin: DetailLocation | null }
 const rawSpecs = (editor: Editor): FieldSpec[] =>
-  ['end-followup', 'activate-followup', 'resume-followup'].includes(editor.operation)
+  ['end-followup', 'resume-followup'].includes(editor.operation)
     ? editor.operation === 'end-followup' ? [{ key: '结束跟进说明', label: '结束说明', type: 'long' }] : []
     : isLifecycle(editor.operation)
     ? lifecycleFields(editor.kind, editor.operation)
@@ -1017,7 +1017,6 @@ const CrmPage: React.FC = () => {
               {selectionKind === 'followup' && <FollowupChainPanel row={selection} busy={saving || uploading}
                 onContinue={() => continueFollowup(selection)}
                 onEnd={() => edit(selection, 'followup', 'end-followup')}
-                onActivate={() => edit(selection, 'followup', 'activate-followup')}
                 onResume={() => edit(selection, 'followup', 'resume-followup')}
                 onOpen={id => detail({ id, record: {} }, 'followup')} />}
               <DetailToolbar key={`toolbar:${selectionKind}:${selection.id}`} kind={selectionKind} row={selection} busy={saving || uploading}
@@ -1069,7 +1068,6 @@ const CrmPage: React.FC = () => {
               ? isLifecycle(editor.operation)
                 ? lifecycleTitles[editor.operation]
                 : editor.operation === 'end-followup' ? '结束跟进'
-                : editor.operation === 'activate-followup' ? '纳入待跟进'
                 : editor.operation === 'resume-followup' ? '恢复跟进'
                 : editor.operation === 'create'
                 ? `新建${labels[editor.kind]}`
@@ -1096,11 +1094,17 @@ const CrmPage: React.FC = () => {
           </header>
           <form className="crm-editor-form" onSubmit={(e) => { e.preventDefault(); void save(); }}>
           <div className="crm-dialog-body">
-          {editor?.operation === 'activate-followup' && <p className="panel-note">将按这条记录的建议执行人和建议日期显示待跟进并提醒。</p>}
-          {editor?.operation === 'resume-followup' && <p className="panel-note">恢复后，按这条记录的建议执行人和建议日期重新提醒。</p>}
+          {editor?.operation === 'resume-followup' && editor.row && <div className="panel-note">
+            <p>恢复这条安排后，沿用原建议执行人和日期重新提醒。可在编辑记录中调整。</p>
+            <div className="flex flex-wrap items-center gap-2">建议执行人：{Array.isArray(editor.row.record['建议处理人']) && editor.row.record['建议处理人'].length
+              ? <Cell name="建议处理人" value={editor.row.record['建议处理人']} /> : '未指定'}</div>
+            <div className="flex flex-wrap items-center gap-2">建议跟进日期：<Cell name="建议日期" value={editor.row.record['建议日期']} /></div>
+            {typeof editor.row.record['建议日期'] === 'number' && shanghaiDay(editor.row.record['建议日期']) < currentDay &&
+              <p>原建议日期已过，恢复后会显示逾期。</p>}
+          </div>}
           {editor?.kind === 'followup' && editor.operation === 'edit' && editor.row && explicitlyEnded(editor.row.record) &&
             <p className="panel-note">这条跟进已主动结束。修改资料不会恢复提醒，需要时可在详情中点击“恢复跟进”。</p>}
-          {editor?.operation === 'end-followup' && <p className="panel-note">结束后停止提醒，原有内容和安排保留。</p>}
+          {editor?.operation === 'end-followup' && <p className="panel-note">结束后停止这条安排的提醒，原有内容保留。不影响项目状态及其他人的跟进，需要时可恢复。</p>}
           {editor?.operation === 'plan' && editor.row && <p className="panel-note">当前计划：{textValue(editor.row.record['当前下一步行动']) || '尚未安排'}。保存后将采用下方计划。</p>}
           {editor && isLifecycle(editor.operation) && <p className="panel-note">
             {editor.operation === 'confirm-end' ? '确认后项目停止活动推进，可在结束后归档。取消项目必须说明原因。'
