@@ -1,4 +1,3 @@
-import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { CrmRecord, EntityKind } from '@shared/api.interface';
 import { linkIds } from '@shared/crm';
@@ -26,7 +25,6 @@ export function CustomerWorkspace({ kind, row, busy, tab, onTabChange, onView, o
   followupView, onFollowupViewChange, onContinue, onEnd }: Props) {
   const parents: string[] = linkIds(row.record['所属企业']);
   const customerId: string | undefined = kind === 'customer' ? row.id : parents.length === 1 ? parents[0] : undefined;
-  const blocked = false;
   const view = (record: CrmRecord, type: EntityKind) => onView(record, type, customerId);
   return <div className="crm-workspace">
     <Tabs value={tab} onValueChange={onTabChange}>
@@ -39,11 +37,11 @@ export function CustomerWorkspace({ kind, row, busy, tab, onTabChange, onView, o
       <TabsContent value="followups"><FollowupFeed kind={kind} id={row.id} busy={busy} onView={view}
         onContinue={onContinue} onEnd={onEnd} view={followupView} onViewChange={onFollowupViewChange} /></TabsContent>
       <TabsContent value="contacts">{customerId ? <CustomerContacts key={customerId} customerId={customerId}
-        busy={busy} createBlocked={blocked} onView={(record: CrmRecord) => view(record, 'contact')}
+        busy={busy} onView={(record: CrmRecord) => view(record, 'contact')}
         onEdit={onEditContact} onCreate={kind === 'customer' ? () => onCreate('contact') : undefined} />
         : <p className="panel-note" role="status">项目所属客户信息不完整，请先核对项目资料。</p>}</TabsContent>
       {kind === 'customer' && <TabsContent value="projects"><CustomerProjects customerId={row.id}
-        busy={busy} createBlocked={blocked} onCreate={() => onCreate('project')}
+        busy={busy} onCreate={() => onCreate('project')}
         onView={(record: CrmRecord) => view(record, 'project')} /></TabsContent>}
       <TabsContent value="details"><RecordDetails record={row.record}
         onOpenRecord={(id, type) => onView({ id, record: {} }, type, customerId)}

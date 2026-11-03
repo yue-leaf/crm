@@ -47,8 +47,8 @@ function navigation() {
  api:{get:(kind,id)=>{const d=deferred();reads.push({kind,id,...d});return d.promise;}},
  editBlockedReason:()=>'',advancementBlocked:()=>'',message:e=>e.message,toast:{error:e=>errors.push(e)},
  openEditor:(kind,op,row)=>{context.editorRequestVersion.current++;context.detailVersion.current++;opened.push({kind,op,id:row?.id});},
- currentLocation:()=>null,setDetailTrail:()=>{},setScrollRequest:()=>{},setReceipt:()=>{},setSelectionKind:()=>{},setDetailTab:()=>{},linkIds:()=>[],setCustomerContext:()=>{},setSelection:row=>selected.push(row.id),
- recordDraft:()=>({}),planFields:[],relatedDraft:()=>({})};
+ currentLocation:()=>null,setDetailTrail:()=>{},setScrollRequest:()=>{},setSelectionKind:()=>{},setDetailTab:()=>{},linkIds:()=>[],setCustomerContext:()=>{},setSelection:row=>selected.push(row.id),
+ relatedDraft:()=>({})};
  vm.createContext(context);vm.runInContext(compile(bodies.join('\n')+'\nglobalThis.handlers={edit,detail,workspaceAction};'),context);
  return {context,reads,opened,selected,errors,...context.handlers};
 }
@@ -65,8 +65,8 @@ test('switching between view and edit cannot open the previous action afterward'
   n.reads[1].resolve(row('b'));await b;assert.equal(n.opened.length+n.selected.length,1);
  }
 });
-test('workspace plan supersedes an earlier followup; obsolete failures stay quiet',async()=>{
- const n=navigation();const a=n.workspaceAction('customer','a','followup');const b=n.workspaceAction('customer','b','plan');
+test('latest workspace followup supersedes an earlier one; obsolete failures stay quiet',async()=>{
+ const n=navigation();const a=n.workspaceAction('customer','a');const b=n.workspaceAction('customer','b');
  n.reads[0].reject(new Error('old'));await a;assert.equal(n.errors.length,0);
- n.reads[1].resolve(row('b'));await b;assert.deepEqual(n.opened,[{kind:'customer',op:'plan',id:'b'}]);
+ n.reads[1].resolve(row('b'));await b;assert.deepEqual(n.opened,[{kind:'followup',op:'create',id:undefined}]);
 });

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { FolderKanban, Plus } from 'lucide-react';
 import { api } from '@/api/crm';
 import { ActionButton as Button } from './ActionButton';
@@ -8,14 +8,14 @@ import { useRelatedPage } from './useRelatedPage';
 import { FollowupBadge } from './FollowupStatus';
 import { Cell } from './Fields';
 
-export function CustomerProjects({ customerId, busy, createBlocked, onCreate, onView }: {
-  customerId: string; busy: boolean; createBlocked: boolean; onCreate: () => void; onView: (row: CrmRecord) => void | Promise<void>;
+export function CustomerProjects({ customerId, busy, onCreate, onView }: {
+  customerId: string; busy: boolean; onCreate: () => void; onView: (row: CrmRecord) => void | Promise<void>;
 }) {
   const load = useCallback((cursor?: string): Promise<CrmPage> => api.customerProjects(customerId, { cursor }), [customerId]);
   const { page, loading, error, more, retry } = useRelatedPage(load, JSON.stringify(['projects', customerId]));
   return <section className="related-panel" aria-label="客户关联项目" data-page-loading={loading}>
     <div className="related-panel-heading"><div><h3>关联项目{page && <span>{page.total} 个</span>}</h3><p>查看客户的全部项目。</p></div>
-      <Button size="sm" variant="outline" disabled={busy || createBlocked} onClick={onCreate}><Plus size={14} />新建项目</Button></div>
+      <Button size="sm" variant="outline" disabled={busy} onClick={onCreate}><Plus size={14} />新建项目</Button></div>
     <div className="customer-projects">{page?.records.map((row: CrmRecord) => <article className="customer-project-card" key={row.id}>
       <div className="project-card-title"><FolderKanban size={18} /><button className="record-title" disabled={busy}
         onClick={() => onView(row)}>{textValue(row.record['项目名称']) || '未命名项目'}</button></div>

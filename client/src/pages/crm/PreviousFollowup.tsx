@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CrmRecord } from '@shared/api.interface';
 import { textValue } from '@shared/crm';
 import { displayDate } from '@shared/crm-presentation';

@@ -19,25 +19,25 @@ function walk(node){
 }
 walk(ast);
 function harness(kind='customer',origin=null){
- const selected=[],receipts=[],reads=[],restored=[],resumed=[],payloads=[];let refreshes=0,creates=0;
+ const selected=[],reads=[],restored=[],resumed=[],payloads=[];let refreshes=0,creates=0;
  const context={pendingContacts:[],selectedContacts:[],customerSave:{current:{contacts:{}}},
   saveCustomerContacts:require('../../dist/shared/crm-customer-create').saveCustomerContacts,editor:{kind,operation:'create'},draft:{},uncertain:false,projectResolution:{current:0},projectResolvingRef:{current:false},setProjectResolving:()=>{},draftCustomer:'',savingRef:{current:false},uploadingRef:{current:false},
   editorOrigin:{current:origin},suspendedEditor:{current:null},requestVersion:{current:0},detailVersion:{current:0},
-  planSuggestion:{current:null},data:{records:[]},specs:()=>[],showField:()=>true,requiredField:x=>x,missingFields:()=>({}),
-  actionDraft:(_,draft)=>draft,followupWriteDraft:d=>d,setFieldErrors:()=>{},setSaveError:()=>{},setSaving:()=>{},
-  setEditor:()=>{},setSelection:row=>selected.push(row),setReceipt:row=>receipts.push(row),setDetailRevision:()=>{},
-  setAdoptedSuggestions:()=>{},toast:{success:()=>{},info:()=>{}},message:e=>e.message,SaveOutcomeUnknown:class extends Error{},
+  data:{records:[]},specs:()=>[],showField:()=>true,requiredField:x=>x,missingFields:()=>({}),
+  followupWriteDraft:d=>d,setFieldErrors:()=>{},setSaveError:()=>{},setSaving:()=>{},
+  setEditor:()=>{},setSelection:row=>selected.push(row),setDetailRevision:()=>{},
+  toast:{success:()=>{},info:()=>{}},message:e=>e.message,SaveOutcomeUnknown:class extends Error{},
   reload:async()=>{refreshes++;},resumeFollowup:id=>resumed.push(id),
   api:{create:async(kind,draft)=>{creates++;payloads.push(draft);return{id:'recNew',message:'saved'};},get:async(kind,id)=>{reads.push([kind,id]);return{id,record:{}};}},
   restoreLocation:(location,row)=>restored.push([location,row])};
  vm.createContext(context);
  vm.runInContext(ts.transpileModule(saveSource+'\nglobalThis.save=save;',{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,context);
- return{context,selected,receipts,reads,restored,resumed,payloads,save:context.save,counts:()=>({refreshes,creates})};
+ return{context,selected,reads,restored,resumed,payloads,save:context.save,counts:()=>({refreshes,creates})};
 }
 test('root create closes the editor and refreshes the list without opening a detail or receipt',async()=>{
  for(const kind of ['customer','contact','project','followup']){
   const h=harness(kind);await h.save();
-  assert.deepEqual(h.selected,[null]);assert.deepEqual(h.receipts,[null]);assert.deepEqual(h.reads,[]);
+  assert.deepEqual(h.selected,[null]);assert.deepEqual(h.reads,[]);
   assert.equal(h.counts().refreshes,1);assert.equal(h.counts().creates,1);
  }
 });
@@ -54,7 +54,7 @@ test('creating a related contact returns to its source customer without a saved/
  const h=harness('contact',origin);await h.save();
  assert.equal(h.restored.length,2);assert.equal(h.restored[1][1].id,'recCustomer');
  assert.ok(!h.selected.includes(null));
- assert.equal(h.receipts.filter(x=>x&&typeof x!=='function').length,0);
+ assert.deepEqual(h.reads,[['customer','recCustomer']]);
 });
 test('inline contact creation still resumes the suspended followup draft',async()=>{
  const h=harness('contact');h.context.suspendedEditor.current={};await h.save();
@@ -83,8 +83,8 @@ test('successful contact creation keeps the source customer even if rereading it
 });
 test('customer context locks contact and project parents; standalone create remains selectable and lock resets',()=>{
  const context={projectResolution:{current:0},projectResolvingRef:{current:false},setProjectResolving:()=>{},draftCustomer:'',savingRef:{current:false},uploadingRef:{current:false},editorOrigin:{},currentLocation:()=>null,
-  planSuggestion:{},editorRequestVersion:{current:0},detailVersion:{current:0},initialDraft:{},session:null,
-  specs:()=>[],isLifecycle:()=>false,setFollowupCustomer:()=>{},setCustomerResolveError:()=>{},
+  editorRequestVersion:{current:0},detailVersion:{current:0},initialDraft:{},session:null,
+  specs:()=>[],setFollowupCustomer:()=>{},setCustomerResolveError:()=>{},
   setSaveError:()=>{},setFieldErrors:()=>{},setUncertain:()=>{},structuredClone,
   changeDraft:require('../../dist/shared/crm-interaction.js').changeDraft,FOLLOWUP_CUSTOMER:'跟进客户'};
  context.setEditor=value=>{context.editor=value;};context.setDraft=value=>{context.draft=typeof value==='function'?value(context.draft):value;};

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ActionButton as Button } from './ActionButton';
 import { FieldInput } from './Fields';
 import { RecordPicker } from './RecordPicker';
-import { forms, type Draft } from '@shared/crm';
+import { forms } from '@shared/crm';
 import { editFields } from '@shared/crm-edit';
 import { toast } from 'sonner';
 import { missingFields, requiredField } from '@shared/crm-interaction';

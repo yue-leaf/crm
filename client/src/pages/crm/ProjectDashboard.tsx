@@ -10,13 +10,12 @@ import { Cell } from './Fields';
 import { displayDate } from '@shared/crm-presentation';
 import { WorkspaceRecords } from './WorkspaceRecords';
 import type { WorkspaceDrilldown } from './WorkspaceRecords';
-import './project-overview.css';
 import './workspace.css';
 interface Props {
   data: WorkspaceData | null; loading: boolean; error: string; busy: boolean; onRetry: () => void;
   onOpen: (row: CrmRecord, kind: WorkspaceKind) => void | Promise<void>;
   onOpenLoaded: (row: CrmRecord, kind: WorkspaceKind) => void | Promise<void>;
-  onAction: (kind: 'customer' | 'project', id: string, action: 'followup' | 'plan') => void | Promise<void>;
+  onAction: (kind: 'customer' | 'project', id: string) => void | Promise<void>;
   onContinue: (row: CrmRecord) => void | Promise<void>;
   onEnd: (row: CrmRecord) => void | Promise<void>;
   onCreate: () => void;
@@ -103,7 +102,7 @@ export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, 
       <section className="panel"><div className="workspace-heading"><h2>需要关注的客户</h2><Button size="sm" variant="ghost" disabled={disabled} onClick={() => show('customer', 'attention', '需要关注的客户')}>查看全部{data ? ` (${data.attentionTotal})` : ''}<ArrowRight size={14} /></Button></div>
         {!disabled && data.attention.length ? <div className="workspace-attention">{data.attention.map(row => <article key={row.id}>
           <div><button className="workspace-name" onClick={() => open('customer', row.id)}>{row.name}</button><small>{row.lastAt ? `${row.days} 天未互动 · 最近 ${displayDate('下次跟进日期', row.lastAt)}` : `建档 ${row.days} 天，暂无有效跟进`}</small><small>在办项目 {row.activeProjects} 个</small></div>
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => onAction('customer', row.id, 'followup')}>记录跟进</Button>
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => onAction('customer', row.id)}>记录跟进</Button>
         </article>)}</div> : empty('暂无长期未联系的客户')}
       </section>
     </div>
