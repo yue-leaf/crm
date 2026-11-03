@@ -24,8 +24,6 @@ export function DetailToolbar({ kind, row, busy, onEdit, onAction, onFollowup, o
         onClick={onFollowup}><MessageSquarePlus size={15} />{advanceReason ? '补录历史跟进' : '记录跟进'}</Button>}
       {kind === 'project' && <Button size="sm" variant="outline" disabled={busy}
         onClick={() => onAction('status')}><TrendingUp size={15} />更新状态</Button>}
-      {kind === 'customer' && <Button size="sm" variant="outline" disabled={busy || !!advanceReason}
-        title={advanceReason || undefined} onClick={() => onAction('plan')}>调整计划</Button>}
       {kind !== 'access' && <Button size="sm" variant="outline" disabled={busy || !!editReason}
         title={editReason || '编辑资料'} onClick={onEdit}><Pencil size={15} />编辑资料</Button>}
       {kind === 'followup' && followupTarget(row) && <Button size="sm" variant="outline" disabled={busy}
