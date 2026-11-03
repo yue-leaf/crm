@@ -120,7 +120,7 @@ const columns: Record<EntityKind, string[]> = {
     '下次跟进日期',
   ],
   followup: [
-    '跟进主题',
+    '内容 / 推进结论',
     '有效客户名称',
     '关联项目',
     '实际发生时间',
@@ -809,12 +809,12 @@ const CrmPage: React.FC = () => {
                     }}
                   >
                     <div className="toolbar-search">
-                      <Label htmlFor="crm-list-search">{active === 'customer' ? '企业名称' : titles[active]}</Label>
+                      <Label htmlFor="crm-list-search">{active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}</Label>
                       <Input
                         id="crm-list-search"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder={`请输入${active === 'customer' ? '企业名称' : titles[active]}`}
+                        placeholder={`请输入${active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}`}
                       />
                     </div>
                     {(active === 'customer' || active === 'project') && <div className="followup-filter"><span>跟进状态</span>
@@ -857,7 +857,8 @@ const CrmPage: React.FC = () => {
                               <td role="cell" data-label={detailFieldLabel(c)} key={c}>
                                 {i === 0 ? (
                                   <button
-                                    className="record-title"
+                                    className={active === 'followup' ? 'record-title workspace-clamp' : 'record-title'}
+                                    title={textValue(row.record[c])}
                                     disabled={saving || uploading}
                                     onClick={() => detail(row)}
                                   >
@@ -987,14 +988,14 @@ const CrmPage: React.FC = () => {
                 if (version !== detailVersion.current) return;
                 setDetailTrail((trail) => trail.slice(0, -1)); setReceipt(null); restoreLocation(previous, fresh);
               } catch (e: unknown) { if (version === detailVersion.current) toast.error(message(e)); }
-            }}><ArrowLeft size={14} />返回{textValue(detailTrail[detailTrail.length - 1].row.record[titles[detailTrail[detailTrail.length - 1].kind]]) || '上一页'}</Button>
+            }}><ArrowLeft size={14} />返回{detailTrail[detailTrail.length - 1].kind === 'followup' ? '跟进记录' : textValue(detailTrail[detailTrail.length - 1].row.record[titles[detailTrail[detailTrail.length - 1].kind]]) || '上一页'}</Button>
           : customerContext && selectionKind !== 'customer' && <Button type="button" variant="ghost" size="sm"
             className="detail-customer-back" disabled={saving || uploading}
             onClick={() => detail({ id: customerContext, record: {} }, 'customer', undefined, selectionKind === 'contact' ? 'contacts' : selectionKind === 'project' ? 'projects' : 'followups')}>
             <ArrowLeft size={14} />返回客户全览</Button>}
           <DialogTitle>
             {selection
-              ? textValue(selection.record[titles[selectionKind]])
+              ? selectionKind === 'followup' ? '跟进记录' : textValue(selection.record[titles[selectionKind]])
               : '记录详情'}
           </DialogTitle>
           </header>

@@ -5,7 +5,7 @@ import { forms, linkIds } from './crm';
 // This customer is form context; project followups store only the project relation.
 export const FOLLOWUP_CUSTOMER = '跟进客户';
 export const followupCreateFields: FieldSpec[] = forms.followup.flatMap((field: FieldSpec) => {
-  if (field.key === '跟进归属') return [];
+  if (['跟进归属', '跟进主题'].includes(field.key)) return [];
   if (field.key === '直接客户') return [{
     key: FOLLOWUP_CUSTOMER, label: '客户', type: 'relation' as const,
     target: 'customer' as const, required: true,

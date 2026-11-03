@@ -32,7 +32,7 @@ export function FollowupFeed({ kind, id, busy, onView, view, onViewChange }: Pro
         <SelectTrigger aria-label="跟进记录范围" className="w-36"><SelectValue /></SelectTrigger>
         <SelectContent><SelectItem value="all">全部跟进</SelectItem><SelectItem value="direct">客户跟进</SelectItem><SelectItem value="project">项目跟进</SelectItem></SelectContent>
       </Select>}
-      <div><Input aria-label="搜索跟进记录" placeholder="搜索主题或推进结论" value={search}
+      <div><Input aria-label="搜索跟进记录" placeholder="搜索跟进内容与结论" value={search}
         onChange={(event: React.ChangeEvent<HTMLInputElement>) => onViewChange({ ...view, search: event.target.value })} /></div>
       <Button type="submit" variant="outline" size="sm">搜索</Button>
       {(search || query) && <Button type="button" variant="ghost" size="sm" onClick={() => { onViewChange({ ...view, search: '', query: '' }); if (!query) refresh(); }}>清空</Button>}
@@ -43,7 +43,7 @@ export function FollowupFeed({ kind, id, busy, onView, view, onViewChange }: Pro
         return <article key={row.id} className={`followup-entry ${textValue(row.record['记录状态']) === '已作废' ? 'followup-void' : ''}`}>
           <span className="followup-dot"><MessageSquareText size={14} /></span>
           <div className="followup-entry-heading"><button className="record-title" disabled={busy}
-            onClick={() => onView(row, 'followup')}>{textValue(row.record['跟进主题']) || '未命名跟进'}</button>
+            onClick={() => onView(row, 'followup')}>跟进记录</button>
             <Cell name="实际发生时间" value={row.record['实际发生时间']} /></div>
           <div className="followup-meta"><Cell name="实际跟进人" value={row.record['实际跟进人']} />
             <span>{textValue(row.record['记录类型'])}</span>

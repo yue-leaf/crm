@@ -12,6 +12,8 @@ test('客户跟进无需选择归属，提交时不会混入表单上下文字�
  assert.equal(payload.跟进归属,'客户直接跟进');assert.deepEqual(payload.直接客户,['recCustomer']);
  assert.deepEqual(payload.关联项目,[]);assert.ok(!(FOLLOWUP_CUSTOMER in payload));
  assert.ok(!followupCreateFields.some(field=>field.key==='跟进归属'));
+ assert.ok(!followupCreateFields.some(field=>field.key==='跟进主题'));
+ assert.ok(!require('../../dist/shared/crm-edit.js').editFields('followup').some(field=>field.key==='跟进主题'));
  assert.match(missingFields(followupCreateFields,{}).跟进客户,/选择客户/);
 });
 
