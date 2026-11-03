@@ -1,7 +1,6 @@
 import { CustomerContactDrafts } from './CustomerContactDrafts';
 import { saveCustomerContacts, loadCustomerContactDrafts, contactDraftChanged, type PendingContact, type CustomerSaveProgress } from '@shared/crm-customer-create';
 import { defaultEmployeeSelection } from '@shared/crm-people';
-import { statusFields, currentProjectStatus } from '@shared/crm-status';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -137,7 +136,7 @@ interface Editor {
 interface DetailLocation { row: CrmRecord; kind: EntityKind; tab: string; customer: string | null; scroll: number }
 interface SuspendedEditor { editor: Editor; draft: Draft; initial: Draft; origin: DetailLocation | null }
 const rawSpecs = (editor: Editor): FieldSpec[] =>
-  editor.operation === 'status' ? statusFields : isLifecycle(editor.operation)
+  isLifecycle(editor.operation)
     ? lifecycleFields(editor.kind, editor.operation)
     : editor.operation === 'progress'
     ? progressFields
@@ -380,11 +379,6 @@ const CrmPage: React.FC = () => {
         initial['行动执行人'] = [];
       }
     }
-    if (operation === 'status' && row) {
-      initial['项目状态'] = currentProjectStatus(row);
-      initial['签约日期'] ||= new Date(Date.now() + 28800000).toISOString().slice(0, 10);
-      if (initial['项目状态'] !== '已取消' || !initial['结束日期']) initial['结束日期'] = new Date(Date.now() + 28800000).toISOString().slice(0, 10);
-    }
     Object.assign(initial, preset);
     initialDraft.current = structuredClone(initial);
     setDraft(initial);
@@ -402,7 +396,7 @@ const CrmPage: React.FC = () => {
     try {
       const fresh = await api.get(kind, row.id);
       if (version !== requestVersion.current || editorRequest !== editorRequestVersion.current) return;
-      const blocked = operation === 'status' ? '' : editBlockedReason(kind, fresh);
+      const blocked = editBlockedReason(kind, fresh);
       if (blocked) {
         toast.error(blocked);
         return;
@@ -519,9 +513,7 @@ const CrmPage: React.FC = () => {
     setSaving(true);
     setSaveError('');
     try {
-      const submitted = editor.operation === 'status'
-        ? Object.fromEntries(specs(editor).filter(showField).map(f => [f.key, draft[f.key] ?? null]))
-        : actionDraft(editor.operation, draft);
+      const submitted = actionDraft(editor.operation, draft);
       const r = editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation)
         ? await saveCustomerContacts(draft, pendingContacts, selectedContacts, customerSave.current, api.create,
           editor.operation === 'edit' && editor.row ? { row: editor.row, edit: api.edit } : undefined)
@@ -648,15 +640,6 @@ const CrmPage: React.FC = () => {
       : changeDraft(previous, key, value, initialDraft.current, editor?.operation === 'edit'));
   };
   const showField = (f: FieldSpec) => {
-    if (editor?.operation === 'status') {
-      const state = draft['项目状态'];
-      if (f.key === '项目状态') return true;
-      if (state === '已取消') return ['结束日期', '取消原因'].includes(f.key);
-      if (['结束日期', '取消原因'].includes(f.key)) return false;
-      if (f.key === '暂停原因') return state === '暂停';
-      if (f.key === '签约日期') return state === '已签合同';
-      if (planFields.some(field => field.key === f.key)) return state !== '暂停';
-    }
     if (editor?.operation === 'confirm-end' && f.key === '结果说明') return draft['终局确认'] !== '已取消';
     if (editor?.kind === 'contact' && f.key === '停用原因') return draft['联系人状态'] === '停用';
     if (editor?.operation === 'confirm-end' && f.key === '取消原因') return draft['终局确认'] === '已取消';
@@ -871,7 +854,6 @@ const CrmPage: React.FC = () => {
                               </td>
                             ))}
                             <td role="cell" data-label="操作" className="record-actions">
-                              {active === 'project' && <Button variant="ghost" size="sm" disabled={saving || uploading} onClick={() => edit(row, 'project', 'status')}><RefreshCw size={14} />更新状态</Button>}
                               {active === 'customer' && <Button variant="ghost" size="sm" disabled={saving || uploading} onClick={() => detail(row, 'customer', undefined, 'contacts')}><Users size={14} />联系人</Button>}
                               {active !== 'customer' && <Button
                                 variant="ghost"
@@ -1008,7 +990,6 @@ const CrmPage: React.FC = () => {
               </div>}
               <DetailToolbar key={`toolbar:${selectionKind}:${selection.id}`} kind={selectionKind} row={selection} busy={saving || uploading}
                 onEdit={() => edit(selection, selectionKind)}
-                onAction={(operation: string) => openEditor(selectionKind, operation, selection)}
                 onFollowup={() => openEditor('followup', 'create', undefined, relatedDraft(
                   selectionKind as 'customer' | 'project', selection, 'followup'))}
                 onTarget={() => { const target = followupTarget(selection); if (target) return detail(
@@ -1052,7 +1033,7 @@ const CrmPage: React.FC = () => {
           <header className="crm-dialog-header">
           <DialogTitle>
             {editor
-              ? editor.operation === 'status' ? '更新项目状态' : isLifecycle(editor.operation)
+              ? isLifecycle(editor.operation)
                 ? lifecycleTitles[editor.operation]
                 : editor.operation === 'create'
                 ? `新建${labels[editor.kind]}`
