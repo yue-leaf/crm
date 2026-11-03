@@ -85,7 +85,7 @@ export function workspaceModel(source: WorkspaceSource, scope: ProjectScope, use
   }).sort((a, b) => b.days - a.days || a.id.localeCompare(b.id));
   const recent = [...scopedFollowups].sort((a, b) => Number(b.record['实际发生时间']) - Number(a.record['实际发生时间']) || a.id.localeCompare(b.id)).slice(0, 5).map(row => {
     const customerId = customerOf(row, 'followup'); const projectId = linkIds(row.record['关联项目'])[0];
-    return { id: row.id, subject: textValue(row.record['跟进主题']), customerId, customerName: nameOf(customerId), projectId,
+    return { id: row.id, subject: textValue(row.record['内容 / 推进结论']).slice(0, 80), customerId, customerName: nameOf(customerId), projectId,
       projectName: textValue(projects.get(projectId)?.record['项目名称']), people: people(row.record['实际跟进人']), occurredAt: row.record['实际发生时间'] as number,
       conclusion: textValue(row.record['内容 / 推进结论']).slice(0, 240), nextAction: textValue(row.record['建议下一步行动']).slice(0, 160),
       attachmentCount: Array.isArray(row.record['附件']) ? row.record['附件'].length : 0 };

@@ -106,7 +106,7 @@ export class CrmRelations {
     }
     const search = (query.search || '').trim().toLocaleLowerCase();
     const rows = [...found.values()].filter((row: CrmRecord) => !search ||
-      [row.record['跟进主题'], row.record['内容 / 推进结论']].some((value: unknown) => textValue(value).toLocaleLowerCase().includes(search)));
+      textValue(row.record['内容 / 推进结论']).toLocaleLowerCase().includes(search));
     rows.sort((a: CrmRecord, b: CrmRecord) => time(b) - time(a) || modified(b) - modified(a) || a.id.localeCompare(b.id));
     const page = this.page(rows, query, `${kind}:${parent.id}:followups`);
     const sources: Record<string, RelatedSource> = {};

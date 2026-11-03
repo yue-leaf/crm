@@ -35,7 +35,8 @@ test('retained files use fresh server links; new files use verified default-buck
   await assert.rejects(resolveAttachments([fresh()], [], { ...files, getFileMetadata: async () => null }), /文件校验失败/);
 });
 test('ordinary edits preserve attachments, explicit removal clears them', () => {
-  const edited = prepareEdit('followup', row(), { changes: { 跟进主题: '会议更新' } }, {}, '123');
+  const edited = prepareEdit('followup', row(), { changes: { '内容 / 推进结论': '会议更新' } }, {}, '123');
+  assert.equal(Object.hasOwn(edited.writes, '跟进主题'), false);
   assert.equal(Object.hasOwn(edited.writes, '附件'), false);
   const cleared = prepareEdit('followup', row(), { changes: { 附件: [] } }, {}, '123');
   assert.deepEqual(cleared.writes.附件, []);

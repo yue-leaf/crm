@@ -9,7 +9,7 @@ const { requiredField, missingFields } = require('../../dist/shared/crm-interact
 const bodies = {
   contact: { 所属企业: ['recCustomer'], 姓名: 'Contact', 职务: 'Engineer', 电话: '123456' },
   project: { 所属企业: ['recCustomer'], 项目名称: 'Project', 项目类型: 'MRT', '目标 / 需求摘要': 'Goal' },
-  followup: { 跟进主题: 'Call', 跟进归属: '客户直接跟进', 直接客户: ['recCustomer'], 记录类型: '外部沟通',
+  followup: { 跟进归属: '客户直接跟进', 直接客户: ['recCustomer'], 记录类型: '外部沟通',
     '沟通 / 推进方式': '电话', 实际发生时间: '2026-10-01T10:00', '内容 / 推进结论': 'Discussed',
     后续安排: '无后续动作', 无后续动作结论: 'Done' },
 };
@@ -35,6 +35,7 @@ for (const kind of Object.keys(bodies)) test(`${kind}: optional people can be om
     for (const key of optional[kind]) if (empty !== undefined) body[key] = empty;
     assert.deepEqual(missingFields(forms[kind].map(f => requiredField(f, kind, 'create', body)), body), {});
     assert.equal((await service.create(kind, body)).id, 'recSaved');
+    if (kind === 'followup') assert.equal(saved.record.跟进主题, body['内容 / 推进结论']);
   }
   // Editing must persist explicit clears rather than silently retain old people.
   for (const key of optional[kind]) {

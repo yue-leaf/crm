@@ -492,6 +492,10 @@ export class CrmService {
     const key = this.kind(kind);
     if (key === 'access') reject('成员', '人员由通讯录同步，请在 Base 管理');
     const { draft, fields } = parseDraft(body, forms[key], this.enums(key));
+    // Keep Base's record name useful without asking users for a separate subject.
+    if (key === 'followup' && !fields['跟进主题'])
+      fields['跟进主题'] = Array.from(textValue(fields['内容 / 推进结论']).trim().replace(/\s+/g, ' '))
+        .slice(0, 80).join('');
     this.validateFacts(key, draft);
     await this.people(fields, forms[key], false, verifiedEmployeeId);
     await this.relationChecks(key, draft, fields);

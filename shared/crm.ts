@@ -40,7 +40,7 @@ export const titles: Record<EntityKind, string> = {
   customer: '企业全称',
   contact: '姓名',
   project: '项目名称',
-  followup: '跟进主题',
+  followup: '内容 / 推进结论',
   access: '姓名',
 };
 export const forms: Record<EntityKind, FieldSpec[]> = {
@@ -87,7 +87,7 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
     },
   ],
   followup: [
-    { key: '跟进主题', type: 'text', required: true },
+    { key: '跟进主题', type: 'text' },
     {
       key: '跟进归属',
       type: 'select',
