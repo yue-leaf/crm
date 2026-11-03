@@ -539,7 +539,8 @@ const CrmPage: React.FC = () => {
                 ...(editor.fixedProjectId ? { 关联项目: [editor.fixedProjectId] } : {}) }
               : editor.fixedProjectId ? { ...draft, 关联项目: [editor.fixedProjectId] } : draft)
               : editor.fixedCustomerId ? { ...draft, 所属企业: [editor.fixedCustomerId] } : draft);
-      toast.success(r.message);
+      if (r.warning) toast.warning(r.warning);
+      else toast.success(r.message);
       if (editor.operation === 'plan' && planSuggestion.current) {
         const id = planSuggestion.current;
         setAdoptedSuggestions((previous) => new Set([...previous, id]));

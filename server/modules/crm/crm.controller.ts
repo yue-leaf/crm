@@ -110,8 +110,8 @@ export class CrmController {
     @Param('kind') kind: string,
     @Body() body: unknown,
   ) {
-    this.session(req, kind);
-    return this.crm.create(kind, body, this.verifiedEmployee(req));
+    const actor = this.session(req, kind);
+    return this.crm.create(kind, body, this.verifiedEmployee(req), actor.userId);
   }
 
   @Patch('records/:kind/:id/:operation')
