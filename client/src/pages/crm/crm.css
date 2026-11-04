@@ -941,8 +941,8 @@
 .crm-action-button { position: relative; }
 .crm-action-label { display: inline-flex; align-items: center; justify-content: inherit; gap: inherit; min-width: 0; }
 .crm-action-spinner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-.table-scroll td.record-actions { text-align: left; max-width: none; white-space: normal; overflow: visible; text-overflow: clip; }
-.record-action-list { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-width: 172px; max-width: 360px; }
+.table-scroll td.record-actions { text-align: left; max-width: none; white-space: nowrap; overflow: visible; text-overflow: clip; }
+.record-action-list { display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; width: max-content; }
 .record-action-list .crm-action-button { flex: 0 0 auto; white-space: nowrap; }
 .record-actions .crm-action-button { min-width: 76px; justify-content: flex-start; padding-inline-start: 0; }
 
