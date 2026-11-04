@@ -1,4 +1,6 @@
 import { PreviousFollowup } from './PreviousFollowup';
+import { DeleteDialog, PendingDeletions } from './DeleteDialog';
+import type { DeleteKind, DeletionPreview } from '@shared/api.interface';
 import { FollowupChainPanel } from './FollowupChainPanel';
 import { explicitlyEnded } from '@shared/crm-followup-chain';
 import { CustomerContactDrafts } from './CustomerContactDrafts';
@@ -22,6 +24,7 @@ import {
   Eye,
   ArrowLeft,
   Bell,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrentUserProfile } from '@lark-apaas/client-toolkit/hooks/useCurrentUserProfile';
@@ -149,6 +152,8 @@ const rawSpecs = (editor: Editor): FieldSpec[] =>
 const specs = (editor: Editor): FieldSpec[] => rawSpecs(editor)
   .map((field: FieldSpec) => ({ ...field, label: field.label || detailFieldLabel(field.key) }));
 const CrmPage: React.FC = () => {
+  const [deleteTarget,setDeleteTarget] = useState<{kind:DeleteKind;id:string}|{job:DeletionPreview}|null>(null);
+  const [deleteRevision,setDeleteRevision] = useState(0);
   const navigate = useNavigate();
   const { section } = useParams();
   const [params] = useSearchParams();
@@ -692,6 +697,7 @@ const CrmPage: React.FC = () => {
         </header>
         {notificationOpen && admin && <NotificationSettings onClose={() => setNotificationOpen(false)} />}
         <main className="crm-content">
+          {admin&&<PendingDeletions revision={deleteRevision} onResume={job=>setDeleteTarget({job})} />}
           {!authorized ? (
             <section className="empty-panel">
               <ShieldCheck size={36} />
@@ -877,6 +883,9 @@ const CrmPage: React.FC = () => {
                                   编辑
                                 </Button>
                               )}
+                              {admin && (active==='customer'||active==='project'||active==='followup') && <Button
+                                variant="ghost" size="sm" className="crm-delete-button gap-1.5" disabled={saving||uploading}
+                                onClick={()=>setDeleteTarget({kind:active,id:row.id})}><Trash2 size={14} aria-hidden="true" />删除</Button>}
                             </td>
                           </tr>
                         ))}
@@ -1131,6 +1140,8 @@ const CrmPage: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+      {deleteTarget&&<DeleteDialog target={deleteTarget} onClose={()=>{setDeleteTarget(null);setDeleteRevision(value=>value+1);void reload();}}
+        onChanged={()=>{detailVersion.current++;editorRequestVersion.current++;setSelection(null);setDetailTrail([]);setDetailRevision(value=>value+1);void reload();}} />}
     </div></RelatedPageMemory.Provider>
   );
 };

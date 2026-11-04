@@ -1,7 +1,7 @@
 /* eslint-disable */
 /** auto generated, do not edit */
 import { sql } from 'drizzle-orm';
-import { boolean, index, integer, pgTable, text, uniqueIndex, uuid, varchar, customType } from "drizzle-orm/pg-core"
+import { boolean, index, integer, jsonb, pgTable, text, uniqueIndex, uuid, varchar, customType } from "drizzle-orm/pg-core"
 
 export const customTimestamptz = customType<{
   data: Date;
@@ -117,6 +117,21 @@ export const fileAttachmentArray = customType<{
   },
 });
 
+export const crmDeletion = pgTable("crm_deletion", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  rootKey: varchar("root_key", { length: 100 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default('preview'),
+  payload: jsonb("payload").notNull(),
+  // System field: Creation time (auto-filled, do not modify)
+  createdAt: customTimestamptz("_created_at", { precision: 3 }).notNull().default(sql`CURRENT_TIMESTAMP`),
+  // System field: Creator (auto-filled, do not modify)
+  createdBy: userProfile("_created_by"),
+  // System field: Update time (auto-filled, do not modify)
+  updatedAt: customTimestamptz("_updated_at", { precision: 3 }).notNull().default(sql`CURRENT_TIMESTAMP`),
+  // System field: Updater (auto-filled, do not modify)
+  updatedBy: userProfile("_updated_by"),
+});
+
 export const crmFollowupWrite = pgTable("crm_followup_write", {
   id: uuid("id").primaryKey().defaultRandom(),
   recordKey: varchar("record_key", { length: 80 }).notNull().unique(),
@@ -183,6 +198,7 @@ export const crmNotificationSetting = pgTable("crm_notification_setting", {
 ]);
 
 // table aliases
+export const crmDeletionTable = crmDeletion;
 export const crmFollowupWriteTable = crmFollowupWrite;
 export const crmNotificationDeliveryTable = crmNotificationDelivery;
 export const crmNotificationSettingTable = crmNotificationSetting;

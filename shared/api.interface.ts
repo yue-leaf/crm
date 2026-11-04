@@ -87,6 +87,19 @@ export interface NotificationState {
   settings: NotificationSettings;
   logs: NotificationLog[];
 }
+export type DeleteKind = 'customer' | 'project' | 'followup';
+export interface DeletionPreview {
+  id: string;
+  kind: DeleteKind;
+  name: string;
+  counts: Record<'customer' | 'project' | 'contact' | 'followup', number>;
+  restoresPending: number;
+  summary: string;
+  status: 'preview' | 'running' | 'paused' | 'complete';
+  deleted: number;
+  total: number;
+  message: string;
+}
 export interface WriteResult {
   id: string;
   message: string;
