@@ -1,5 +1,5 @@
 import type { NotificationPreview, NotificationSettingsUpdate } from './api.interface';
-import type { WorkspaceTask } from './crm-workspace';
+import { taskMatches, type WorkspaceTask } from './crm-workspace';
 
 const DAY = 86400000;
 const OFFSET = 28800000;
@@ -43,17 +43,24 @@ export function noticeText(value: string, max = 90): string {
 
 export function buildNotification(tasks: WorkspaceTask[], now: number, appUrl: string): NotificationPreview {
   const day = notificationDay(now);
+  const overdue = tasks.filter(row => row.due !== null && notificationDay(row.due) < day);
   const today = tasks.filter(row => row.due !== null && notificationDay(row.due) === day);
   const tomorrow = tasks.filter(row => row.due !== null && notificationDay(row.due) === notificationDay(now + DAY));
+  const other = tasks.filter(row => taskMatches(row, 'other', now));
   const section = (name: string, rows: WorkspaceTask[], filter: string): string => {
-    const lines = rows.slice(0, 5).map(row => {
+    const heading = `**${name} · ${rows.length} 项**`;
+    if (!rows.length) return heading;
+    const lines = [...rows].sort((a, b) => (a.due ?? Infinity) - (b.due ?? Infinity) || a.id.localeCompare(b.id)).slice(0, 5).map(row => {
       const target = (row.targetKind || row.kind) === 'project' ? `${noticeText(row.name, 45)} · ${noticeText(row.customerName, 35)}` : noticeText(row.name, 70);
       const url = `${appUrl}/crm/${row.kind}?record=${encodeURIComponent(row.id)}`;
-      const people = row.people.filter(id => /^[1-9]\d{0,18}$/.test(id));
-      return `• [${target}](${url})\n  ${noticeText(row.action || '待补充下一步行动')}\n  执行人：${people.length ? `<person ids="${people.slice(0, 3).join(',')}">` : '未指定'}`;
+      return `• [${target}](${url})\n  ${noticeText(row.action || '待补充下一步行动', 70)}\n  下次跟进：${row.due === null ? '未安排日期' : notificationDay(row.due)}`;
     });
-    return `**${name} · ${rows.length} 项**\n${lines.length ? lines.join('\n') : '暂无待处理事项'}${rows.length > 5 ? `\n还有 ${rows.length - 5} 项` : ''}\n[查看${name}全部事项](${appUrl}/?taskFilter=${filter}&scope=all)`;
+    return `${heading}\n${lines.join('\n')}${rows.length > 5 ? `\n还有 ${rows.length - 5} 项` : ''}\n[查看全部 ${rows.length} 项](${appUrl}/?taskFilter=${filter}&scope=mine)`;
   };
-  return { day, todayCount: today.length, tomorrowCount: tomorrow.length,
-    title: `待处理事项 · ${day}`, content: [section('今日', today, 'today'), section('明日', tomorrow, 'tomorrow')].join('\n\n') };
+  return { day, overdueCount: overdue.length, todayCount: today.length, tomorrowCount: tomorrow.length, otherCount: other.length,
+    title: `每日跟进简报 · ${day}`, content: [
+      section('🔴 已逾期', overdue, 'overdue'), section('🟡 今日待跟进', today, 'today'),
+      section('🔵 明日待跟进', tomorrow, 'tomorrow'), section('⚪ 其他待跟进', other, 'other'),
+      `[查看我的待办](${appUrl}/?taskFilter=all&scope=mine)`,
+    ].join('\n\n') };
 }

@@ -3,7 +3,7 @@
   "pluginKey": "@official-plugins/send-feishu-message",
   "pluginVersion": "1.0.33",
   "name": "CRM待办通知",
-  "description": "发送今日和明日待处理事项，仅由服务端调用",
+  "description": "发送每日个人跟进简报，包含逾期、今日、明日及其他待跟进事项，仅由服务端调用",
   "paramsSchema": {
     "type": "object",
     "properties": {

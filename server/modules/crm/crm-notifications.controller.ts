@@ -22,7 +22,10 @@ export class CrmNotificationsController {
     return this.notices.save(body, actorId);
   }
   @Get('preview')
-  preview(@Req() req: Request) { this.admin(req); return this.notices.preview(); }
+  preview(@Req() req: Request) {
+    const actorId = this.admin(req);
+    return this.notices.preview(Date.now(), actorId);
+  }
   @Post('test')
   test(@Req() req: Request, @Body() body: { requestId?: unknown }) {
     const actorId = this.admin(req);

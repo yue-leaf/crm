@@ -38,7 +38,7 @@ export class CrmNotificationsService {
     const logs = await this.db.select().from(deliveries).orderBy(desc(deliveries.updatedAt)).limit(30);
     return { settings: this.view(row), logs: logs.map(item => ({ id: item.id, day: item.businessDay,
       recipientId: item.recipient, mode: item.mode, status: item.status, detail: item.detail,
-      todayCount: item.todayCount, tomorrowCount: item.tomorrowCount, updatedAt: item.updatedAt.toISOString() })) };
+      overdueCount: item.overdueCount, todayCount: item.todayCount, tomorrowCount: item.tomorrowCount, otherCount: item.otherCount, updatedAt: item.updatedAt.toISOString() })) };
   }
 
   async save(body: unknown, actorId: string): Promise<NotificationSettings> {
@@ -68,7 +68,7 @@ export class CrmNotificationsService {
 
   private async finish(id: string, status: string, detail: string, preview?: NotificationPreview): Promise<void> {
     await this.db.update(deliveries).set({ status, detail, updatedAt: new Date(),
-      ...(preview ? { todayCount: preview.todayCount, tomorrowCount: preview.tomorrowCount } : {}),
+      ...(preview ? { overdueCount: preview.overdueCount, todayCount: preview.todayCount, tomorrowCount: preview.tomorrowCount, otherCount: preview.otherCount } : {}),
     }).where(eq(deliveries.id, id));
   }
 
@@ -76,7 +76,7 @@ export class CrmNotificationsService {
     // Claim before the external side effect. Unknown outcomes are never automatically resent.
     const [claim] = await this.db.insert(deliveries).values({ deliveryKey: key, recipient,
       businessDay: preview.day, mode, status: 'sending', detail: '正在提交消息',
-      todayCount: preview.todayCount, tomorrowCount: preview.tomorrowCount,
+      overdueCount: preview.overdueCount, todayCount: preview.todayCount, tomorrowCount: preview.tomorrowCount, otherCount: preview.otherCount,
     }).onConflictDoNothing({ target: deliveries.deliveryKey }).returning();
     if (!claim) return;
     try {
@@ -99,7 +99,7 @@ export class CrmNotificationsService {
       .where(eq(deliveries.mode, 'test')).orderBy(desc(deliveries.createdAt)).limit(1);
     if (recent && recent.deliveryKey !== `test:${actorId}:${key}` && Date.now() - recent.createdAt.getTime() < 60000)
       throw new BadRequestException('请稍后再发送测试，间隔至少一分钟');
-    const preview = await this.preview();
+    const preview = await this.preview(Date.now(), actorId);
     await this.deliver(`test:${actorId}:${key}`, actorId, 'test', preview);
     return this.state();
   }
@@ -115,7 +115,7 @@ export class CrmNotificationsService {
     const day = notificationDay(config.nextAt.getTime());
     const key = `run:${day}:${config.revision}`;
     const [inserted] = await this.db.insert(deliveries).values({ deliveryKey: key, businessDay: day,
-      mode: 'scheduled', status: 'reading', detail: '读取今日和明日待办',
+      mode: 'scheduled', status: 'reading', detail: '读取待跟进事项',
     }).onConflictDoNothing({ target: deliveries.deliveryKey }).returning();
     let claim: Delivery | undefined = inserted;
     if (!claim) {
@@ -153,10 +153,6 @@ export class CrmNotificationsService {
       if (claim.attempts >= 3) await this.advance(config, now);
       return;
     }
-    if (!preview.todayCount && !preview.tomorrowCount) {
-      await this.finish(claim.id, 'empty', '今日和明日均无待办，未发送');
-      await this.advance(config, now); return;
-    }
     // Transition atomically before sending; crashed sends stay visibly unresolved.
     const [claimed] = await this.db.update(deliveries).set({ status: 'dispatching', updatedAt: new Date() })
       .where(and(eq(deliveries.id, claim.id), eq(deliveries.status, 'reading'), eq(deliveries.attempts, claim.attempts))).returning();
@@ -167,7 +163,7 @@ export class CrmNotificationsService {
         await this.finish(claim.id, 'stopped', '设置已变更，停止本次尚未发送的消息', preview); return;
       }
       const digest = personal.get(recipient)!;
-      if (digest.todayCount || digest.tomorrowCount) await this.deliver(`daily:${day}:${recipient}`, recipient, 'daily', digest);
+      await this.deliver(`daily:${day}:${recipient}`, recipient, 'daily', digest);
     }
     await this.finish(claim.id, 'complete', '本次处理结束，接收人结果见明细', preview);
     await this.advance(config, now);
