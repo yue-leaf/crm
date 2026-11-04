@@ -615,7 +615,6 @@ const CrmPage: React.FC = () => {
   const showField = (f: FieldSpec) => {
     if (editor?.kind === 'project' && editor.operation === 'edit') {
       const state = draft['项目状态'];
-      if (f.key === '当前进展') return state === '进行中';
       if (f.key === '暂停原因') return state === '暂停';
       if (f.key === '签约日期') return state === '已签合同';
       if (['结束日期', '取消原因'].includes(f.key)) return state === '已取消';

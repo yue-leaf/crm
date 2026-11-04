@@ -12,7 +12,7 @@ export const statusFields: FieldSpec[] = [
   { key: '取消原因', type: 'long' },
 ];
 export const projectEditStatusFields: FieldSpec[] = statusFields.filter(
-  (field: FieldSpec) => !planFields.some((plan: FieldSpec) => plan.key === field.key),
+  (field: FieldSpec) => field.key !== '当前进展' && !planFields.some((plan: FieldSpec) => plan.key === field.key),
 );
 export function currentProjectStatus(row: CrmRecord): string {
   const terminal = textValue(row.record['终局确认']);
