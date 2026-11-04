@@ -2,13 +2,15 @@ require('reflect-metadata');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { nextNotificationAt, notificationDay, validateNotificationSettings, buildNotification } = require('../../dist/shared/crm-notifications');
-const { workspaceModel } = require('../../dist/shared/crm-workspace');
+const { workspaceModel, taskMatches, taskFilterFromLink } = require('../../dist/shared/crm-workspace');
 const { CrmNotificationsService } = require('../../dist/server/modules/crm/crm-notifications.service');
 const { CrmNotificationsController } = require('../../dist/server/modules/crm/crm-notifications.controller');
 const now = Date.parse('2026-10-29T08:00:03+08:00');
 const due = Date.parse('2026-10-29T08:00:00+08:00');
 const config = () => ({ id: 'config', enabled: true, sendTime: '08:00', recipientIds: ['123'], revision: 1, nextAt: new Date(due) });
-const preview = () => ({ day: '2026-10-29', title: '今日明日待办', content: '内容', todayCount: 1, tomorrowCount: 0 });
+const preview = () => ({ day: '2026-10-29', title: '每日跟进简报', content: '内容', overdueCount: 0, todayCount: 1, tomorrowCount: 0, otherCount: 0 });
+const task = (id, at, people = ['123']) => ({ id, kind: 'followup', targetKind: 'project', name: id,
+  customerName: '客户', action: '联系客户', people, due: at, status: '', state: '待跟进', missing: at === null });
 
 // Scripted persistence boundary; no real messages or production data are modified.
 function harness(results = [], messageResult = { success: true }) {
@@ -71,11 +73,74 @@ test('disabled and not-due schedules never read business data or send', async ()
   assert.equal(h.calls.length, 0); assert.equal(h.writes.length, 0);
 });
 
-test('empty days create audit result but no messages', async () => {
-  const h = harness([[{ id: 'run', attempts: 1 }]]);
+test('empty days send a zero digest and record counts instead of skipping', async () => {
+  const h = harness([[{ id: 'run', attempts: 1 }], [{ id: 'run' }], [{ id: 'delivery' }]]);
   h.service.preview = async () => ({ ...preview(), todayCount: 0 });
   await h.service.run(now);
-  assert.equal(h.finishes[0][1], 'empty'); assert.equal(h.calls.length, 0); assert.equal(h.advances.length, 1);
+  assert.equal(h.finishes[0][1], 'accepted'); assert.equal(h.calls.length, 1); assert.equal(h.advances.length, 1);
+  const saved = h.writes.find(w => w.value.deliveryKey === 'daily:2026-10-29:123').value;
+  for (const field of ['overdueCount', 'todayCount', 'tomorrowCount', 'otherCount']) assert.equal(saved[field], 0);
+});
+
+test('four groups are exclusive at Shanghai year boundaries, with dates before undated items', () => {
+  const time = Date.parse('2026-12-31T16:00:00Z'); // Jan 1 in Shanghai
+  const rows = [task('undated', null), task('later', time + 4 * 86400000),
+    task('older', time - 1), task('today', time), task('todayLate', time + 86400000 - 1),
+    task('tomorrow', time + 86400000), task('other', time + 2 * 86400000)];
+  const before = structuredClone(rows);
+  const card = buildNotification(rows, time, 'https://example.com');
+  assert.deepEqual([card.overdueCount, card.todayCount, card.tomorrowCount, card.otherCount], [1, 2, 1, 3]);
+  for (const row of rows) assert.equal(card.content.split(`record=${row.id})`).length - 1, 1);
+  assert.ok(card.content.indexOf('record=other)') < card.content.indexOf('record=later)'));
+  assert.ok(card.content.indexOf('record=later)') < card.content.indexOf('record=undated)'));
+  assert.match(card.content, /下次跟进：2027-01-03/); assert.match(card.content, /未安排日期/);
+  assert.deepEqual(rows, before);
+  assert.deepEqual(rows.filter(row => taskMatches(row, 'other', time)).map(row => row.id), ['undated', 'later', 'other']);
+  for (const filter of ['overdue', 'today', 'tomorrow', 'other', 'all']) {
+    assert.match(card.content, new RegExp(`taskFilter=${filter}&scope=mine`));
+    assert.equal(taskFilterFromLink(filter), filter);
+  }
+  for (const invalid of [null, 'invalid', '__proto__', 'constructor']) assert.equal(taskFilterFromLink(invalid), 'priority');
+  assert.doesNotMatch(card.content, /scope=all/);
+});
+
+test('all zero groups remain visible without empty details, and each group limits details to five', () => {
+  const empty = buildNotification([], now, 'https://example.com');
+  for (const name of ['已逾期', '今日待跟进', '明日待跟进', '其他待跟进']) assert.match(empty.content, new RegExp(`${name} · 0 项`));
+  assert.doesNotMatch(empty.content, /暂无|下次跟进|record=/);
+  const rows = [-1, 0, 1, 2].flatMap(day => Array.from({ length: 7 }, (_, i) => task(`day${day}row${i}`, due + day * 86400000)));
+  const full = buildNotification(rows, now, 'https://example.com');
+  assert.deepEqual([full.overdueCount, full.todayCount, full.tomorrowCount, full.otherCount], [7, 7, 7, 7]);
+  assert.equal(full.content.match(/record=/g).length, 20);
+  assert.equal(full.content.match(/还有 2 项/g).length, 4);
+});
+
+test('enabled recipients receive their own digest including zero, from one data snapshot', async () => {
+  const h = harness([[{ id: 'run', attempts: 1 }], [{ id: 'run' }], [{ id: 'first' }], [{ id: 'second' }]]);
+  h.service.setting = async () => ({ ...config(), recipientIds: ['123', '456'] });
+  h.service.preview = CrmNotificationsService.prototype.preview;
+  let reads = 0;
+  h.service.crm.notificationTasks = async () => { reads++; return [task('mineOverdue', due - 86400000),
+    task('mineFuture', due + 4 * 86400000), task('unassigned', null, []), task('someoneElse', due, ['789'])]; };
+  await h.service.run(now);
+  assert.equal(reads, 1); assert.equal(h.calls.length, 2);
+  const [first, second] = h.calls.map(call => call.data);
+  assert.deepEqual(first.recipients, ['123']); assert.match(first.content, /record=mineOverdue/); assert.match(first.content, /record=mineFuture/);
+  assert.doesNotMatch(first.content, /record=unassigned|record=someoneElse/);
+  assert.deepEqual(second.recipients, ['456']); assert.doesNotMatch(second.content, /record=/);
+  assert.equal(second.content.match(/· 0 项/g).length, 4);
+});
+
+test('preview and manual test both use the current account personal scope', async () => {
+  const args = [];
+  const controller = new CrmNotificationsController({ preview: (...values) => args.push(values) });
+  controller.preview({ userContext: { userId: '123', roles: ['crm_admin'] } });
+  assert.equal(args[0][1], '123');
+  const h = harness([[], [{ id: 'delivery' }]]);
+  h.service.preview = async (...values) => { args.push(values); return preview(); };
+  h.service.state = async () => ({ settings: {}, logs: [] });
+  await h.service.test('123', '12345678-1234-1234-1234-123456789abc');
+  assert.equal(args[1][1], '123');
 });
 
 test('incomplete data is not sent; read retries stop after third attempt', async () => {

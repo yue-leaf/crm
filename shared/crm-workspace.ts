@@ -6,8 +6,10 @@ import { followupChains, projectFollowupSummary } from './crm-followup-chain';
 import { followupTarget } from './crm-workflow';
 
 export type WorkspaceKind = 'customer' | 'project' | 'followup';
-export type TaskFilter = 'priority' | 'overdue' | 'today' | 'tomorrow' | 'week' | 'missing' | 'all';
-export const taskLabels: Record<TaskFilter, string> = { priority: '优先处理', overdue: '已逾期', today: '今日', tomorrow: '明日', week: '本周', missing: '待安排日期', all: '全部事项' };
+export type TaskFilter = 'priority' | 'overdue' | 'today' | 'tomorrow' | 'other' | 'week' | 'missing' | 'all';
+export const taskLabels: Record<TaskFilter, string> = { priority: '优先处理', overdue: '已逾期', today: '今日', tomorrow: '明日', other: '其他待跟进', week: '本周', missing: '待安排日期', all: '全部事项' };
+export const taskFilterFromLink = (value: string | null): TaskFilter =>
+  value && Object.prototype.hasOwnProperty.call(taskLabels, value) ? value as TaskFilter : 'priority';
 export interface WorkspaceTask {
   id: string; kind: 'customer' | 'project' | 'followup'; targetKind?: 'customer' | 'project'; targetId?: string; name: string; customerId?: string; customerName: string;
   action: string; people: string[]; due: number | null; status: string; state: string; missing: boolean;
@@ -132,6 +134,7 @@ export function taskMatches(row: WorkspaceTask, filter: TaskFilter, now: number)
   if (filter === 'all') return true;
   if (filter === 'priority') return ['overdue', 'today', 'tomorrow'].includes(row.status);
   if (filter === 'missing') return row.missing;
+  if (filter === 'other') return row.due === null || shanghaiDay(row.due) > shanghaiDay(now) + 1;
   if (filter === 'week') {
     const today = shanghaiDay(now); const monday = today - ((today + 3) % 7);
     return row.due !== null && shanghaiDay(row.due) >= monday && shanghaiDay(row.due) < monday + 7;

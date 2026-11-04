@@ -50,8 +50,8 @@ export const NotificationSettings: React.FC<{ onClose: () => void }> = ({ onClos
         {error && <div role="alert" className="notice-error">{error}<Button variant="ghost" size="sm" disabled={!!busy} onClick={() => void refresh()}>刷新配置</Button></div>}
         {!draft && !error && <p role="status">正在加载设置…</p>}
         {draft && <>
-          <div className="notice-toggle"><div><strong>每日待办提醒</strong><p>按建议执行人发送今日、明日待跟进记录。已处理或未指定执行人的记录不发送。</p></div>
-            <Switch checked={draft.enabled} disabled={!!busy} aria-label="开启每日待办提醒" onCheckedChange={enabled => setDraft({ ...draft, enabled })} /></div>
+          <div className="notice-toggle"><div><strong>每日跟进简报</strong><p>每天向已启用成员发送本人的逾期、今日、明日和其他待跟进事项，全部为 0 也照常发送。其他包含后天起的事项和未安排日期的事项。</p></div>
+            <Switch checked={draft.enabled} disabled={!!busy} aria-label="开启每日跟进简报" onCheckedChange={enabled => setDraft({ ...draft, enabled })} /></div>
           <div className="notice-fields">
             <div><label id="notice-time-label">发送时间</label><Select value={draft.sendTime} disabled={!!busy} onValueChange={sendTime => setDraft({ ...draft, sendTime })}>
               <SelectTrigger aria-labelledby="notice-time-label"><SelectValue /></SelectTrigger><SelectContent>{notificationTimes.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}</SelectContent>
@@ -65,7 +65,7 @@ export const NotificationSettings: React.FC<{ onClose: () => void }> = ({ onClos
           <div className="notice-actions"><Button disabled={!!busy || !dirty || (draft.enabled && !draft.recipientIds.length)} onClick={() => void perform('save', async () => {
             const saved = await api.notificationSave(draft); setDraft(saved); setState(value => value ? { ...value, settings: saved } : value); toast.success('通知设置已保存');
           })}>{busy === 'save' ? '保存中…' : '保存设置'}</Button>
-            <Button variant="outline" disabled={!!busy} onClick={() => void perform('preview', async () => setPreview(await api.notificationPreview()))}>预览今日通知</Button>
+            <Button variant="outline" disabled={!!busy} onClick={() => void perform('preview', async () => setPreview(await api.notificationPreview()))}>预览我的简报</Button>
             <Button variant="outline" disabled={!!busy} onClick={() => void perform('test', async () => {
               testId.current ||= crypto.randomUUID();
               const value = await api.notificationTest(testId.current); setState(value);
@@ -73,12 +73,13 @@ export const NotificationSettings: React.FC<{ onClose: () => void }> = ({ onClos
               if (sent?.status === 'accepted') { toast.success('测试消息已提交飞书，仅发送给当前账号'); testId.current = null; }
               else setError(sent?.detail || '请核对下方发送记录，避免重复发送');
             })}>发送测试给我</Button></div>
-          {preview && <section className="notice-preview"><h3>{preview.title}</h3><p>今日 {preview.todayCount} 项 · 明日 {preview.tomorrowCount} 项</p>
+          {preview && <section className="notice-preview"><h3>{preview.title}</h3><p>当前账号的待跟进事项</p>
             <p className="notice-preview-text">{preview.content.replace(/<person ids="[0-9,]+">/g, '已指定员工').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')}</p></section>}
           <div className="notice-log-heading"><h3>最近发送记录</h3><Button variant="ghost" size="sm" disabled={!!busy || dirty} onClick={() => void refresh()}><RefreshCw size={14} />刷新</Button></div>
           {!state?.logs.length ? <p className="notice-empty">暂无发送记录</p> : <div className="notice-logs">{state.logs.map(log => <article key={log.id}>
             <div><strong>{statusLabels[log.status] || '待核对'}</strong><span>{log.mode === 'test' ? '测试' : '每日提醒'}</span><time>{dateText(log.updatedAt)}</time></div>
             {log.recipientId && <UserDisplay userId={log.recipientId} />}<p>{log.detail}</p>
+            {log.overdueCount !== null && log.otherCount !== null && <p>逾期 {log.overdueCount} · 今日 {log.todayCount} · 明日 {log.tomorrowCount} · 其他 {log.otherCount}</p>}
           </article>)}</div>}
         </>}
       </div>

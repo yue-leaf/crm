@@ -63,8 +63,10 @@ export interface NotificationSettingsUpdate {
 }
 export interface NotificationPreview {
   day: string;
+  overdueCount: number;
   todayCount: number;
   tomorrowCount: number;
+  otherCount: number;
   title: string;
   content: string;
 }
@@ -75,8 +77,10 @@ export interface NotificationLog {
   mode: string;
   status: string;
   detail: string;
+  overdueCount: number | null;
   todayCount: number;
   tomorrowCount: number;
+  otherCount: number | null;
   updatedAt: string;
 }
 export interface NotificationState {

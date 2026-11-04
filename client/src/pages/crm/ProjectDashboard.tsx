@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ArrowRight, CalendarDays, Clock3, CircleAlert, ListTodo, Paperclip, Plus } from 'lucide-react';
 import { ActionButton as Button } from './ActionButton';
 import type { CrmRecord } from '@shared/api.interface';
-import { taskLabels, taskMatches } from '@shared/crm-workspace';
+import { taskLabels, taskMatches, taskFilterFromLink } from '@shared/crm-workspace';
 import type { WorkspaceData, WorkspaceKind, TaskFilter } from '@shared/crm-workspace';
 import { projectStates } from '@shared/crm-dashboard';
 import { Cell } from './Fields';
@@ -23,7 +23,7 @@ interface Props {
 export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, onRetry, onOpen, onOpenLoaded, onAction, onCreate, onContinue, onEnd }) => {
   const [params] = useSearchParams();
   const linkedFilter = params.get('taskFilter');
-  const initialFilter: TaskFilter = linkedFilter === 'today' || linkedFilter === 'tomorrow' ? linkedFilter : 'priority';
+  const initialFilter: TaskFilter = taskFilterFromLink(linkedFilter);
   const [filter, setFilter] = useState<TaskFilter>(initialFilter);
   useEffect(() => { setFilter(initialFilter); setLimit(8); }, [initialFilter]);
   const [limit, setLimit] = useState(8);
@@ -56,7 +56,7 @@ export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, 
       <section className="panel workspace-tasks" ref={taskPanel}>
         <div className="workspace-heading"><h2>待处理事项</h2><Button size="sm" variant="ghost" disabled={disabled} onClick={() => { select('all'); setLimit(data?.tasks.length || 8); }}>查看全部<ArrowRight size={14} /></Button></div>
         <div className="workspace-tabs" role="group" aria-label="待办时间筛选">
-          {(['priority', 'overdue', 'today', 'tomorrow', 'week', 'missing', 'all'] as const).map(key => <button key={key} disabled={disabled} aria-pressed={filter === key} onClick={() => select(key)}>{taskLabels[key]}</button>)}
+          {(['priority', 'overdue', 'today', 'tomorrow', 'other', 'week', 'missing', 'all'] as const).map(key => <button key={key} disabled={disabled} aria-pressed={filter === key} onClick={() => select(key)}>{taskLabels[key]}</button>)}
         </div>
         {!disabled && tasks.length > 0 ? <><div className="workspace-table-scroll"><table className="workspace-task-table"><thead><tr><th>客户 / 项目</th><th>下一步行动</th><th>执行人</th><th>计划日期</th><th>操作</th></tr></thead>
           <tbody>{tasks.slice(0, limit).map(row => <tr key={`${row.kind}:${row.id}`}>

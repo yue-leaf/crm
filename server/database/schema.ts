@@ -148,6 +148,8 @@ export const crmNotificationDelivery = pgTable("crm_notification_delivery", {
   todayCount: integer("today_count").notNull().default(0),
   tomorrowCount: integer("tomorrow_count").notNull().default(0),
   detail: varchar("detail", { length: 500 }).notNull(),
+  overdueCount: integer("overdue_count"),
+  otherCount: integer("other_count"),
   // System field: Creation time (auto-filled, do not modify)
   createdAt: customTimestamptz("_created_at", { precision: 3 }).notNull().default(sql`CURRENT_TIMESTAMP`),
   // System field: Creator (auto-filled, do not modify)
