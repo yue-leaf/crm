@@ -292,7 +292,7 @@ export class CrmService {
     if (scope !== 'all' && scope !== 'mine') throw new BadRequestException('项目范围无效');
     return scope;
   }
-  private async allBusiness(key: 'customer' | 'project' | 'followup'): Promise<CrmRecord[]> {
+  async allBusiness(key: 'customer' | 'project' | 'followup' | 'contact'): Promise<CrmRecord[]> {
     const rows: CrmRecord[] = [];
     const tokens = new Set<string>();
     const ids = new Set<string>();

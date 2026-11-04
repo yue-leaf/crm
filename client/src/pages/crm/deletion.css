@@ -1,0 +1,7 @@
+.crm-shell .crm-delete-button { color: #c9353f; }
+.crm-shell .crm-delete-button:hover { background: #fff1f0; color: #a61d24; }
+.delete-dialog .crm-dialog-body { padding: 24px; overflow-wrap: anywhere; }
+.delete-counts { margin: 16px 0; padding-left: 22px; line-height: 1.9; }
+.delete-warning { color: #b42318; margin-top: 12px; }
+.delete-summary { color: #697586; margin-top: 12px; line-height: 1.7; }
+.delete-pending { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 20px; background: #fff7e8; color: #805b00; }

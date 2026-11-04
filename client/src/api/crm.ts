@@ -16,6 +16,7 @@ import type {
   RelatedRecordsQuery,
   FollowupPage,
   NotificationState, NotificationPreview, NotificationSettings, NotificationSettingsUpdate,
+  DeletionPreview, DeleteKind,
 } from '@shared/api.interface';
 import type { Draft } from '@shared/crm';
 import type { WorkspaceData, WorkspaceKind } from '@shared/crm-workspace';
@@ -61,6 +62,10 @@ async function request<T>(
   }
 }
 export const api = {
+  deletionPreview: (kind: DeleteKind, id: string) => request<DeletionPreview>('deletions/preview','POST',{kind,id}),
+  deletionStep: (id: string) => request<DeletionPreview>(`deletions/${id}/step`,'POST'),
+  deletionInspect: (id: string) => request<DeletionPreview>(`deletions/${id}`),
+  deletionPending: () => request<DeletionPreview[]>('deletions'),
   pendingFollowups: (customerId = '', projectId = '') => request<CrmPage>(`followups/pending?${new URLSearchParams({ customerId, projectId })}`),
   members: () => request<CrmMemberOption[]>('members'),
   notificationState: () => request<NotificationState>('notifications'),
