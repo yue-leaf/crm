@@ -849,6 +849,7 @@ const CrmPage: React.FC = () => {
                               </td>
                             ))}
                             <td role="cell" data-label="操作" className="record-actions">
+                              <div className="record-action-list">
                               {active === 'followup' && row.followup?.state === '待跟进' && <Button size="sm" variant="ghost" disabled={saving || uploading} onClick={() => continueFollowup(row)}>继续跟进</Button>}
                               {active === 'customer' && <Button variant="ghost" size="sm" disabled={saving || uploading} onClick={() => detail(row, 'customer', undefined, 'contacts')}><Users size={14} />联系人</Button>}
                               {active !== 'customer' && <Button
@@ -886,6 +887,7 @@ const CrmPage: React.FC = () => {
                               {admin && (active==='customer'||active==='project'||active==='followup') && <Button
                                 variant="ghost" size="sm" className="crm-delete-button gap-1.5" disabled={saving||uploading}
                                 onClick={()=>setDeleteTarget({kind:active,id:row.id})}><Trash2 size={14} aria-hidden="true" />删除</Button>}
+                              </div>
                             </td>
                           </tr>
                         ))}
