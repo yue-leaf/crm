@@ -19,7 +19,6 @@ export async function prepareProjectEditStatus(
   if (!changed) return { fields, related: [] };
   const state: string = String(draft['项目状态']);
   const before: string = currentProjectStatus(row);
-  if (state === '进行中' && !textValue(draft['当前进展']).trim()) reject('当前进展', '进行中时请填写当前进展');
   if (state === '暂停' && !textValue(draft['暂停原因']).trim()) reject('暂停原因', '暂停时必填');
   if (state === '已签合同') validateSignedDate({
     工作状态: state, 签约日期: fields['签约日期'] ?? row.record['签约日期'],
@@ -37,7 +36,7 @@ export async function prepareProjectEditStatus(
       终局确认: state, 结束日期: draft['结束日期'], 取消原因: draft['取消原因'],
       结果说明: draft['取消原因'], 操作原因: reason,
     } : {
-      工作状态: state, 当前进展: draft['当前进展'],
+      工作状态: state,
       ...(state === '暂停' ? { 暂停原因: draft['暂停原因'] } : {}),
       ...(state === '已签合同' ? { 签约日期: draft['签约日期'] } : {}),
       操作原因: reason,

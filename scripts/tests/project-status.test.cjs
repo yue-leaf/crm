@@ -52,6 +52,29 @@ test('project editor prefills five-state selection and saves profile plus status
  assert.equal(h.current().record.取消原因,'');
 });
 
+test('project editing changes status without progress and preserves existing progress across cancellation and reopening', async () => {
+ const {editFields}=require('../../dist/shared/crm-edit.js');
+ const {requiredField,missingFields}=require('../../dist/shared/crm-interaction.js');
+ const fields=editFields('project');
+ assert.equal(fields.some(field=>field.key==='当前进展'),false);
+ assert.equal(missingFields(fields.map(field=>requiredField(field,'project','edit',{项目状态:'进行中'})),{项目状态:'进行中'}).当前进展,undefined);
+ for(const progress of [undefined,'原有进展保留']) {
+  const initial=row();initial.record.工作状态='待启动';initial.record.当前进展=progress;
+  const h=harness(initial);
+  const edit=changes=>h.service.update('project','recProject','edit',{changes,expectedModifiedAt:h.current().record.修改时间},'123');
+  await edit({项目状态:'进行中'});
+  assert.equal(h.current().record.工作状态,'进行中');
+  assert.equal(projectReviewProblem(h.current().record),'');
+  await edit({项目名称:'只修改资料'});
+  await edit({项目状态:'已取消',结束日期:today,取消原因:'取消'});
+  await edit({项目状态:'进行中'});
+  assert.equal(h.current().record.工作状态,'进行中');
+  assert.equal(h.current().record.终局确认,'未确认');
+  assert.equal(h.current().record.当前进展,progress);
+  assert.ok(h.writes.every(write=>!Object.hasOwn(write,'当前进展')));
+ }
+});
+
 test('project edit rejects invalid conditional data and stale writes without partially changing profile',async()=>{
  for(const changes of [{项目状态:'未知'},{项目状态:'已签合同'}, {项目状态:'已签合同',签约日期:'2099-01-01'},
   {项目状态:'暂停'}, {项目状态:'已取消',结束日期:today}, {项目状态:'已取消',结束日期:'2099-01-01',取消原因:'取消'}]) {

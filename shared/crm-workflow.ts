@@ -19,7 +19,6 @@ export function projectReviewProblem(record: CrmRecord['record'], now = Date.now
     const work = textValue(record['工作状态']);
     if (!['待启动', '进行中', '暂停', '已签合同'].includes(work)) return '工作状态异常，请先更新项目进展';
     if (work === '暂停' && !textValue(record['暂停原因']).trim()) return '暂停原因缺失，请先更新项目进展';
-    if (work === '进行中' && !textValue(record['当前进展']).trim()) return '当前进展缺失，请先更新项目进展';
   } else {
     const closed = record['结束日期'];
     const day = (ms: number) => Math.floor((ms + 8 * 3600000) / 86400000);
