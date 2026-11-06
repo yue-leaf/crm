@@ -180,7 +180,7 @@ const CrmPage: React.FC = () => {
   const rawFollowupFilter = params.get('followupFilter') || 'all';
   const followupFilter: FollowupFilter = validFollowupFilter(rawFollowupFilter) ? rawFollowupFilter : 'all';
   const listCustomerId = active === 'followup' || active === 'project' ? params.get('customerId') || '' : '';
-  const listProjectId = active === 'followup' ? params.get('projectId') || '' : '';
+  const listProjectId = active === 'followup' || active === 'project' ? params.get('projectId') || '' : '';
   const profile = useCurrentUserProfile();
   const [session, setSession] = useState<CrmSession | null>(null);
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -191,6 +191,7 @@ const CrmPage: React.FC = () => {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
+  const listSearch = active === 'project' ? '' : query;
   const [selection, setSelection] = useState<CrmRecord | null>(null);
   const [detailRevision, setDetailRevision] = useState(0);
   const [selectionKind, setSelectionKind] = useState<EntityKind>('customer');
@@ -297,14 +298,14 @@ const CrmPage: React.FC = () => {
         const next = await api.workspace(scope);
         if (version === requestVersion.current) setOverview(next);
       } else {
-        const filters = active === 'project' ? { scope, projectFilter, followupFilter, customerId: listCustomerId }
+        const filters = active === 'project' ? { scope, projectFilter, followupFilter, customerId: listCustomerId, projectId: listProjectId }
           : active === 'followup' ? { customerId: listCustomerId, projectId: listProjectId } : undefined;
-        let next = await api.list(active, '', query, filters);
+        let next = await api.list(active, '', listSearch, filters);
         const cursors = new Set<string>();
         while (next.records.length < keepRows && next.hasMore && next.pageToken && version === requestVersion.current) {
           if (cursors.has(next.pageToken)) throw new Error('分页数据重复，请刷新重试');
           cursors.add(next.pageToken);
-          next = appendPage(next, await api.list(active, next.pageToken, query, filters));
+          next = appendPage(next, await api.list(active, next.pageToken, listSearch, filters));
         }
         if (version === requestVersion.current) setData(next);
       }
@@ -313,7 +314,7 @@ const CrmPage: React.FC = () => {
     } finally {
       if (version === requestVersion.current) setLoading(false);
     }
-  }, [active, authorized, query, scope, projectFilter, followupFilter, listCustomerId, listProjectId]);
+  }, [active, authorized, listSearch, scope, projectFilter, followupFilter, listCustomerId, listProjectId]);
   useEffect(() => {
     setData(null);
     setOverview(null);
@@ -342,10 +343,10 @@ const CrmPage: React.FC = () => {
     const next = changeFilter(new URLSearchParams(window.location.search), key, value);
     navigate(`${active === 'home' ? '/' : '/crm/' + active}?${next}`);
   };
-  const updateFollowupTargetFilter = (key: 'customerId' | 'projectId' | 'reset', value = '') => {
+  const updateListTarget = (key: 'customerId' | 'projectId' | 'reset', value = '') => {
     requestVersion.current++;
     const next = changeFollowupListTarget(new URLSearchParams(window.location.search), key, value);
-    navigate(`/crm/followup?${next}`);
+    navigate(`/crm/${active}?${next}`);
   };
   const openEditor = (
     kind: EntityKind,
@@ -796,29 +797,25 @@ const CrmPage: React.FC = () => {
                       if (next === query) void reload(); else setQuery(next);
                     }}
                   >
-                    {active === 'project' && <div className="toolbar-relation"><span>客户</span><RelationField
-                      field={{ key: '筛选客户', label: '客户', type: 'relation', target: 'customer' }}
-                      value={listCustomerId ? [listCustomerId] : []}
-                      onChange={(ids) => updateFilter('customerId', ids[0] || 'all')} /></div>}
-                    {active === 'followup' && <>
+                    {(active === 'project' || active === 'followup') && <>
                       <div className="toolbar-relation"><span>客户</span><RelationField
                         field={{ key: '筛选客户', label: '客户', type: 'relation', target: 'customer' }}
                         value={listCustomerId ? [listCustomerId] : []}
-                        onChange={(ids) => updateFollowupTargetFilter('customerId', ids[0] || '')} /></div>
+                        onChange={(ids) => updateListTarget('customerId', ids[0] || '')} /></div>
                       <div className="toolbar-relation"><span>项目</span><RelationField key={listCustomerId}
                         field={{ key: '筛选项目', label: '项目', type: 'relation', target: 'project' }}
                         customerId={listCustomerId || undefined} value={listProjectId ? [listProjectId] : []}
-                        onChange={(ids) => updateFollowupTargetFilter('projectId', ids[0] || '')} /></div>
+                        onChange={(ids) => updateListTarget('projectId', ids[0] || '')} /></div>
                     </>}
-                    <div className="toolbar-search">
-                      <Label htmlFor="crm-list-search">{active === 'project' ? '项目' : active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}</Label>
+                    {active !== 'project' && <div className="toolbar-search">
+                      <Label htmlFor="crm-list-search">{active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}</Label>
                       <Input
                         id="crm-list-search"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder={`请输入${active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}`}
                       />
-                    </div>
+                    </div>}
                     {active === 'project' && <div className="followup-filter"><span>跟进状态</span>
                       <Select value={followupFilter} onValueChange={(value: string) => {
                         updateFilter('followupFilter', value);
@@ -830,10 +827,9 @@ const CrmPage: React.FC = () => {
                     </Button>
                     {(search || query || listCustomerId || listProjectId) && <Button type="button" variant={active === 'followup' ? 'secondary' : 'ghost'} onClick={() => {
                       setSearch(''); setQuery('');
-                      if (active === 'followup' && (listCustomerId || listProjectId)) updateFollowupTargetFilter('reset');
-                      else if (active === 'project' && listCustomerId) updateFilter('customerId', 'all');
+                      if (listCustomerId || listProjectId) updateListTarget('reset');
                       else if (!query) void reload();
-                    }}>{active === 'followup' ? '重置' : '清空搜索'}</Button>}
+                    }}>{active === 'followup' || active === 'project' ? '重置' : '清空搜索'}</Button>}
                     {active === 'project' && projectFilter !== 'all' && <Button type="button" size="sm" variant="secondary"
                       aria-label={`清除${projectFilterLabels[projectFilter]}筛选`}
                       onClick={() => updateFilter('projectFilter', 'all')}>{projectFilterLabels[projectFilter]} ×</Button>}
@@ -946,8 +942,8 @@ const CrmPage: React.FC = () => {
                             const next = await api.list(
                               active,
                               data.pageToken,
-                              query,
-                              active === 'project' ? { scope, projectFilter, followupFilter, customerId: listCustomerId }
+                              listSearch,
+                              active === 'project' ? { scope, projectFilter, followupFilter, customerId: listCustomerId, projectId: listProjectId }
                                 : active === 'followup' ? { customerId: listCustomerId, projectId: listProjectId } : undefined,
                             );
                             if (version === requestVersion.current)

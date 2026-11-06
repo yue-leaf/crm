@@ -30,4 +30,8 @@ test('按所属客户和项目名称组合筛选，在分页之前匹配客户�
  const result=await service.projectList('all','all','','同名','123','all','recSelected');
  assert.deepEqual(result.records.map(project=>project.id),['recMatch']);
  assert.equal(result.total,1);assert.equal(result.hasMore,false);
+ const selected=await service.projectList('all','all','','','123','all','','recMatch');
+ assert.deepEqual(selected.records.map(item=>item.id),['recMatch']);
+ const mismatch=await service.projectList('all','all','','','123','all','recCustomer','recMatch');
+ assert.equal(mismatch.total,0);
 });
