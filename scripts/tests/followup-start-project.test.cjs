@@ -14,6 +14,7 @@ function harness(patch={}, options={}) {
   if(kind==='project'){
    projectReads++;
    if(options.race && projectReads===3)project.record.工作状态='暂停';
+   if(projectReads===3 && options.recalculated)Object.assign(project.record,options.recalculated);
    return structuredClone(project);
   }
   if(options.readFailure)throw new Error('read unavailable');
@@ -47,6 +48,15 @@ test('existing progress remains and subsequent followups do not repeatedly start
  const h=harness({当前进展:'已记录进展'});await h.create();await h.create();
  assert.equal(h.project.record.当前进展,'已记录进展');
  assert.equal(h.writes.filter(w=>w.kind==='project').length,1);
+});
+test('first followup with no next action starts project despite Base recalculation and preserves concurrent notes',async()=>{
+ const h=harness({}, {recalculated:{有效次数:1,项目跟进:{link_record_ids:['recFollowup']},当前进展:'最新进展',管理记录:'已有说明',修改时间:2}});
+ const result=await h.create();
+ assert.equal(result.warning,undefined);
+ assert.equal(h.project.record.工作状态,'进行中');
+ assert.equal(h.project.record.当前进展,'最新进展');
+ assert.match(h.project.record.管理记录,/^已有说明/);
+ assert.equal(h.writes[0].fields.后续处理,'已结束');
 });
 test('direct customer followups and non-pending project states do not auto-start',async()=>{
  const direct=harness();await direct.create({...body,跟进归属:'客户直接跟进',关联项目:[],直接客户:['recCustomer']});

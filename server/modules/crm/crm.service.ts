@@ -625,14 +625,18 @@ export class CrmService {
     try {
       const row = await this.get('project', projectId);
       if (textValue(row.record['工作状态']) !== '待启动' || textValue(row.record['终局确认']) !== '未确认') return false;
-      const note = [textValue(row.record['管理记录']),
+      // Saving the followup recalculates linked and formula fields on this project.
+      // Recheck ownership and lifecycle, and merge the patch onto the latest writable values.
+      const latest = await this.get('project', projectId);
+      if (textValue(latest.record['工作状态']) !== '待启动' || textValue(latest.record['终局确认']) !== '未确认' ||
+          !isDeepStrictEqual(linkIds(row.record['所属企业']), linkIds(latest.record['所属企业'])))
+        throw new ConflictException('项目状态或所属客户已变化');
+      const note = [textValue(latest.record['管理记录']),
         `跟进自动启动 · ${new Date().toISOString()} · ${actor || '系统'}\n${auditNote(`新增跟进 ${followupId}，项目状态：待启动 → 进行中`)}`,
       ].filter(Boolean).join('\n\n');
       if (note.length > 20000) reject('管理记录', '历史记录已达上限');
       const fields: Record<string, unknown> = { 工作状态: '进行中', 管理记录: note };
-      if (!textValue(row.record['当前进展']).trim()) fields['当前进展'] = Array.from(conclusion).slice(0, 2000).join('');
-      const latest = await this.get('project', projectId);
-      if (!isDeepStrictEqual(row.record, latest.record)) throw new ConflictException('项目在自动更新前已变化');
+      if (!textValue(latest.record['当前进展']).trim()) fields['当前进展'] = Array.from(conclusion).slice(0, 2000).join('');
       const written = this.writtenId(await this.call('project', 'batchUpdateRecords', {
         records: [{ id: projectId, record: fields }],
       }));
