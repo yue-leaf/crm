@@ -796,6 +796,10 @@ const CrmPage: React.FC = () => {
                       if (next === query) void reload(); else setQuery(next);
                     }}
                   >
+                    {active === 'project' && <div className="toolbar-relation"><span>所属客户</span><RelationField
+                      field={{ key: '筛选客户', label: '所属客户', type: 'relation', target: 'customer' }}
+                      value={listCustomerId ? [listCustomerId] : []}
+                      onChange={(ids) => updateFilter('customerId', ids[0] || 'all')} /></div>}
                     <div className="toolbar-search">
                       <Label htmlFor="crm-list-search">{active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}</Label>
                       <Input
@@ -805,12 +809,11 @@ const CrmPage: React.FC = () => {
                         placeholder={`请输入${active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}`}
                       />
                     </div>
-                    {(active === 'followup' || active === 'project') &&
-                      <div className="toolbar-relation"><span>{active === 'project' ? '所属客户' : '客户'}</span><RelationField
-                        field={{ key: '筛选客户', label: active === 'project' ? '所属客户' : '客户', type: 'relation', target: 'customer' }}
-                        value={listCustomerId ? [listCustomerId] : []}
-                        onChange={(ids) => active === 'project' ? updateFilter('customerId', ids[0] || 'all') : updateFollowupTargetFilter('customerId', ids[0] || '')} /></div>}
                     {active === 'followup' && <>
+                      <div className="toolbar-relation"><span>客户</span><RelationField
+                        field={{ key: '筛选客户', label: '客户', type: 'relation', target: 'customer' }}
+                        value={listCustomerId ? [listCustomerId] : []}
+                        onChange={(ids) => updateFollowupTargetFilter('customerId', ids[0] || '')} /></div>
                       <div className="toolbar-relation"><span>项目</span><RelationField key={listCustomerId}
                         field={{ key: '筛选项目', label: '项目', type: 'relation', target: 'project' }}
                         customerId={listCustomerId || undefined} value={listProjectId ? [listProjectId] : []}
