@@ -796,8 +796,8 @@ const CrmPage: React.FC = () => {
                       if (next === query) void reload(); else setQuery(next);
                     }}
                   >
-                    {active === 'project' && <div className="toolbar-relation"><span>所属客户</span><RelationField
-                      field={{ key: '筛选客户', label: '所属客户', type: 'relation', target: 'customer' }}
+                    {active === 'project' && <div className="toolbar-relation"><span>客户</span><RelationField
+                      field={{ key: '筛选客户', label: '客户', type: 'relation', target: 'customer' }}
                       value={listCustomerId ? [listCustomerId] : []}
                       onChange={(ids) => updateFilter('customerId', ids[0] || 'all')} /></div>}
                     {active === 'followup' && <>
@@ -811,7 +811,7 @@ const CrmPage: React.FC = () => {
                         onChange={(ids) => updateFollowupTargetFilter('projectId', ids[0] || '')} /></div>
                     </>}
                     <div className="toolbar-search">
-                      <Label htmlFor="crm-list-search">{active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}</Label>
+                      <Label htmlFor="crm-list-search">{active === 'project' ? '项目' : active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}</Label>
                       <Input
                         id="crm-list-search"
                         value={search}
