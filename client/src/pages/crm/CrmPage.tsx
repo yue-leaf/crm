@@ -800,15 +800,6 @@ const CrmPage: React.FC = () => {
                       field={{ key: '筛选客户', label: '所属客户', type: 'relation', target: 'customer' }}
                       value={listCustomerId ? [listCustomerId] : []}
                       onChange={(ids) => updateFilter('customerId', ids[0] || 'all')} /></div>}
-                    <div className="toolbar-search">
-                      <Label htmlFor="crm-list-search">{active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}</Label>
-                      <Input
-                        id="crm-list-search"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder={`请输入${active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}`}
-                      />
-                    </div>
                     {active === 'followup' && <>
                       <div className="toolbar-relation"><span>客户</span><RelationField
                         field={{ key: '筛选客户', label: '客户', type: 'relation', target: 'customer' }}
@@ -819,6 +810,15 @@ const CrmPage: React.FC = () => {
                         customerId={listCustomerId || undefined} value={listProjectId ? [listProjectId] : []}
                         onChange={(ids) => updateFollowupTargetFilter('projectId', ids[0] || '')} /></div>
                     </>}
+                    <div className="toolbar-search">
+                      <Label htmlFor="crm-list-search">{active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}</Label>
+                      <Input
+                        id="crm-list-search"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder={`请输入${active === 'customer' ? '企业名称' : detailFieldLabel(titles[active])}`}
+                      />
+                    </div>
                     {active === 'project' && <div className="followup-filter"><span>跟进状态</span>
                       <Select value={followupFilter} onValueChange={(value: string) => {
                         updateFilter('followupFilter', value);
