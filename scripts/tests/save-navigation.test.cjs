@@ -49,6 +49,26 @@ test('saved followup with project warning closes normally and refreshes without 
  await h.save();assert.equal(h.counts().creates,1);assert.equal(h.counts().refreshes,1);
  assert.deepEqual(h.selected,[null]);assert.equal(notices.length,1);assert.deepEqual(errors,[]);
 });
+test('first followup retries only its failed write and links to the confirmed new project',async()=>{
+ const h=harness('project'), c=h.context, calls=[], errors=[];
+ c.editor.firstFollowup={'内容 / 推进结论':'已沟通'};
+ c.firstFields=()=>[]; c.followupWriteDraft=require('../../dist/shared/crm-followup-target').followupWriteDraft;
+ c.setEditor=editor=>{c.editor=editor;}; c.setSaveError=e=>errors.push(e);
+ c.api.create=async(kind,fields)=>{
+   calls.push([kind,fields]);
+   if(calls.length===2)throw Error('请修正跟进');
+   return {id:kind==='project'?'p1':'f1',message:'已保存'};
+ };
+ await h.save();
+ assert.match(errors.at(-1),/项目已创建，首次跟进未保存/);
+ assert.equal(c.editor.firstFollowup['内容 / 推进结论'],'已沟通');
+ await h.save();
+ assert.deepEqual(calls.map(([kind])=>kind),['project','followup','followup']);
+ for(const [,fields] of calls.slice(1)){
+   assert.equal(fields.跟进归属,'项目跟进');assert.equal(fields.关联项目[0],'p1');assert.equal(fields.直接客户.length,0);
+ }
+ assert.equal(c.editor,null);
+});
 test('creating a related contact returns to its source customer without a saved/continue banner',async()=>{
  const origin={kind:'customer',row:{id:'recCustomer',record:{}},tab:'contacts'};
  const h=harness('contact',origin);await h.save();

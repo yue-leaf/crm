@@ -133,6 +133,8 @@ const columns: Record<EntityKind, string[]> = {
 };
 const columnLabel = (name: string): string => name === '建议日期' ? '下次跟进时间' : detailFieldLabel(name);
 interface Editor {
+  firstFollowup?: Draft;
+  savedProjectId?: string;
   previousFollowupId?: string;
   fixedCustomerId?: string;
   fixedProjectId?: string;
@@ -151,6 +153,18 @@ const rawSpecs = (editor: Editor): FieldSpec[] =>
       : editor.kind === 'project' ? projectCreateFields : forms[editor.kind];
 const specs = (editor: Editor): FieldSpec[] => rawSpecs(editor)
   .map((field: FieldSpec) => ({ ...field, label: field.label || detailFieldLabel(field.key) }));
+function visibleFollowupField(f: FieldSpec, draft: Draft) {
+  if (f.key === '直接客户') return draft['跟进归属'] === '客户直接跟进';
+  if (f.key === '客户联系人') return draft['记录类型'] === '外部沟通';
+  if (['建议下一步行动', '建议处理人', '建议日期'].includes(f.key)) return draft['后续安排'] === '有下一步行动';
+  if (f.key === '无后续动作结论') return draft['后续安排'] === '无后续动作';
+  return true;
+}
+function firstFields(draft: Draft) {
+  return specs({ kind: 'followup', operation: 'create' })
+    .filter(f => ![FOLLOWUP_CUSTOMER, '关联项目', '上次跟进'].includes(f.key) && visibleFollowupField(f, draft))
+    .map(f => requiredField(f, 'followup', 'create', draft));
+}
 const CrmPage: React.FC = () => {
   const [deleteTarget,setDeleteTarget] = useState<{kind:DeleteKind;id:string}|{job:DeletionPreview}|null>(null);
   const [deleteRevision,setDeleteRevision] = useState(0);
@@ -211,6 +225,8 @@ const CrmPage: React.FC = () => {
   const editorRequestVersion = useRef(0);
   const initialDraft = useRef<Draft>({});
   const [discardOpen, setDiscardOpen] = useState(false);
+  const [removeFirstOpen, setRemoveFirstOpen] = useState(false);
+  const firstInitial = useRef<Draft>({});
   const requestVersion = useRef(0);
   const admin = !!session && crmAdmin(session.roles);
   const authorized = !!session && (active !== 'access' || admin);
@@ -468,6 +484,7 @@ const CrmPage: React.FC = () => {
     if (savingRef.current || uploadingRef.current) return;
     projectResolution.current++; projectResolvingRef.current = false; setProjectResolving(false);
     if (!uncertain && editor && (
+      editor.firstFollowup ||
       Object.keys(changedFields(initialDraft.current, draft, specs(editor))).length ||
       (editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && pendingContacts.some(contactDraftChanged))
     )) {
@@ -488,6 +505,7 @@ const CrmPage: React.FC = () => {
   const save = async () => {
     if (!editor || savingRef.current || uploadingRef.current || projectResolvingRef.current || uncertain) return;
     const errors = missingFields(specs(editor).filter(showField).map((field) => requiredField(field, editor.kind, editor.operation, draft)), draft);
+    if (editor.firstFollowup) Object.assign(errors, missingFields(firstFields(editor.firstFollowup), editor.firstFollowup));
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
       setSaveError('请检查标记的字段后再保存');
@@ -501,10 +519,22 @@ const CrmPage: React.FC = () => {
     savingRef.current = true;
     setSaving(true);
     setSaveError('');
+    let savedProjectId = editor.savedProjectId;
     try {
       if (editor.kind === 'followup' && editor.operation === 'create' && editor.previousFollowupId)
         validateContinuationDraft(draft, editor.previousFollowupId, editor.fixedCustomerId, editor.fixedProjectId);
-      const r = editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation)
+      const createProjectWithFollowup = async (first: Draft) => {
+        if (!savedProjectId) {
+          const project = await api.create('project', editor.fixedCustomerId ? { ...draft, 所属企业: [editor.fixedCustomerId] } : draft);
+          savedProjectId = project.id;
+          setEditor({ ...editor, savedProjectId });
+          if (project.warning) toast.warning(project.warning);
+        }
+        const followup = await api.create('followup', followupWriteDraft({ ...first, 关联项目: [savedProjectId] }));
+        return { ...followup, message: '项目及首次跟进已保存' };
+      };
+      const r = editor.firstFollowup ? await createProjectWithFollowup(editor.firstFollowup)
+        : editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation)
         ? await saveCustomerContacts(draft, pendingContacts, selectedContacts, customerSave.current, api.create,
           editor.operation === 'edit' && editor.row ? { row: editor.row, edit: api.edit } : undefined)
         : editor.operation === 'edit' && editor.row
@@ -554,7 +584,8 @@ const CrmPage: React.FC = () => {
       }
     } catch (e: unknown) {
       if (e instanceof SaveOutcomeUnknown) setUncertain(true);
-      setSaveError(editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && customerSave.current.customer
+      setSaveError(savedProjectId ? (e instanceof SaveOutcomeUnknown ? '项目已创建，首次跟进保存结果待核对。' : '项目已创建，首次跟进未保存。') + message(e)
+        : editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && customerSave.current.customer
         ? `客户已保存，部分联系人未完成。${message(e)}${e instanceof SaveOutcomeUnknown ? '' : '；可再次保存以继续未完成的联系人。'}`
         : message(e));
     } finally {
@@ -585,6 +616,9 @@ const CrmPage: React.FC = () => {
     if (editor?.fixedProjectId && key === '关联项目') return;
     if (editor?.fixedCustomerId && (key === '所属企业' || key === FOLLOWUP_CUSTOMER)) return;
     if (savingRef.current || (uploadingRef.current && key !== '附件')) return;
+    if (editor?.savedProjectId) return;
+    if (key === '所属企业' && editor?.firstFollowup && JSON.stringify(draft[key]) !== JSON.stringify(value))
+      setEditor({ ...editor, firstFollowup: { ...editor.firstFollowup, 客户联系人: [] } });
     if (key === FOLLOWUP_CUSTOMER || key === '关联项目') {
       const request = ++projectResolution.current;
       projectResolvingRef.current = false; setProjectResolving(false);
@@ -630,14 +664,7 @@ const CrmPage: React.FC = () => {
       ['预计金额', '币种', '金额含税口径'].includes(f.key)
     )
       return draft['项目类型'] === '销售机会';
-    if (editor?.kind === 'followup') {
-      if (f.key === '直接客户') return draft['跟进归属'] === '客户直接跟进';
-      if (f.key === '关联项目') return true;
-      if (f.key === '客户联系人') return draft['记录类型'] === '外部沟通';
-      if (['建议下一步行动', '建议处理人', '建议日期'].includes(f.key))
-        return draft['后续安排'] === '有下一步行动';
-      if (f.key === '无后续动作结论') return draft['后续安排'] === '无后续动作';
-    }
+    if (editor?.kind === 'followup') return visibleFollowupField(f, draft);
     return true;
   };
   return (
@@ -1067,7 +1094,7 @@ const CrmPage: React.FC = () => {
           {editor?.kind === 'followup' && editor.operation === 'edit' && editor.row && explicitlyEnded(editor.row.record) &&
             <p className="panel-note">这条跟进已主动结束。修改资料不会恢复提醒，需要时可在详情中点击“恢复跟进”。</p>}
           {editor?.operation === 'end-followup' && <p className="panel-note">结束后停止这条安排的提醒，原有内容保留。不影响项目状态及其他人的跟进，需要时可恢复。</p>}
-            <fieldset className="form-grid" disabled={saving || uploading || uncertain}>
+            <fieldset className="form-grid" disabled={saving || uploading || uncertain || !!editor?.savedProjectId}>
               {editor &&
                 specs(editor)
                   .filter(showField)
@@ -1085,7 +1112,7 @@ const CrmPage: React.FC = () => {
                       onCreateContact={editor.kind === 'followup' && f.key === '客户联系人' ? newContactDuringFollowup : undefined}
                       onChange={set}
                       onUploadBusy={onUploadBusy}
-                      disabled={saving || uploading || uncertain || (editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && !!customerSave.current.customer) || (editor.kind === 'followup' && f.key === '客户联系人' && !followupCustomer) || (projectResolving && f.key === '关联项目') ||
+                      disabled={saving || uploading || uncertain || !!editor.savedProjectId || (editor.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && !!customerSave.current.customer) || (editor.kind === 'followup' && f.key === '客户联系人' && !followupCustomer) || (projectResolving && f.key === '关联项目') ||
                         (Boolean(editor.fixedCustomerId) && (f.key === '所属企业' || f.key === FOLLOWUP_CUSTOMER)) ||
                         (Boolean(editor.fixedProjectId) && f.key === '关联项目') ||
                         (Boolean(editor.previousFollowupId) && f.key === '关联项目') ||
@@ -1099,6 +1126,31 @@ const CrmPage: React.FC = () => {
                     </React.Fragment>
                   ))}
             </fieldset>
+            {editor?.kind === 'project' && editor.operation === 'create' &&
+              <section className="mt-5 border-t pt-4" aria-label="首次跟进">
+                {!editor.firstFollowup ? <Button type="button" variant="outline" disabled={saving || uncertain}
+                  onClick={() => {
+                    const first = { 记录类型: '外部沟通', 实际发生时间: new Date(Date.now() + 8 * 3600000).toISOString().slice(0,16), 后续安排: '有下一步行动' };
+                    firstInitial.current = first;
+                    setEditor({ ...editor, firstFollowup: first });
+                    requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('.first-followup textarea')?.focus());
+                  }}><Plus size={16} />添加首次跟进</Button> : <>
+                  <div className="mb-3 flex items-center justify-between"><strong>首次跟进</strong>
+                    {!editor.savedProjectId && <Button type="button" variant="ghost" disabled={saving || uploading || uncertain}
+                      onClick={() => {
+                        if (JSON.stringify(editor.firstFollowup) !== JSON.stringify(firstInitial.current)) setRemoveFirstOpen(true);
+                        else { setEditor({ ...editor, firstFollowup: undefined }); setFieldErrors({}); setSaveError(''); }
+                      }}>移除</Button>}</div>
+                  <fieldset className="form-grid first-followup" disabled={saving || uploading || uncertain}>
+                    {firstFields(editor.firstFollowup).map(f => <FieldInput key={f.key} field={f} draft={editor.firstFollowup!}
+                      error={fieldErrors[f.key]} customerId={f.key === '客户联系人' && Array.isArray(draft['所属企业']) ? draft['所属企业'][0] : undefined}
+                      disabled={saving || uploading || uncertain || (f.key === '客户联系人' && !draft['所属企业']?.toString())}
+                      onUploadBusy={onUploadBusy} onChange={(key,value) => {
+                        setEditor(current => current?.firstFollowup ? { ...current, firstFollowup: changeDraft(current.firstFollowup,key,value,firstInitial.current,false) } : current);
+                        setFieldErrors(prev => {const next = {...prev}; delete next[key]; return next;});
+                      }} />)}
+                  </fieldset></>}
+              </section>}
             {projectResolving && <p className="panel-note" role="status">正在读取项目所属客户…</p>}
             {customerResolveError && <div role="alert" className="error-banner">{customerResolveError}
               <Button type="button" size="sm" variant="ghost" onClick={() => setCustomerResolveRetry((n) => n + 1)}>重新加载客户</Button></div>}
@@ -1124,21 +1176,33 @@ const CrmPage: React.FC = () => {
                     正在保存
                   </>
                 ) : (
-                  '保存'
+                  editor?.savedProjectId ? '重试保存跟进' : editor?.firstFollowup ? '保存项目及跟进' : '保存'
                 )}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
+      <Dialog open={removeFirstOpen} onOpenChange={setRemoveFirstOpen}>
+        <DialogContent><DialogTitle>移除首次跟进？</DialogTitle>
+          <DialogDescription>已填写的跟进内容将丢弃，项目资料会保留。</DialogDescription>
+          <div className="form-actions">
+            <Button variant="outline" onClick={() => setRemoveFirstOpen(false)}>继续填写</Button>
+            <Button variant="destructive" onClick={() => {
+              setRemoveFirstOpen(false); setEditor(current => current ? { ...current, firstFollowup: undefined } : null);
+              setFieldErrors({}); setSaveError('');
+            }}>移除跟进</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
         <DialogContent>
           <DialogTitle>放弃未保存的修改？</DialogTitle>
-          <DialogDescription>{editor?.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && customerSave.current.customer
+          <DialogDescription>{editor?.savedProjectId ? '项目已创建。关闭后将丢弃未保存的首次跟进内容。' : editor?.kind === 'customer' && ['create', 'edit'].includes(editor.operation) && customerSave.current.customer
             ? '客户及已成功保存的联系人会保留，未保存的联系人草稿将丢失。' : '刚才填写的内容尚未保存，关闭后将丢失。'}</DialogDescription>
           <div className="form-actions">
             <Button variant="outline" onClick={() => setDiscardOpen(false)}>继续填写</Button>
-            <Button variant="destructive" onClick={() => { setDiscardOpen(false); if (!resumeFollowup()) { setEditor(null); if (customerSave.current.customer) void reload(); } }}>放弃修改</Button>
+            <Button variant="destructive" onClick={() => { setDiscardOpen(false); if (!resumeFollowup()) { setEditor(null); if (customerSave.current.customer || editor?.savedProjectId) { setDetailRevision(v=>v+1); void reload(); } } }}>放弃修改</Button>
           </div>
         </DialogContent>
       </Dialog>
