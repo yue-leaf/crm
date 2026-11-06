@@ -866,7 +866,7 @@ const CrmPage: React.FC = () => {
                                 {active === 'access' ? <Pencil size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
                                 {active === 'access' ? '编辑' : '查看'}
                               </Button>}
-                              {active !== 'access' && (
+                              {active === 'contact' && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
