@@ -346,8 +346,9 @@ export class CrmService {
     const checked = this.projectScope(scope);
     return buildProjectOverview(projectFollowupSummary(await this.allBusiness('project'), await this.allBusiness('followup')), checked, userId);
   }
-  async projectList(scope: string, filter: string, cursor: string | undefined, search: string | undefined, userId: string, followupFilter = 'all'): Promise<CrmPage> {
+  async projectList(scope: string, filter: string, cursor: string | undefined, search: string | undefined, userId: string, followupFilter = 'all', customerId = ''): Promise<CrmPage> {
     const checked = this.projectScope(scope);
+    if (typeof customerId !== 'string' || (customerId && !/^rec[A-Za-z0-9]+$/.test(customerId))) throw new BadRequestException('所属客户筛选无效');
     if (!validProjectFilter(filter)) throw new BadRequestException('项目筛选无效');
     if (!validFollowupFilter(followupFilter)) throw new BadRequestException('跟进状态筛选无效');
     if (search !== undefined && (typeof search !== 'string' || search.length > 200)) throw new BadRequestException('搜索内容过长');
@@ -356,6 +357,7 @@ export class CrmService {
     const now = Date.now();
     const rows = sortProjects(scopedProjects(projectFollowupSummary(await this.allBusiness('project'), await this.allBusiness('followup'), now), checked, userId)
       .filter(row => projectMatches(row, filter === 'all' && followupFilter === 'none' ? 'none' : filter, now)
+        && (!customerId || linkIds(row.record['所属企业']).includes(customerId))
         && (followupFilter === 'all' || projectMatches(row, followupFilter, now))
         && (!search || textValue(row.record['项目名称']).toLocaleLowerCase().includes(search.toLocaleLowerCase()))), now);
     if (offset > rows.length) throw new ConflictException('项目列表已变化，请刷新');

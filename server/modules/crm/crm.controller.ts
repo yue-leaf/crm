@@ -155,8 +155,10 @@ export class CrmController {
     @Query('projectId') projectId?: string,
   ) {
     const actor = this.session(req, kind);
-    if ((customerId !== undefined || projectId !== undefined) && kind !== 'followup')
-      throw new BadRequestException('客户和项目筛选仅用于跟进记录');
+    if (customerId !== undefined && kind !== 'project' && kind !== 'followup')
+      throw new BadRequestException('所属客户筛选仅用于项目和跟进记录');
+    if (projectId !== undefined && kind !== 'followup')
+      throw new BadRequestException('项目筛选仅用于跟进记录');
     if (kind === 'followup') {
       if (followupFilter !== undefined || projectFilter !== undefined || scope !== undefined)
         throw new BadRequestException('跟进记录不支持此筛选');
@@ -166,7 +168,7 @@ export class CrmController {
     if ((projectFilter !== undefined || scope !== undefined) && kind !== 'project') throw new BadRequestException('项目筛选仅用于项目列表');
     if (kind === 'customer') return this.crm.customerList(followupFilter ?? 'all', cursor, search);
     if (kind === 'project') {
-      return this.crm.projectList(scope ?? 'all', projectFilter ?? 'all', cursor, search, actor.userId, followupFilter ?? 'all');
+      return this.crm.projectList(scope ?? 'all', projectFilter ?? 'all', cursor, search, actor.userId, followupFilter ?? 'all', customerId);
     }
     return this.crm.list(kind, cursor, search);
   }

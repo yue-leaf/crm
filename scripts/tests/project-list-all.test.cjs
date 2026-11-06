@@ -21,3 +21,13 @@ test('单个工作状态展示采用终局结果，不把完成或取消显示�
  assert.equal(projectFacts(row('recCancelled',{终局确认:'已取消'}),now).state,'已取消');
  assert.equal(projectFacts(row('recPaused',{工作状态:'暂停'}),now).state,'暂停');
 });
+test('按所属客户和项目名称组合筛选，在分页之前匹配客户记录 ID',async()=>{
+ const projects=Array.from({length:51},(_,i)=>row('recOther'+i,{项目名称:'同名项目'}));
+ projects.push(row('recMatch',{项目名称:'同名项目',所属企业:{link_record_ids:['recSelected']}}));
+ projects.push(row('recOtherName',{项目名称:'另一项目',所属企业:{link_record_ids:['recSelected']}}));
+ const service=new CrmService({});
+ service.allBusiness=async kind=>kind==='project'?projects:[];
+ const result=await service.projectList('all','all','','同名','123','all','recSelected');
+ assert.deepEqual(result.records.map(project=>project.id),['recMatch']);
+ assert.equal(result.total,1);assert.equal(result.hasMore,false);
+});

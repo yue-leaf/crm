@@ -26,7 +26,7 @@ test('followup list controller forwards both filters with login and rejects filt
  assert.throws(()=>controller.list({},'followup'),e=>e.getStatus()===403);
  await controller.list(req,'followup','cursor','query',undefined,undefined,undefined,'recC','recP');
  assert.deepEqual(received,['recC','recP','cursor','query']);
- assert.throws(()=>controller.list(req,'project',undefined,undefined,undefined,undefined,undefined,'recC'),/仅用于跟进记录/);
+ assert.throws(()=>controller.list(req,'project',undefined,undefined,undefined,undefined,undefined,'recC','recP'),/仅用于跟进记录/);
 });
 
 test('scope and individual filter changes retain the other filters', () => {
