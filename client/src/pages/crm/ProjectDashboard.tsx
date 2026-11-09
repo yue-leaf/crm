@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowRight, CalendarDays, Clock3, ListTodo, Paperclip, Plus } from 'lucide-react';
+import { ArrowRight, CalendarDays, Clock3, Paperclip, Plus, X } from 'lucide-react';
 import { ActionButton as Button } from './ActionButton';
 import type { CrmRecord } from '@shared/api.interface';
-import { taskLabels, taskMatches, taskFilterFromLink } from '@shared/crm-workspace';
+import { taskLabels, taskMatches, taskFilterFromLink, taskTab } from '@shared/crm-workspace';
 import type { WorkspaceData, WorkspaceKind, TaskFilter } from '@shared/crm-workspace';
 import { Cell } from './Fields';
 import { displayDate } from '@shared/crm-presentation';
@@ -39,23 +39,26 @@ export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, 
   const disabled = loading || !data;
   const metrics = [
     { key: 'overdue', label: '已逾期', icon: Clock3, tone: 'red', hint: '已超过建议日期的待跟进记录' },
-    { key: 'today', label: '今日待跟进', icon: CalendarDays, tone: 'orange', hint: '建议今天处理的待跟进记录' },
-    { key: 'tomorrow', label: '明日待跟进', icon: CalendarDays, tone: 'blue', hint: '建议明天处理的待跟进记录' },
-    { key: 'missing', label: '待安排日期', icon: ListTodo, tone: 'neutral', hint: '有后续安排但尚未设置建议日期' },
+    { key: 'week', label: '本周待跟进', icon: CalendarDays, tone: 'blue', hint: '建议日期在本周一至周日且尚未完成的事项，包含本周已逾期事项' },
   ] as const;
   const empty = (label: string) => <div className="workspace-empty" role="status">{loading ? '正在加载…' : data ? label : '数据暂不可用'}</div>;
   return <div className="workspace-dashboard" aria-busy={loading}>
     {error && <div className="error-banner" role="alert">{error}<Button variant="ghost" onClick={onRetry}>重试</Button></div>}
     <div className="workspace-metrics">{metrics.map(metric => <button key={metric.key} disabled={disabled} title={metric.hint}
       className={`workspace-metric tone-${metric.tone}`} aria-pressed={filter === metric.key} onClick={() => select(metric.key, true)}>
-      <span>{metric.label}<metric.icon size={18} /></span><strong>{count(data?.counts[metric.key])}</strong><ArrowRight size={15} className="metric-arrow" />
+      <span>{metric.label}<metric.icon size={18} /></span><strong>{count(data?.tasks.filter(row => taskMatches(row, metric.key, data.generatedAt)).length)}</strong><ArrowRight size={15} className="metric-arrow" />
     </button>)}</div>
     <div className="workspace-main-grid">
       <section className="panel workspace-tasks" ref={taskPanel}>
         <div className="workspace-heading"><h2>待处理事项</h2><Button size="sm" variant="ghost" disabled={disabled} onClick={() => { select('all'); setLimit(data?.tasks.length || 8); }}>查看全部<ArrowRight size={14} /></Button></div>
-        <div className="workspace-tabs" role="group" aria-label="待办时间筛选">
-          {(['priority', 'overdue', 'today', 'tomorrow', 'other', 'week', 'missing', 'all'] as const).map(key => <button key={key} disabled={disabled} aria-pressed={filter === key} onClick={() => select(key)}>{taskLabels[key]}</button>)}
+        <div className="workspace-tabs" role="group" aria-label="待办筛选">
+          {(['pending', 'overdue', 'all'] as const).map(key => <button key={key} disabled={disabled} aria-pressed={taskTab(filter) === key} onClick={() => select(key)}>{taskLabels[key]}</button>)}
         </div>
+        {!['pending', 'overdue', 'all'].includes(filter) && <div className="workspace-filter-scope">
+          <button onClick={() => select(taskTab(filter))} aria-label={`清除${taskLabels[filter]}筛选`}>
+            {taskLabels[filter]}<X size={12} />
+          </button>
+        </div>}
         {!disabled && tasks.length > 0 ? <><div className="workspace-table-scroll"><table className="workspace-task-table"><thead><tr><th>客户 / 项目</th><th>下一步行动</th><th>执行人</th><th>计划日期</th><th>操作</th></tr></thead>
           <tbody>{tasks.slice(0, limit).map(row => <tr key={`${row.kind}:${row.id}`}>
             <td data-label="客户 / 项目"><button className="workspace-name" onClick={() => open(row.targetKind || row.kind, row.targetId || row.id)}>{row.name}</button>
@@ -69,7 +72,7 @@ export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, 
             <td data-label="操作"><div className="workspace-row-actions"><Button variant="ghost" size="sm" disabled={busy} onClick={() => onContinue({ id: row.id, record: {} })}>继续跟进</Button>
               <Button variant="ghost" size="sm" disabled={busy} onClick={() => onEnd({ id: row.id, record: {} })}>结束跟进</Button></div></td>
           </tr>)}</tbody></table></div><div className="workspace-list-end"><span>共 {tasks.length} 项</span>{limit < tasks.length && <Button size="sm" variant="ghost" onClick={() => setLimit(n => n + 8)}>加载更多</Button>}</div></>
-          : empty(filter === 'priority' ? '暂无逾期、今日或明日待跟进事项' : `暂无${taskLabels[filter]}事项`)}
+          : empty(filter === 'all' ? '暂无待处理事项' : `暂无${taskLabels[filter]}${taskLabels[filter].endsWith('事项') ? '' : '事项'}`)}
       </section>
       <section className="panel workspace-recent"><div className="workspace-heading"><h2>最近跟进</h2><Button size="sm" variant="ghost" disabled={disabled} onClick={() => show('followup', 'all', '全部有效跟进')}>查看全部<ArrowRight size={14} /></Button></div>
         {!disabled && data.recent.length ? <div className="workspace-feed">{data.recent.map(row => <article key={row.id}>

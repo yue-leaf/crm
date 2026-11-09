@@ -1,7 +1,7 @@
 require('reflect-metadata');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { workspaceModel, workspaceRecords, taskMatches } = require('../../dist/shared/crm-workspace.js');
+const { workspaceModel, workspaceRecords, taskMatches, taskTab, taskFilterFromLink } = require('../../dist/shared/crm-workspace.js');
 const { CrmService } = require('../../dist/server/modules/crm/crm.service.js');
 const { CrmController } = require('../../dist/server/modules/crm/crm.controller.js');
 const now = Date.parse('2026-10-27T10:00:00+08:00');
@@ -106,4 +106,24 @@ test('workspace endpoints require login, accept ordinary employees and use the s
   assert.deepEqual(calls[0], ['mine', '123']);
   controller.workspaceRecords({ userContext: { userId: '123' } }, 'mine', 'followup', 'all');
   assert.deepEqual(calls[1].slice(0, 4), ['mine', '123', 'followup', 'all']);
+});
+
+test('workspace tabs partition pending and overdue while week uses the calendar boundary', () => {
+  const localNow = Date.parse('2026-11-01T23:59:00+08:00');
+  const dates = [null, '2026-10-25', '2026-10-26', '2026-11-01', '2026-11-02'];
+  const src = { customer: [customer('recC')], project: [], followup: dates.map((date, i) =>
+    followup(`recF${i}`, 'customer', 'recC', { 后续处理: '待跟进', 后续安排: '有下一步行动',
+      建议下一步行动: '继续沟通', 建议日期: date ? t(date) : null })) };
+  const { data } = workspaceModel(src, 'all', '1', localNow);
+  const ids = filter => data.tasks.filter(row => taskMatches(row, filter, localNow)).map(row => row.id).sort();
+  assert.deepEqual(ids('pending'), ['recF0', 'recF3', 'recF4']);
+  assert.deepEqual(ids('overdue'), ['recF1', 'recF2']);
+  assert.deepEqual([...ids('pending'), ...ids('overdue')].sort(), ids('all'));
+  assert.deepEqual(ids('week'), ['recF2', 'recF3']);
+  assert.equal(taskFilterFromLink(null), 'pending');
+  assert.equal(taskTab('week'), 'all');
+  assert.equal(taskTab('overdue'), 'overdue');
+  for (const filter of ['pending', 'today', 'tomorrow', 'other', 'missing']) {
+    assert.equal(taskTab(filter), 'pending');
+  }
 });

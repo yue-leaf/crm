@@ -3,7 +3,7 @@
 .workspace-dashboard button:focus-visible { outline: 2px solid #3370ff; outline-offset: 3px; }
 .workspace-dashboard button:disabled { cursor: default; }
 .workspace-dashboard .panel { min-width: 0; overflow: hidden; }
-.workspace-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.workspace-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .workspace-metric { position: relative; text-align: left; padding: 20px 22px; background: white; border: 1px solid #e3e7ee; border-radius: 10px; }
 .workspace-metric > span { display: flex; justify-content: space-between; align-items: center; color: #606a78; font-size: 13px; gap: 8px; }
 .workspace-metric strong { display: block; font-size: 32px; font-weight: 650; line-height: 1.2; margin-top: 16px; }
@@ -21,6 +21,8 @@
 .workspace-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 20px 14px; }
 .workspace-tabs button { padding: 6px 10px; border-radius: 5px; font-size: 12px; color: #606a78; }
 .workspace-tabs button[aria-pressed='true'] { background: #edf3ff; color: #245bdb; font-weight: 600; }
+.workspace-filter-scope { padding: 0 20px 14px; }
+.workspace-filter-scope button { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 5px; background: #edf3ff; color: #245bdb; font-size: 12px; }
 .workspace-table-scroll { overflow-x: auto; }
 .workspace-task-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
 .workspace-task-table th { text-align: left; background: #f7f8fa; color: #68717d; font-weight: 400; font-size: 12px; }

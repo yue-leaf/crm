@@ -100,7 +100,7 @@ test('four groups are exclusive at Shanghai year boundaries, with dates before u
     assert.match(card.content, new RegExp(`taskFilter=${filter}&scope=mine`));
     assert.equal(taskFilterFromLink(filter), filter);
   }
-  for (const invalid of [null, 'invalid', '__proto__', 'constructor']) assert.equal(taskFilterFromLink(invalid), 'priority');
+  for (const invalid of [null, 'invalid', '__proto__', 'constructor']) assert.equal(taskFilterFromLink(invalid), 'pending');
   assert.doesNotMatch(card.content, /scope=all/);
 });
 

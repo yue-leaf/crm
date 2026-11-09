@@ -6,10 +6,12 @@ import { followupChains, projectFollowupSummary } from './crm-followup-chain';
 import { followupTarget } from './crm-workflow';
 
 export type WorkspaceKind = 'customer' | 'project' | 'followup';
-export type TaskFilter = 'priority' | 'overdue' | 'today' | 'tomorrow' | 'other' | 'week' | 'missing' | 'all';
-export const taskLabels: Record<TaskFilter, string> = { priority: '优先处理', overdue: '已逾期', today: '今日', tomorrow: '明日', other: '其他待跟进', week: '本周', missing: '待安排日期', all: '全部事项' };
+export type TaskFilter = 'pending' | 'priority' | 'overdue' | 'today' | 'tomorrow' | 'other' | 'week' | 'missing' | 'all';
+export const taskLabels: Record<TaskFilter, string> = { pending: '待跟进事项', priority: '优先处理', overdue: '逾期事项', today: '今日', tomorrow: '明日', other: '其他待跟进', week: '本周待跟进', missing: '待安排日期', all: '全部事项' };
 export const taskFilterFromLink = (value: string | null): TaskFilter =>
-  value && Object.prototype.hasOwnProperty.call(taskLabels, value) ? value as TaskFilter : 'priority';
+  value && Object.prototype.hasOwnProperty.call(taskLabels, value) ? value as TaskFilter : 'pending';
+export const taskTab = (filter: TaskFilter): 'pending' | 'overdue' | 'all' =>
+  filter === 'overdue' ? 'overdue' : ['all', 'week', 'priority'].includes(filter) ? 'all' : 'pending';
 export interface WorkspaceTask {
   id: string; kind: 'customer' | 'project' | 'followup'; targetKind?: 'customer' | 'project'; targetId?: string; name: string; customerId?: string; customerName: string;
   action: string; people: string[]; due: number | null; status: string; state: string; missing: boolean;
@@ -132,6 +134,7 @@ export function workspaceRecords(model: ReturnType<typeof workspaceModel>, kind:
 
 export function taskMatches(row: WorkspaceTask, filter: TaskFilter, now: number): boolean {
   if (filter === 'all') return true;
+  if (filter === 'pending') return row.status !== 'overdue';
   if (filter === 'priority') return ['overdue', 'today', 'tomorrow'].includes(row.status);
   if (filter === 'missing') return row.missing;
   if (filter === 'other') return row.due === null || shanghaiDay(row.due) > shanghaiDay(now) + 1;
