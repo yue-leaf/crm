@@ -484,6 +484,7 @@ export class CrmService {
     historicalContext('customer', await this.get('customer', customerId), occurred);
     if (d['记录类型'] === '外部沟通') {
       if (
+        d['沟通 / 推进方式'] &&
         !['电话', '线上会议', '现场', '即时消息', '邮件', '其他'].includes(
           String(d['沟通 / 推进方式']),
         )

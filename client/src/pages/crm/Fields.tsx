@@ -193,11 +193,12 @@ export const FieldInput: React.FC<{
           onChange={set}
         />
       ) : f.type === 'select' ? (
-        <Select value={String(draft[f.key] || '')} onValueChange={set}>
+        <Select value={String(draft[f.key] || '')} onValueChange={(value) => set(value === '__clear_communication_method__' ? '' : value)}>
           <SelectTrigger id={fieldId} aria-invalid={Boolean(error)}>
             <SelectValue placeholder="请选择" />
           </SelectTrigger>
           <SelectContent>
+            {f.key === '沟通 / 推进方式' && !f.required && <SelectItem value="__clear_communication_method__">不填写</SelectItem>}
             {(f.key === '沟通 / 推进方式'
               ? draft['记录类型'] === '内部推进'
                 ? ['内部讨论', '资料处理', '其他']

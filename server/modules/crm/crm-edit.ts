@@ -79,7 +79,8 @@ export function prepareEdit(
     else if (field.type === 'text' || field.type === 'long') writes[key] = '';
     else if (field.type === 'person' || field.type === 'relation' || field.type === 'attachment')
       writes[key] = [];
-    else if (!field.required && (field.type === 'date' || field.type === 'datetime'))
+    else if (!field.required && (field.type === 'date' || field.type === 'datetime' ||
+      (kind === 'followup' && key === '沟通 / 推进方式')))
       writes[key] = null;
     else
       reject(

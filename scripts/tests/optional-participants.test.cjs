@@ -56,3 +56,26 @@ test('optional contact still must belong to selected customer when provided', as
   await assert.rejects(service.relationChecks('followup', { ...bodies.followup, 客户联系人: ['recContact'] },
     { 实际发生时间: Date.parse('2026-10-01T10:00:00+08:00') }), /联系人不属于/);
 });
+
+test('communication method can be omitted or cleared, but provided values must match record type', async () => {
+  const service = new CrmService({}, {});
+  service.get = async (_kind, id) => ({ id, record: { 企业全称: 'Customer' } });
+  for (const type of ['外部沟通', '内部推进']) {
+    for (const value of [undefined, '', null]) {
+      const draft = { ...bodies.followup, 记录类型: type, '沟通 / 推进方式': value };
+      for (const operation of ['create', 'edit']) {
+        assert.deepEqual(missingFields(forms.followup.map(f => requiredField(f, 'followup', operation, draft)), draft), {});
+      }
+      await service.relationChecks('followup', draft, { 实际发生时间: Date.parse('2026-10-01T10:00:00+08:00') });
+    }
+  }
+  const row = { id: 'recF', record: { ...bodies.followup, 直接客户: { link_record_ids: ['recCustomer'] },
+    实际发生时间: Date.parse('2026-10-01T10:00:00+08:00'), 记录状态: '正常' } };
+  const cleared = prepareEdit('followup', row, { changes: { '沟通 / 推进方式': null } }, {}, '123');
+  assert.equal(cleared.writes['沟通 / 推进方式'], null);
+  await service.relationChecks('followup', cleared.draft, cleared.validationFields);
+  await assert.rejects(service.relationChecks('followup', { ...bodies.followup, '沟通 / 推进方式': '内部讨论' },
+    { 实际发生时间: row.record.实际发生时间 }), /外部沟通方式/);
+  await assert.rejects(service.relationChecks('followup', { ...bodies.followup, 记录类型: '内部推进', '沟通 / 推进方式': '电话' },
+    { 实际发生时间: row.record.实际发生时间 }), /内部推进方式/);
+});
