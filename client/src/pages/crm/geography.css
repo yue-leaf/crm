@@ -1,8 +1,9 @@
 .customer-view-tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid #e3e7ee; }
 .customer-view-tabs button { padding: 10px 16px; border-bottom: 2px solid transparent; color: #646a73; font-size: 14px; }
 .customer-view-tabs button[aria-pressed='true'] { color: #245bdb; border-color: #245bdb; font-weight: 600; }
-.customer-region-field { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
-.customer-region-field label { display: block; margin-bottom: 6px; font-size: 12px; color: #646a73; }
+.customer-region-field { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 21px; }
+.customer-region-field > div { min-width: 0; }
+.customer-region-field [data-slot='select-trigger'], .geography-filters [data-slot='select-trigger'] { width: 100%; }
 .customer-region-field .region-address, .region-unresolved { grid-column: 1 / -1; }
 .region-unresolved { color: #8a9099; font-size: 12px; margin: 0; }
 .customer-geography { display: grid; gap: 18px; }
