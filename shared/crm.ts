@@ -52,7 +52,7 @@ export const forms: Record<EntityKind, FieldSpec[]> = {
       required: true,
       options: ['化工', '制药', '高校及科研院所', 'CDMO/CMO', '材料', '其他'],
     },
-    { key: '地区', type: 'text', required: true },
+    { key: '地区', type: 'text' },
     { key: '客户负责人', type: 'person' },
     { key: '客户备注', type: 'long' },
   ],

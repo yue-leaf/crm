@@ -1,0 +1,53 @@
+.customer-view-tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid #e3e7ee; }
+.customer-view-tabs button { padding: 10px 16px; border-bottom: 2px solid transparent; color: #646a73; font-size: 14px; }
+.customer-view-tabs button[aria-pressed='true'] { color: #245bdb; border-color: #245bdb; font-weight: 600; }
+.customer-region-field { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.customer-region-field label { display: block; margin-bottom: 6px; font-size: 12px; color: #646a73; }
+.customer-region-field .region-address, .region-unresolved { grid-column: 1 / -1; }
+.region-unresolved { color: #8a9099; font-size: 12px; margin: 0; }
+.customer-geography { display: grid; gap: 18px; }
+.geography-filters { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px 16px; padding: 18px 20px; }
+.geography-filters > label { display: grid; gap: 7px; width: 170px; font-size: 12px; color: #646a73; }
+.geography-filters > .geography-query { width: 280px; }
+.geography-filter-actions { display: flex; gap: 8px; }
+.geography-body { display: grid; grid-template-columns: 205px minmax(0, 1fr); gap: 18px; align-items: start; }
+.geography-regions { padding: 10px; max-height: 72vh; overflow-y: auto; }
+.geography-regions button { display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; width: 100%; padding: 10px; border-radius: 6px; font-size: 13px; }
+.geography-regions button:hover { background: #f5f7fa; }
+.geography-regions button[aria-pressed='true'] { background: #edf3ff; color: #245bdb; font-weight: 600; }
+.geography-regions button span { font-variant-numeric: tabular-nums; color: #8a9099; }
+.geography-cities { padding-left: 14px; }
+.geography-cities button { font-size: 12px; }
+.geography-results { min-width: 0; overflow: hidden; }
+.geography-result-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid #edf0f5; }
+.geography-result-heading h2 { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; margin: 0; }
+.geography-result-heading > span, .geography-muted, .geography-more { color: #8a9099; font-size: 12px; }
+.geography-table-scroll { overflow-x: auto; }
+.geography-table { width: 100%; min-width: 800px; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
+.geography-table th { padding: 12px 16px; text-align: left; background: #f7f8fa; color: #646a73; font-size: 12px; font-weight: 400; }
+.geography-table th:first-child { width: 27%; }
+.geography-table th:nth-child(2) { width: 21%; }
+.geography-table th:nth-child(3) { width: 15%; }
+.geography-table th:nth-child(4) { width: 25%; }
+.geography-table th:last-child { width: 12%; }
+.geography-table td { padding: 16px; vertical-align: top; border-bottom: 1px solid #edf0f5; overflow-wrap: anywhere; line-height: 1.7; }
+.geography-table .people { max-width: 100%; flex-wrap: wrap; }
+.geography-address { font-size: 12px; color: #646a73; margin-top: 6px; }
+.geography-contact + .geography-contact { margin-top: 10px; }
+.geography-contact > button { color: #245bdb; text-align: left; }
+.geography-contact > div { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: #646a73; }
+.geography-contact > div > button { padding: 4px; border-radius: 4px; }
+.geography-contact > div > button:hover { background: #edf3ff; }
+.geography-contact small { font-size: 12px; color: #646a73; }
+.geography-followup { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: left; color: #4e5969; margin-top: 6px; }
+.geography-followup:hover { color: #245bdb; text-decoration: underline; }
+.geography-more { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; }
+.customer-geography button:focus-visible, .customer-view-tabs button:focus-visible { outline: 2px solid #3370ff; outline-offset: 2px; }
+@media (max-width: 900px) {
+  .geography-body { grid-template-columns: minmax(0, 1fr); }
+  .geography-regions { max-height: 240px; }
+}
+@media (max-width: 640px) {
+  .geography-filters > label, .geography-filters > .geography-query { width: 100%; }
+  .customer-region-field { grid-template-columns: minmax(0, 1fr); }
+}

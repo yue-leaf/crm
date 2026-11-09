@@ -51,7 +51,7 @@ test('day rollover refreshes data without clearing dialogs or drafts and runs on
 });
 test('background workspace reload does not clear existing overview data and collapse its dialog',async()=>{
  const {node,ast}=find('CrmPage.tsx',(n,a)=>ts.isVariableDeclaration(n)&&n.name.getText(a)==='reload');
- const updates=[];const c={authorized:true,active:'home',requestVersion:{current:0},setLoading:()=>{},setError:()=>{},setOverview:v=>updates.push(v),api:{workspace:async()=>({scope:'all',total:1})},scope:'all'};
+ const updates=[];const c={authorized:true,geographyView:false,active:'home',requestVersion:{current:0},setLoading:()=>{},setError:()=>{},setOverview:v=>updates.push(v),api:{workspace:async()=>({scope:'all',total:1})},scope:'all'};
  vm.createContext(c);vm.runInContext(compile(`globalThis.reload=${node.initializer.arguments[0].getText(ast)};`),c);await c.reload();
  assert.equal(updates.length,1);assert.ok(updates[0]);
 });

@@ -1,3 +1,4 @@
+import { customerGeography } from '@shared/crm-geography';
 import { explicitlyEnded, followupChains, projectFollowupSummary, sameFollowupTarget, validChainTime } from '@shared/crm-followup-chain';
 import { CrmFollowupWrites, writeMarker } from './crm-followup-writes';
 import type { FollowupWritePermit } from './crm-followup-writes';
@@ -309,6 +310,12 @@ export class CrmService {
       tokens.add(next.pageToken); cursor = next.pageToken;
     }
     throw new BadGatewayException('数据数量超出当前统计读取范围，未显示不完整统计，请联系管理员');
+  }
+  async geography() {
+    const [customer, contact, project, followup] = await Promise.all([
+      this.allBusiness('customer'), this.allBusiness('contact'), this.allBusiness('project'), this.allBusiness('followup'),
+    ]);
+    return customerGeography({ customer, contact, project, followup });
   }
   private async workspaceModel(scope: string, userId: string) {
     const checked = this.projectScope(scope);

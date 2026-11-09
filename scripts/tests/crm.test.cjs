@@ -69,7 +69,7 @@ test('edit rejects management fields, parent migration and no changes; reason is
   for (const changes of [
     { 核查标记: '正常' },
     { 已归档: false },
-    { 地区: null },
+    { 企业全称: null },
     {},
   ])
     assert.throws(() =>

@@ -39,6 +39,22 @@ export interface RelatedSource {
   id: string;
   name: string;
 }
+export interface CustomerGeoEntry {
+  id: string;
+  name: string;
+  province: string;
+  city: string;
+  address: string;
+  originalRegion: string;
+  owners: string[];
+  contacts: { id: string; name: string; phone: string; email: string }[];
+  projectCount: number;
+  latestFollowup: { id: string; occurredAt: number; conclusion: string } | null;
+}
+export interface CustomerGeoData {
+  customers: CustomerGeoEntry[];
+  generatedAt: number;
+}
 export interface FollowupPage extends CrmPage {
   sources: Record<string, RelatedSource>;
 }

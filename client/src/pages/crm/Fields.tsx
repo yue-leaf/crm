@@ -1,3 +1,5 @@
+import { parseCustomerRegion } from '@shared/crm-region';
+import { RegionField } from './RegionField';
 import { loadEmployeeOptions } from './employeeOptions';
 import React, { useId, useState } from 'react';
 import { zhCN } from 'date-fns/locale';
@@ -54,6 +56,10 @@ export const Cell: React.FC<{ name: string; value: unknown; onOpenCustomer?: (id
   onOpenRecord,
 }) => {
   if (name === '附件') return <AttachmentList value={value} />;
+  if (name === '地区') {
+    const region = parseCustomerRegion(textValue(value));
+    return <span>{[region.province, region.city === region.province ? '' : region.city, region.address].filter(Boolean).join(' ') || '—'}</span>;
+  }
   const booleanLabel = displayBoolean(name, value);
   if (booleanLabel !== null) return <span className={name === '已归档' ? 'tag neutral' : undefined}>{booleanLabel}</span>;
   if (personKeys.has(name) && Array.isArray(value))
@@ -161,7 +167,7 @@ export const FieldInput: React.FC<{
     slotProps: { popover: { collisionPadding: 12 } },
   };
   return (
-    <div className={`field ${f.type === 'long' || f.type === 'attachment' ? 'wide' : ''}`} data-field={f.key}
+    <div className={`field ${f.type === 'long' || f.type === 'attachment' || f.key === '地区' ? 'wide' : ''}`} data-field={f.key}
       data-invalid={Boolean(error)} role="group" aria-labelledby={`${fieldId}-label`}
       aria-describedby={error ? `${fieldId}-error` : undefined} onClickCapture={(event) => {
       // The platform clear button omits type; clearing a person must not submit this form.
@@ -172,7 +178,7 @@ export const FieldInput: React.FC<{
         {f.label || f.key}
         {f.required && <em> *</em>}
       </label>
-      {f.type === 'attachment' ? <AttachmentField value={Array.isArray(draft[f.key]) ? draft[f.key] as string[] : []}
+      {f.key === '地区' ? <RegionField id={fieldId} value={String(draft[f.key] || '')} disabled={disabled} onChange={set} /> : f.type === 'attachment' ? <AttachmentField value={Array.isArray(draft[f.key]) ? draft[f.key] as string[] : []}
         onChange={set} disabled={disabled} onBusy={onUploadBusy} /> : f.type === 'person' ? (
         <>
           {f.multiple ? (

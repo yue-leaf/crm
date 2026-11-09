@@ -60,6 +60,12 @@ export class CrmController {
     return this.crm.summary();
   }
 
+  @Get('customers/geography')
+  geography(@Req() req: Request) {
+    this.session(req);
+    return this.crm.geography();
+  }
+
   @Get('customers/:id/contacts')
   customerContacts(@Req() req: Request, @Param('id') id: string, @Query('cursor') cursor?: string,
     @Query('search') search?: string) {

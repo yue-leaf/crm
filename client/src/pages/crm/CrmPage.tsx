@@ -1,3 +1,4 @@
+import { CustomerGeography } from './CustomerGeography';
 import { PreviousFollowup } from './PreviousFollowup';
 import { DeleteDialog, PendingDeletions } from './DeleteDialog';
 import type { DeleteKind, DeletionPreview } from '@shared/api.interface';
@@ -40,6 +41,7 @@ import {
 import { api, SaveOutcomeUnknown } from '@/api/crm';
 import type {
   CrmPage as PageData,
+  CustomerGeoData,
   CrmRecord,
   CrmSession,
   ProjectScope,
@@ -175,6 +177,7 @@ const CrmPage: React.FC = () => {
   const rawFilter = params.get('projectFilter') || 'all';
   const projectFilter: ProjectFilter = validProjectFilter(rawFilter) ? rawFilter : 'all';
   const active = crmSection(section);
+  const geographyView = active === 'customer' && params.get('customerView') === 'geography';
   const now = useFollowupClock();
   const currentDay = shanghaiDay(now);
   const rawFollowupFilter = params.get('followupFilter') || 'all';
@@ -187,6 +190,7 @@ const CrmPage: React.FC = () => {
   const openedDeepLink = useRef('');
   const [overview, setOverview] = useState<WorkspaceData | null>(null);
   const [data, setData] = useState<PageData | null>(null);
+  const [geography, setGeography] = useState<CustomerGeoData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -294,7 +298,10 @@ const CrmPage: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      if (active === 'home') {
+      if (geographyView) {
+        const next = await api.customerGeography();
+        if (version === requestVersion.current) setGeography(next);
+      } else if (active === 'home') {
         const next = await api.workspace(scope);
         if (version === requestVersion.current) setOverview(next);
       } else {
@@ -310,14 +317,15 @@ const CrmPage: React.FC = () => {
         if (version === requestVersion.current) setData(next);
       }
     } catch (e: unknown) {
-      if (version === requestVersion.current) setError(message(e));
+      if (version === requestVersion.current) { setError(message(e)); if (geographyView) setGeography(null); }
     } finally {
       if (version === requestVersion.current) setLoading(false);
     }
-  }, [active, authorized, listSearch, scope, projectFilter, followupFilter, listCustomerId, listProjectId]);
+  }, [active, authorized, geographyView, listSearch, scope, projectFilter, followupFilter, listCustomerId, listProjectId]);
   useEffect(() => {
     setData(null);
     setOverview(null);
+    setGeography(null);
     setSelection(null);
     void reload();
     return () => {
@@ -759,6 +767,10 @@ const CrmPage: React.FC = () => {
                   )}
                 </div>
               </div>
+              {active === 'customer' && <div className="customer-view-tabs" role="group" aria-label="客户管理视图">
+                <button type="button" aria-pressed={!geographyView} onClick={() => { if (geographyView) updateFilter('customerView', 'all'); }}>客户列表</button>
+                <button type="button" aria-pressed={geographyView} onClick={() => { if (!geographyView) updateFilter('customerView', 'geography'); }}>地区分布</button>
+              </div>}
               {error && active !== 'home' && (
                 <div className="error-banner" role="alert">
                   {error}
@@ -770,6 +782,11 @@ const CrmPage: React.FC = () => {
                   onOpenLoaded={(row, kind) => detail(row, kind, undefined, 'followups', true)}
                   onContinue={continueFollowup} onEnd={row => edit(row, 'followup', 'end-followup')}
                   onCreate={() => openEditor('followup', 'create')} />
+              ) : geographyView ? (
+                <CustomerGeography data={geography} loading={loading} busy={saving || uploading}
+                  onView={(row, kind) => detail(row, kind)}
+                  onContacts={id => detail({ id, record: {} }, 'customer', undefined, 'contacts')}
+                  onProjects={id => detail({ id, record: {} }, 'customer', undefined, 'projects')} />
               ) : (
                 <section className="panel list-panel">
                   <form

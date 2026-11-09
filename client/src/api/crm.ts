@@ -2,6 +2,7 @@ import { isAxiosError } from 'axios';
 import { axiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
 import type {
   CrmPage,
+  CustomerGeoData,
   CrmMemberOption,
   CrmRecord,
   CrmSession,
@@ -62,6 +63,7 @@ async function request<T>(
   }
 }
 export const api = {
+  customerGeography: () => request<CustomerGeoData>('customers/geography'),
   deletionPreview: (kind: DeleteKind, id: string) => request<DeletionPreview>('deletions/preview','POST',{kind,id}),
   deletionStep: (id: string) => request<DeletionPreview>(`deletions/${id}/step`,'POST'),
   deletionInspect: (id: string) => request<DeletionPreview>(`deletions/${id}`),
