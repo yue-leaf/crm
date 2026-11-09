@@ -1,3 +1,4 @@
+import { CrmSidebar } from './CrmSidebar';
 import { CustomerGeography } from './CustomerGeography';
 import { PreviousFollowup } from './PreviousFollowup';
 import { DeleteDialog, PendingDeletions } from './DeleteDialog';
@@ -10,11 +11,7 @@ import { defaultEmployeeSelection } from '@shared/crm-people';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  Building2,
   Users,
-  FolderKanban,
-  MessageSquareText,
-  LayoutDashboard,
   ShieldCheck,
   ArrowUpRight,
   Plus,
@@ -24,7 +21,6 @@ import {
   Pencil,
   Eye,
   ArrowLeft,
-  Bell,
   Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -100,13 +96,6 @@ import {
 } from '@shared/crm-followup-target';
 import './crm.css';
 
-const icons = {
-  customer: Building2,
-  contact: Users,
-  project: FolderKanban,
-  followup: MessageSquareText,
-  access: ShieldCheck,
-};
 const columns: Record<EntityKind, string[]> = {
   customer: [
     '企业全称',
@@ -662,46 +651,8 @@ const CrmPage: React.FC = () => {
   };
   return (
     <RelatedPageMemory.Provider value={relatedMemory.current}><div className="crm-shell">
-      <aside className="crm-sidebar">
-        <div className="brand">
-          <span>
-            <Building2 size={23} />
-          </span>
-          <div>
-            客户与项目<b>协作管理</b>
-          </div>
-        </div>
-        <div className="nav-caption">协作空间</div>
-        <nav>
-          <Button
-            variant="ghost"
-            className={active === 'home' ? 'selected' : ''}
-            onClick={() => changePage('home')}
-          >
-            <LayoutDashboard size={18} />
-            工作台
-          </Button>
-          {(Object.keys(labels) as EntityKind[]).filter(key => key !== 'contact' && (key !== 'access' || admin)).map((key) => {
-            const Icon = icons[key];
-            return (
-              <Button
-                key={key}
-                variant="ghost"
-                className={active === key ? 'selected' : ''}
-                onClick={() => changePage(key)}
-              >
-                <Icon size={18} />
-                {sectionLabels[key]}
-              </Button>
-            );
-          })}
-          {admin && <Button variant="ghost" onClick={() => setNotificationOpen(true)}><Bell size={18} />通知设置</Button>}
-        </nav>
-        <div className="sidebar-bottom">
-          <ShieldCheck size={16} /> 企业数据 · 飞书连接
-          <p>让每一次协作，都有下一步。</p>
-        </div>
-      </aside>
+      <CrmSidebar active={active} admin={admin} onNavigate={changePage}
+        onNotifications={() => setNotificationOpen(true)} />
       <div className="crm-main">
         <header className="crm-topbar">
           <span>

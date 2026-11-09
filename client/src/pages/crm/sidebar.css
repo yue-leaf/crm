@@ -1,0 +1,23 @@
+.crm-sidebar .sidebar-heading { position: relative; padding-top: 30px; }
+.crm-sidebar .sidebar-toggle { position: absolute; top: -14px; right: 0; color: #646a73; }
+.crm-sidebar nav { min-height: 0; overflow-y: auto; }
+.crm-sidebar nav button { width: 100%; flex-shrink: 0; }
+.crm-sidebar nav button svg { flex-shrink: 0; }
+.crm-sidebar .sidebar-bottom { flex-shrink: 0; }
+.crm-sidebar.is-collapsed { width: 72px; padding-right: 12px; padding-left: 12px; }
+.crm-sidebar.is-collapsed .brand { justify-content: center; padding: 0 0 24px; }
+.crm-sidebar.is-collapsed .sidebar-toggle { right: 4px; }
+.crm-sidebar.is-collapsed .sidebar-brand-text,
+.crm-sidebar.is-collapsed .nav-caption,
+.crm-sidebar.is-collapsed .sidebar-nav-label,
+.crm-sidebar.is-collapsed .sidebar-bottom { display: none; }
+.crm-sidebar.is-collapsed nav button { justify-content: center; padding-inline: 0; gap: 0; }
+@media (max-width: 700px) {
+  .crm-sidebar .sidebar-heading { padding-top: 0; }
+  .crm-sidebar .sidebar-toggle { top: 0; }
+  .crm-sidebar .brand { padding-right: 48px; }
+  .crm-sidebar nav button { width: auto; }
+  .crm-sidebar.is-collapsed { width: auto; }
+  .crm-sidebar.is-collapsed .brand { justify-content: flex-start; padding: 0 48px 12px 0; }
+  .crm-sidebar.is-collapsed nav button { width: 44px; }
+}
