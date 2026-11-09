@@ -40,7 +40,7 @@ test('unmounted action does not update state or show a stale error',async()=>{
 });
 function navigation() {
  const source=fs.readFileSync(path.join(root,'CrmPage.tsx'),'utf8');const ast=ts.createSourceFile('CrmPage.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
- const wanted=new Set(['edit','detail','workspaceAction']);const bodies=[];
+ const wanted=new Set(['edit','detail']);const bodies=[];
  function walk(node){if(ts.isVariableDeclaration(node)&&wanted.has(node.name.getText(ast))) bodies.push(`const ${node.getText(ast)};`);ts.forEachChild(node,walk);}walk(ast);
  const reads=[];const opened=[];const selected=[];const errors=[];const ref=()=>({current:0});
  const context={loadCustomerContactDrafts:async()=>[],active:'customer',savingRef:{current:false},uploadingRef:{current:false},requestVersion:ref(),editorRequestVersion:ref(),detailVersion:ref(),
@@ -49,7 +49,7 @@ function navigation() {
  openEditor:(kind,op,row)=>{context.editorRequestVersion.current++;context.detailVersion.current++;opened.push({kind,op,id:row?.id});},
  currentLocation:()=>null,setDetailTrail:()=>{},setScrollRequest:()=>{},setSelectionKind:()=>{},setDetailTab:()=>{},linkIds:()=>[],setCustomerContext:()=>{},setSelection:row=>selected.push(row.id),
  relatedDraft:()=>({})};
- vm.createContext(context);vm.runInContext(compile(bodies.join('\n')+'\nglobalThis.handlers={edit,detail,workspaceAction};'),context);
+ vm.createContext(context);vm.runInContext(compile(bodies.join('\n')+'\nglobalThis.handlers={edit,detail};'),context);
  return {context,reads,opened,selected,errors,...context.handlers};
 }
 const row=id=>({id,record:{}});
@@ -64,9 +64,4 @@ test('switching between view and edit cannot open the previous action afterward'
   n.reads[0].resolve(row('a'));await a;assert.equal(n.opened.length+n.selected.length,0);
   n.reads[1].resolve(row('b'));await b;assert.equal(n.opened.length+n.selected.length,1);
  }
-});
-test('latest workspace followup supersedes an earlier one; obsolete failures stay quiet',async()=>{
- const n=navigation();const a=n.workspaceAction('customer','a');const b=n.workspaceAction('customer','b');
- n.reads[0].reject(new Error('old'));await a;assert.equal(n.errors.length,0);
- n.reads[1].resolve(row('b'));await b;assert.deepEqual(n.opened,[{kind:'followup',op:'create',id:undefined}]);
 });

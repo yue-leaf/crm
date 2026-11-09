@@ -448,22 +448,6 @@ const CrmPage: React.FC = () => {
     // Open once when the linked page finishes its initial load; closing stays closed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, recordLink, authorized, loading]);
-  const workspaceAction = async (kind: 'customer' | 'project', id: string) => {
-    if (savingRef.current || uploadingRef.current) return;
-    detailVersion.current++;
-    const version = requestVersion.current;
-    const editorRequest = ++editorRequestVersion.current;
-
-    try {
-      const row = await api.get(kind, id);
-      if (version !== requestVersion.current || editorRequest !== editorRequestVersion.current) return;
-      const blocked = advancementBlocked(kind, row);
-      if (blocked) { toast.error(blocked); return; }
-      openEditor('followup', 'create', undefined, relatedDraft(kind, row, 'followup'));
-    } catch (e: unknown) {
-      if (version === requestVersion.current && editorRequest === editorRequestVersion.current) toast.error(message(e));
-    }
-  };
   const resumeFollowup = (contactId?: string) => {
     const suspended = suspendedEditor.current;
     if (!suspended) return false;
@@ -784,7 +768,6 @@ const CrmPage: React.FC = () => {
                 <ProjectDashboard data={overview} loading={loading} error={error} busy={saving || uploading}
                   onRetry={() => void reload()} onOpen={(row, kind) => detail(row, kind)}
                   onOpenLoaded={(row, kind) => detail(row, kind, undefined, 'followups', true)}
-                  onAction={workspaceAction}
                   onContinue={continueFollowup} onEnd={row => edit(row, 'followup', 'end-followup')}
                   onCreate={() => openEditor('followup', 'create')} />
               ) : (

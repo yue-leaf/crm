@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowRight, CalendarDays, Clock3, CircleAlert, ListTodo, Paperclip, Plus } from 'lucide-react';
+import { ArrowRight, CalendarDays, Clock3, ListTodo, Paperclip, Plus } from 'lucide-react';
 import { ActionButton as Button } from './ActionButton';
 import type { CrmRecord } from '@shared/api.interface';
 import { taskLabels, taskMatches, taskFilterFromLink } from '@shared/crm-workspace';
 import type { WorkspaceData, WorkspaceKind, TaskFilter } from '@shared/crm-workspace';
-import { projectStates } from '@shared/crm-dashboard';
 import { Cell } from './Fields';
 import { displayDate } from '@shared/crm-presentation';
 import { WorkspaceRecords } from './WorkspaceRecords';
@@ -15,12 +14,11 @@ interface Props {
   data: WorkspaceData | null; loading: boolean; error: string; busy: boolean; onRetry: () => void;
   onOpen: (row: CrmRecord, kind: WorkspaceKind) => void | Promise<void>;
   onOpenLoaded: (row: CrmRecord, kind: WorkspaceKind) => void | Promise<void>;
-  onAction: (kind: 'customer' | 'project', id: string) => void | Promise<void>;
   onContinue: (row: CrmRecord) => void | Promise<void>;
   onEnd: (row: CrmRecord) => void | Promise<void>;
   onCreate: () => void;
 }
-export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, onRetry, onOpen, onOpenLoaded, onAction, onCreate, onContinue, onEnd }) => {
+export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, onRetry, onOpen, onOpenLoaded, onCreate, onContinue, onEnd }) => {
   const [params] = useSearchParams();
   const linkedFilter = params.get('taskFilter');
   const initialFilter: TaskFilter = taskFilterFromLink(linkedFilter);
@@ -92,20 +90,6 @@ export const ProjectDashboard: React.FC<Props> = ({ data, loading, error, busy, 
             : <button disabled={disabled} onClick={() => show(item.kind, 'month', `本月新增${item.kind === 'customer' ? '客户' : '跟进'}`)}>本月新增 <b>{count(data?.totals[item.kind].monthNew)}</b></button>}</div>
         </div>)}</div>
     </section>
-    <div className="workspace-bottom-grid">
-      <section className="panel"><div className="workspace-heading"><h2>项目状态分布</h2></div>
-        <div className="workspace-states">{projectStates.map(state => <button key={state} disabled={disabled} onClick={() => show('project', state, `${state}项目`)}><span>{state}</span>
-          <div className="workspace-bar" aria-hidden="true"><i className={`bar-${state}`} style={{ width: data ? `${(data.project.states[state] || 0) / Math.max(1, ...Object.values(data.project.states)) * 100}%` : '0%' }} /></div><strong>{count(data?.project.states[state])}</strong></button>)}</div>
-        <div className="workspace-state-footer">
-          {!!data?.project.unknown && <button onClick={() => show('project', 'unknown', '待核对状态的项目')}><CircleAlert size={14} />状态待核对 {data.project.unknown}</button>}</div>
-      </section>
-      <section className="panel"><div className="workspace-heading"><h2>需要关注的客户</h2><Button size="sm" variant="ghost" disabled={disabled} onClick={() => show('customer', 'attention', '需要关注的客户')}>查看全部{data ? ` (${data.attentionTotal})` : ''}<ArrowRight size={14} /></Button></div>
-        {!disabled && data.attention.length ? <div className="workspace-attention">{data.attention.map(row => <article key={row.id}>
-          <div><button className="workspace-name" onClick={() => open('customer', row.id)}>{row.name}</button><small>{row.lastAt ? `${row.days} 天未互动 · 最近 ${displayDate('下次跟进日期', row.lastAt)}` : `建档 ${row.days} 天，暂无有效跟进`}</small><small>在办项目 {row.activeProjects} 个</small></div>
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => onAction('customer', row.id)}>记录跟进</Button>
-        </article>)}</div> : empty('暂无长期未联系的客户')}
-      </section>
-    </div>
     {drilldown && data && <WorkspaceRecords key={`${data.scope}:${drilldown.kind}:${drilldown.filter}`} scope={data.scope} selection={drilldown} onClose={() => setDrilldown(null)} onOpen={onOpenLoaded} />}
   </div>;
 };

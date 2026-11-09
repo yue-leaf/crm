@@ -65,23 +65,6 @@
 .workspace-total-details { display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 12px 24px; background: #fafbfd; border-top: 1px solid #edf0f5; }
 .workspace-total-details button { font-size: 12px; color: #68717d; }
 .workspace-total-details b { font-weight: 600; color: #394658; margin-left: 5px; }
-.workspace-bottom-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-.workspace-states { padding: 0 24px 18px; display: grid; gap: 15px; }
-.workspace-states button { display: flex; align-items: center; gap: 18px; font-size: 13px; }
-.workspace-states button > span { width: 48px; text-align: left; color: #606a78; flex-shrink: 0; }
-.workspace-states strong { width: 35px; text-align: right; color: #394658; font-weight: 500; }
-.workspace-bar { height: 7px; background: #f0f2f5; border-radius: 4px; flex: 1; overflow: hidden; }
-.workspace-bar i { display: block; height: 100%; background: #aebcd2; border-radius: inherit; }
-.workspace-bar .bar-进行中 { background: #7298e0; }
-.workspace-bar .bar-暂停 { background: #e3b777; }
-.workspace-bar .bar-已签合同 { background: #80bba4; }
-.workspace-state-footer { display: flex; flex-wrap: wrap; gap: 20px; border-top: 1px solid #edf0f5; padding: 14px 24px; }
-.workspace-state-footer button { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #68717d; }
-.workspace-attention { padding: 0 20px; }
-.workspace-attention article { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid #edf0f5; padding: 15px 0; }
-.workspace-attention article > div { min-width: 0; }
-.workspace-attention article > button { flex-shrink: 0; }
-.workspace-attention small { display: block; color: #8a929e; font-size: 12px; margin-top: 5px; }
 .workspace-search { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .workspace-search input { flex: 1; min-width: 0; }
 .workspace-search > span { color: #8a929e; font-size: 12px; white-space: nowrap; }
@@ -97,7 +80,7 @@
   .workspace-metric { padding: 16px; }
   .workspace-metric strong { font-size: 28px; margin-top: 10px; }
   .workspace-metric .metric-arrow { right: 16px; bottom: 20px; }
-  .workspace-totals, .workspace-bottom-grid, .workspace-feed { grid-template-columns: 1fr; }
+  .workspace-totals, .workspace-feed { grid-template-columns: 1fr; }
   .workspace-total-main { padding: 16px 20px; }
   .workspace-total-details { padding: 10px 20px; }
   .workspace-table-scroll { overflow: visible; }
