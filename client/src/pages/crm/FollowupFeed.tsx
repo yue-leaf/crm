@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { MessageSquareText, ArrowUpRight } from 'lucide-react';
+import { MessageSquareText } from 'lucide-react';
 import { ActionButton as Button } from './ActionButton';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -52,11 +52,9 @@ export function FollowupFeed({ kind, id, busy, onView, view, onViewChange, onCon
           !!textValue(row.record['建议下一步行动']) || row.record['建议日期'] != null || hasSuggestedPeople;
         return <article key={row.id} className={`followup-entry ${textValue(row.record['记录状态']) === '已作废' ? 'followup-void' : ''}`}>
           <span className="followup-dot"><MessageSquareText size={14} /></span>
-          <div className="followup-entry-heading"><button type="button" className="record-title followup-source-title" disabled={busy}
-            onClick={() => source ? onView({ id: source.id, record: {} }, source.kind) : onView(row, 'followup')}>
-            <span>{source ? `${source.kind === 'project' ? '项目' : '客户'}：${source.name}` : '跟进记录'}</span>
-            {source && <ArrowUpRight size={14} aria-hidden="true" />}
-          </button><Cell name="实际发生时间" value={row.record['实际发生时间']} /></div>
+          <div className="followup-entry-heading"><h4 className="followup-source-title">
+            {source ? `${source.kind === 'project' ? '项目' : '客户'}：${source.name}` : '跟进记录'}
+          </h4><Cell name="实际发生时间" value={row.record['实际发生时间']} /></div>
           <div className="followup-meta"><Cell name="实际跟进人" value={row.record['实际跟进人']} />
             <span>{textValue(row.record['记录类型'])}</span><span>{row.followup?.state}</span>
             {textValue(row.record['记录状态']) === '已作废' && <Cell name="记录状态" value={row.record['记录状态']} />}</div>
