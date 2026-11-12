@@ -162,11 +162,29 @@ test('preview and manual test both use the current account personal scope', asyn
   const controller = new CrmNotificationsController({ preview: (...values) => args.push(values) });
   controller.preview({ userContext: { userId: '123', roles: ['crm_admin'] } });
   assert.equal(args[0][1], '123');
-  const h = harness([[], [{ id: 'delivery' }]]);
+  const h = harness([[], [{ id: 'delivery' }], [{ status: 'accepted', detail: 'accepted' }]]);
   h.service.preview = async (...values) => { args.push(values); return preview(); };
   h.service.state = async () => ({ settings: {}, logs: [] });
   await h.service.test('123', '12345678-1234-1234-1234-123456789abc');
   assert.equal(args[1][1], '123');
+});
+
+test('manual tests return only the current request result and rate-limit by recipient',async()=>{
+ const {PgDialect}=require('drizzle-orm/pg-core');
+ const key='12345678-1234-1234-1234-123456789abc';
+ const conditions=[];
+ const outcomes=[[],[{status:'uncertain',detail:'own request pending'}]];
+ const db={select:()=>({from:()=>({where:condition=>{
+   conditions.push(new PgDialect().sqlToQuery(condition));
+   return {orderBy:()=>({limit:async()=>outcomes.shift()}),limit:async()=>outcomes.shift()};
+ }})})};
+ const service=new CrmNotificationsService(db,{},{},{});
+ service.preview=async()=>preview();service.deliver=async()=>{};
+ service.state=async()=>{throw Error('must not use global history, including another administrator success');};
+ const result=await service.test('123',key);
+ assert.deepEqual(result,{requestId:key,status:'uncertain',detail:'own request pending'});
+ assert.ok(conditions[0].params.includes('123'));
+ assert.deepEqual(conditions[1].params,[`test:123:${key}`]);
 });
 
 test('incomplete data is not sent; read retries stop after third attempt', async () => {

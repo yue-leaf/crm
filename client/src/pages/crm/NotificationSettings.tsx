@@ -65,8 +65,7 @@ export const NotificationSettings: React.FC<{ onClose: () => void }> = ({ onClos
             <Button variant="outline" disabled={!!busy} onClick={() => void perform('preview', async () => setPreview(await api.notificationPreview()))}>预览我的简报</Button>
             <Button variant="outline" disabled={!!busy} onClick={() => void perform('test', async () => {
               testId.current ||= crypto.randomUUID();
-              const value = await api.notificationTest(testId.current); setState(value);
-              const sent = value.logs.find(log => log.mode === 'test');
+              const sent = await api.notificationTest(testId.current);
               if (sent?.status === 'accepted') { toast.success('测试消息已提交飞书，仅发送给当前账号'); testId.current = null; }
               else setError(sent?.detail || '发送结果暂未确认，请先检查飞书消息，避免重复发送');
             })}>发送测试给我</Button></div>

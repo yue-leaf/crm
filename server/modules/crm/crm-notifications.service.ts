@@ -3,7 +3,7 @@ import { BadRequestException, ConflictException, Inject, Injectable, Logger } fr
 import { AuthNPaasService, CapabilityService, DRIZZLE_DATABASE, type PostgresJsDatabase } from '@lark-apaas/fullstack-nestjs-core';
 import { and, desc, eq, gte, lt, or, sql } from 'drizzle-orm';
 import { crmNotificationDelivery as deliveries, crmNotificationSetting as settings } from '../../database/schema';
-import type { NotificationPreview, NotificationSettings, NotificationState } from '@shared/api.interface';
+import type { NotificationPreview, NotificationSettings, NotificationState, NotificationTestResult } from '@shared/api.interface';
 import { buildNotification, nextNotificationAt, notificationDay, validateNotificationSettings } from '@shared/crm-notifications';
 import { CrmService } from './crm.service';
 
@@ -96,15 +96,18 @@ export class CrmNotificationsService {
     }
   }
 
-  async test(actorId: string, key: unknown): Promise<NotificationState> {
+  async test(actorId: string, key: unknown): Promise<NotificationTestResult> {
     if (typeof key !== 'string' || !/^[a-f0-9-]{36}$/i.test(key)) throw new BadRequestException('测试请求标识无效');
     const [recent] = await this.db.select().from(deliveries)
-      .where(eq(deliveries.mode, 'test')).orderBy(desc(deliveries.createdAt)).limit(1);
+      .where(and(eq(deliveries.mode, 'test'), eq(deliveries.recipient, actorId))).orderBy(desc(deliveries.createdAt)).limit(1);
     if (recent && recent.deliveryKey !== `test:${actorId}:${key}` && Date.now() - recent.createdAt.getTime() < 60000)
       throw new BadRequestException('请稍后再发送测试，间隔至少一分钟');
     const preview = await this.preview(Date.now(), actorId);
     await this.deliver(`test:${actorId}:${key}`, actorId, 'test', preview);
-    return this.state();
+    const [sent] = await this.db.select().from(deliveries)
+      .where(eq(deliveries.deliveryKey, `test:${actorId}:${key}`)).limit(1);
+    return { requestId: key, status: sent?.status || 'uncertain',
+      detail: sent?.detail || '发送结果未确认，请先检查飞书消息，避免重复发送' };
   }
 
   private async advance(config: Setting, now: number): Promise<void> {

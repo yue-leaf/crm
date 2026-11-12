@@ -4,6 +4,9 @@ import { followupTarget } from './crm-workflow';
 import { shanghaiDay } from './crm-followup-status';
 
 export const validChainTime = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && Number.isFinite(new Date(v).getTime());
+export const deletedContinuationMarker = (id: string): string => `已跟进保留 · 删除后续记录 ${id}`;
+export const retainedFollowup = (record: CrmRecord['record']): boolean =>
+  /^已跟进保留 · 删除后续记录 rec[A-Za-z0-9]+$/m.test(textValue(record['管理记录']));
 export function explicitlyEnded(record: CrmRecord['record']): boolean {
   if (textValue(record['后续处理']) !== '已结束') return false;
   // A later resume supersedes an old end, even if a no-action edit stores 已结束 again.
@@ -14,7 +17,7 @@ export function sameFollowupTarget(a: CrmRecord, b: CrmRecord): boolean {
   const first = followupTarget(a), second = followupTarget(b);
   return !!first && !!second && first.kind === second.kind && first.id === second.id;
 }
-/** The child relation is the acknowledgement. Creating a continuation needs only one Base write. */
+/** Live children or a retained deletion acknowledgement prove the followup was handled. */
 export function followupChains(rows: CrmRecord[], now = Date.now()): CrmRecord[] {
   const byId = new Map(rows.map(row => [row.id, row]));
   const children = new Map<string, string[]>();
@@ -31,7 +34,7 @@ export function followupChains(rows: CrmRecord[], now = Date.now()): CrmRecord[]
     let state: FollowupChain['state'];
     if (textValue(r['记录状态']) === '已作废') state = '已作废';
     else if (textValue(r['记录状态']) !== '正常') state = '待核对';
-    else if (nextIds.length) state = '已跟进';
+    else if (nextIds.length || retainedFollowup(r)) state = '已跟进';
     else if (explicitlyEnded(r)) state = '已结束';
     else if (!['', '待跟进', '已结束'].includes(textValue(r['后续处理'])) || textValue(r['数据检查']).trim() ||
       !validChainTime(r['实际发生时间']) || r['实际发生时间'] > now || !followupTarget(row)) state = '待核对';

@@ -2,7 +2,8 @@ import { BadRequestException, ConflictException, Inject, Injectable, NotFoundExc
 import { CapabilityService, DRIZZLE_DATABASE, type PostgresJsDatabase } from '@lark-apaas/fullstack-nestjs-core';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { DeleteKind, DeletionPreview } from '@shared/api.interface';
-import { linkIds } from '@shared/crm';
+import { linkIds, textValue } from '@shared/crm';
+import { deletedContinuationMarker } from '@shared/crm-followup-chain';
 import { crmDeletion as jobs } from '../../database/schema';
 import { CrmService } from './crm.service';
 import { deletionPlan, deletionView, itemKey, type DeletionPlan, type DeletionSource } from './crm-deletion-plan';
@@ -57,7 +58,7 @@ export class CrmDeletionService {
     const values = JSON.stringify({id,body});
     for (const job of rows) {
       const plan = job.payload as DeletionPlan;
-      if ([...plan.items.map(item=>item.id), ...plan.repairs.map(item=>item.id), ...plan.repairs.flatMap(item=>item.after)].some(key=>values.includes(key)))
+      if ([...plan.items.map(item=>item.id), ...plan.repairs.map(item=>item.id), ...plan.repairs.flatMap(item=>item.after), ...(plan.acknowledgements || []).map(item=>item.id)].some(key=>values.includes(key)))
         throw new ConflictException('相关数据正在删除，请由管理员完成“未完成删除”后再操作');
     }
   }
@@ -74,13 +75,36 @@ export class CrmDeletionService {
         await this.db.update(jobs).set({status:'running',updatedAt:new Date()}).where(eq(jobs.id,id));
       }
       try {
+        // Upgrade unfinished older jobs while the deleted root is still available.
+        if (!plan.acknowledgements && data[plan.kind].some(record => record.id === plan.rootId)) {
+          plan.acknowledgements = deletionPlan(data, plan.kind, plan.rootId).acknowledgements;
+          await this.db.update(jobs).set({payload: plan, updatedAt: new Date()}).where(eq(jobs.id, id));
+        }
         // A concurrent edit in Base must never silently expand the approved deletion set.
         if (data[plan.kind].some(record=>record.id===plan.rootId)) {
           const current = deletionPlan(data,plan.kind,plan.rootId);
           const approved = new Set(plan.items.map(itemKey));
           const currentKeys = new Set(current.items.map(itemKey));
+          if ((current.acknowledgements || []).some(item => !(plan.acknowledgements || [])
+            .some(approved => approved.id === item.id && approved.childId === item.childId)))
+            throw new ConflictException('上一条跟进关联已变化，已暂停删除，请核对后继续');
           if (current.items.some(item=>!approved.has(itemKey(item))) || plan.items.some(item=>data[item.kind].some(record=>record.id===item.id)&&!currentKeys.has(itemKey(item))) || current.repairs.some(repair=>!plan.repairs.some(old=>old.id===repair.id&&JSON.stringify(old.after)===JSON.stringify(repair.after))))
             throw new ConflictException('关联范围发生变化，已暂停；请先在原表核对新增关联后继续');
+        }
+        for (const acknowledgement of plan.acknowledgements || []) {
+          if (!data.followup.some(record => record.id === acknowledgement.id)) continue;
+          const parent = await this.crm.get('followup', acknowledgement.id);
+          const marker = deletedContinuationMarker(acknowledgement.childId);
+          const before = textValue(parent.record['管理记录']);
+          if (before.split('\n').includes(marker)) continue;
+          const note = [before, marker].filter(Boolean).join('\n');
+          if (note.length > 20000) throw new ConflictException('管理记录已达上限，请先整理留存再删除');
+          await this.capability.load('crm-followup').call('batchUpdateRecords', {
+            records: [{id: acknowledgement.id, record: {管理记录: note}}],
+          });
+          const check = await this.crm.get('followup', acknowledgement.id);
+          if (!textValue(check.record['管理记录']).split('\n').includes(marker))
+            throw new ConflictException('已跟进状态尚未确认，已暂停删除，请重试核对');
         }
         for (const repair of plan.repairs) {
           const child = data.followup.find(record=>record.id===repair.id);

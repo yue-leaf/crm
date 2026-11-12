@@ -26,9 +26,9 @@ test('customer cascade includes contacts and direct/project followups without to
  assert.equal(plan.items.at(-1).kind,'customer');assert.ok(!plan.items.some(item=>['recQ','recOther','recOtherF'].includes(item.id)));
  const p=deletionPlan(source(),'project','recP');assert.deepEqual(deletionView('id',p,'preview').counts,{customer:0,project:1,contact:0,followup:3});
 });
-test('middle followup reconnects next record, deleting latest restores only its previous pending followup',()=>{
+test('middle followup reconnects next record, deleting latest preserves previous completion',()=>{
  const data=source();const middle=deletionPlan(data,'followup','recF2');assert.deepEqual(middle.repairs,[{id:'recF3',before:['recF2'],after:['recF1']}]);assert.equal(middle.restoresPending,0);
- const last=deletionPlan(data,'followup','recF3');assert.equal(last.restoresPending,1);assert.equal(last.items.length,1);
+ const last=deletionPlan(data,'followup','recF3');assert.equal(last.restoresPending,0);assert.deepEqual(last.acknowledgements,[{id:"recF2",childId:"recF3"}]);assert.equal(last.items.length,1);
  const first=deletionPlan(data,'followup','recF1');assert.deepEqual(first.repairs[0].after,[]);
 });
 test('ambiguous ownership and unrelated contact references stop deletion planning',()=>{
@@ -48,9 +48,35 @@ test('lost deletion response is recovered from durable plan and actual remaining
 });
 test('single record deletion rewires before deleting and preserves followup acknowledgement',async()=>{
  const h=harness('followup','recF2');const result=await h.svc.step(h.row.id);assert.equal(result.status,'complete');
- assert.deepEqual(h.calls.map(call=>call.action),['batchUpdateRecords','deleteRecords']);
+ assert.deepEqual(h.calls.map(call=>call.action),['batchUpdateRecords','batchUpdateRecords','deleteRecords']);
  assert.deepEqual(h.data.followup.find(row=>row.id==='recF3').record.上次跟进,links(['recF1']));
  assert.equal(followupChains(h.data.followup).find(row=>row.id==='recF1').followup.state,'已跟进');
+});
+
+test('deleting the latest continuation keeps its parent completed across reads and retries',async()=>{
+ const h=harness('followup','recF3');h.failOnce();
+ const paused=await h.svc.step(h.row.id);assert.equal(paused.status,'paused');
+ assert.ok(!h.data.followup.some(row=>row.id==='recF3'));
+ const state=()=>followupChains(structuredClone(h.data.followup)).find(row=>row.id==='recF2').followup;
+ assert.equal(state().state,'已跟进');assert.deepEqual(state().nextIds,[]);
+ assert.equal((await h.svc.step(h.row.id)).status,'complete');
+ assert.equal(state().state,'已跟进');
+ const {projectFollowupSummary}=require('../../dist/shared/crm-followup-chain');
+ assert.equal(projectFollowupSummary(h.data.project,h.data.followup).find(row=>row.id==='recP').record.待跟进数量,0);
+ assert.equal(h.calls.filter(call=>call.action==='deleteRecords').length,1);
+});
+
+test('failed completion acknowledgement stops deletion before removing the child',async()=>{
+ const h=harness('followup','recF3');
+ h.svc.crm.get=async()=>({id:'recF2',record:{管理记录:''}});
+ assert.equal((await h.svc.step(h.row.id)).status,'paused');
+ assert.ok(h.data.followup.some(row=>row.id==='recF3'));
+ assert.equal(h.calls.filter(call=>call.action==='deleteRecords').length,0);
+});
+
+test('deleting an invalid or void continuation does not mark its parent completed',()=>{
+ const data=source();data.followup.find(row=>row.id==='recF3').record.记录状态='已作废';
+ assert.deepEqual(deletionPlan(data,'followup','recF3').acknowledgements,[]);
 });
 test('changed data between preview and confirmation rejects all writes',async()=>{
  const h=harness();h.data.project[0].record.修改时间=2;await assert.rejects(()=>h.svc.step(h.row.id),/变化/);assert.equal(h.calls.length,0);assert.equal(h.row.status,'preview');

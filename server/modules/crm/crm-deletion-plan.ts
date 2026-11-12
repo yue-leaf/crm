@@ -10,6 +10,7 @@ export interface DeletionPlan {
   kind: DeleteKind; rootId: string; name: string; summary: string;
   items: { kind: DataKind; id: string }[];
   repairs: { id: string; before: string[]; after: string[] }[];
+  acknowledgements?: { id: string; childId: string }[];
   signature: string; restoresPending: number;
 }
 export const itemKey = (item: {kind: DataKind; id: string}): string => `${item.kind}:${item.id}`;
@@ -46,19 +47,19 @@ export function deletionPlan(source: DeletionSource, kind: DeleteKind, id: strin
     }
     repairs.push({id: row.id, before, after});
   }
-  const remaining = source.followup.filter(row => !followups.has(row.id)).map(row => {
-    const repair = repairs.find(item => item.id === row.id);
-    return repair ? {...row, record: {...row.record, 上次跟进: {link_record_ids:repair.after}}} : row;
-  });
-  const beforeStates = new Map(followupChains(source.followup).map(row => [row.id, row.followup?.state]));
-  const restoresPending = followupChains(remaining).filter(row => row.followup?.state === '待跟进' && beforeStates.get(row.id) !== '待跟进').length;
+  // Keep proof of completed communication before removing its child record.
+  const acknowledgements = followupChains(source.followup)
+    .filter(row => !followups.has(row.id))
+    .flatMap(row => (row.followup?.nextIds || []).filter(childId => followups.has(childId))
+      .map(childId => ({ id: row.id, childId })));
+  const restoresPending = 0;
   const signature = createHash('sha256').update(JSON.stringify({
     items: items.map(item => {const record=source[item.kind].find(row=>row.id===item.id)!.record;
-      return [itemKey(item),record['修改时间'],textValue(record[titles[item.kind]])];}), repairs,
+      return [itemKey(item),record['修改时间'],textValue(record[titles[item.kind]])];}), repairs, acknowledgements,
     boundary: source.followup.filter(row=>repairs.some(repair=>repair.id===row.id||repair.after.includes(row.id))||linkIds(root.record['上次跟进']).includes(row.id))
       .map(row=>[row.id,row.record['修改时间']]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))),
   })).digest('hex');
-  return {kind, rootId:id, items, repairs, signature, restoresPending,
+  return {kind, rootId:id, items, repairs, acknowledgements, signature, restoresPending,
     name: textValue(root.record[titles[kind]]) || '未命名记录',
     summary: kind === 'followup' ? [
       ...source.customer.filter(row => linkIds(root.record['直接客户']).includes(row.id) || source.project.some(p => linkIds(root.record['关联项目']).includes(p.id) && linkIds(p.record['所属企业']).includes(row.id))).map(row => textValue(row.record['企业全称'])),
@@ -71,5 +72,5 @@ export function deletionPlan(source: DeletionSource, kind: DeleteKind, id: strin
 export function deletionView(id: string, plan: DeletionPlan, status: DeletionPreview['status'], deleted = 0, message = ''): DeletionPreview {
   const counts = {customer:0, project:0, contact:0, followup:0};
   for (const item of plan.items) counts[item.kind]++;
-  return {id, kind:plan.kind, name:plan.name, summary:plan.summary, counts, restoresPending:plan.restoresPending, status, deleted, total:plan.items.length, message};
+  return {id, kind:plan.kind, name:plan.name, summary:plan.summary, counts, restoresPending:0, status, deleted, total:plan.items.length, message};
 }

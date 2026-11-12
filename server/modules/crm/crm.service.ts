@@ -1,5 +1,5 @@
 import { customerGeography } from '@shared/crm-geography';
-import { explicitlyEnded, followupChains, projectFollowupSummary, sameFollowupTarget, validChainTime } from '@shared/crm-followup-chain';
+import { explicitlyEnded, followupChains, projectFollowupSummary, retainedFollowup, sameFollowupTarget, validChainTime } from '@shared/crm-followup-chain';
 import { CrmFollowupWrites, writeMarker } from './crm-followup-writes';
 import type { FollowupWritePermit } from './crm-followup-writes';
 import { statusInput, validateSignedDate } from './crm-status';
@@ -575,7 +575,11 @@ export class CrmService {
   private async followupWrite<T>(id: string, operation: string, work: (permit: FollowupWritePermit) => Promise<T>): Promise<T> {
     if (!/^rec[A-Za-z0-9]+$/.test(id)) reject('跟进记录', '标识无效');
     return this.followupWrites.run(id, operation, {
-      isVoided: async childId => textValue((await this.get('followup', childId)).record['记录状态']) === '已作废',
+      isVoided: async childId => {
+        if (retainedFollowup((await this.get('followup', id)).record))
+          throw new ConflictException('此记录已跟进，删除后续记录不会恢复为待跟进，请刷新查看');
+        return textValue((await this.get('followup', childId)).record['记录状态']) === '已作废';
+      },
       findSaved: async (token, pendingOperation) => {
         const rows = pendingOperation === 'continue' ? await this.allBusiness('followup') : [await this.get('followup', id)];
         return rows.find(row => textValue(row.record['管理记录']).split('\n').includes(writeMarker(token)) &&

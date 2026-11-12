@@ -103,6 +103,11 @@ export interface NotificationState {
   settings: NotificationSettings;
   logs: NotificationLog[];
 }
+export interface NotificationTestResult {
+  requestId: string;
+  status: string;
+  detail: string;
+}
 export type DeleteKind = 'customer' | 'project' | 'followup';
 export interface DeletionPreview {
   id: string;

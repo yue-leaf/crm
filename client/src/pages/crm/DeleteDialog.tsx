@@ -47,7 +47,6 @@ export function DeleteDialog({target,onClose,onChanged}: {
         <p id="delete-description">{preview?`「${preview.name}」`:busy?'正在核对删除范围…':'未能读取删除范围'}</p>
         {preview?.summary&&<p className="delete-summary">{preview.summary}</p>}
         {preview&&<ul className="delete-counts">{(Object.keys(preview.counts) as (keyof DeletionPreview['counts'])[]).filter(key=>preview.counts[key]>0).map(key=><li key={key}>{names[key]}：{preview.counts[key]} 条</li>)}</ul>}
-        {!!preview?.restoresPending&&preview.status!=='complete'&&<p className="delete-warning">删除后，{preview.restoresPending} 条之前的跟进将恢复为待跟进，并重新进入待办和通知。</p>}
         {preview?.status!=='complete'&&<p className="delete-warning">删除后无法恢复。</p>}
         {started&&<p role="status">已删除 {preview?.deleted} / {preview?.total} 条{busy?'，正在处理…':''}</p>}
         {error&&<p className="delete-warning" role="alert">{error}</p>}

@@ -16,7 +16,7 @@ import type {
   CustomerContactsQuery,
   RelatedRecordsQuery,
   FollowupPage,
-  NotificationState, NotificationPreview, NotificationSettings, NotificationSettingsUpdate,
+  NotificationState, NotificationTestResult, NotificationPreview, NotificationSettings, NotificationSettingsUpdate,
   DeletionPreview, DeleteKind,
 } from '@shared/api.interface';
 import type { Draft } from '@shared/crm';
@@ -73,7 +73,7 @@ export const api = {
   notificationState: () => request<NotificationState>('notifications'),
   notificationSave: (value: NotificationSettingsUpdate) => request<NotificationSettings>('notifications', 'PATCH', value),
   notificationPreview: () => request<NotificationPreview>('notifications/preview'),
-  notificationTest: (requestId: string) => request<NotificationState>('notifications/test', 'POST', { requestId }),
+  notificationTest: (requestId: string) => request<NotificationTestResult>('notifications/test', 'POST', { requestId }),
   workspace: (scope: ProjectScope) => request<WorkspaceData>(`workspace?scope=${scope}`),
   workspaceRecords: (scope: ProjectScope, kind: WorkspaceKind, filter: string, cursor = '', search = '') =>
     request<CrmPage>(`workspace/records?${new URLSearchParams({ scope, kind, filter, cursor, search })}`),
