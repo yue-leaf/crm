@@ -1,0 +1,2447 @@
+{
+  "version": 1,
+  "schemas": {
+    "customer": {
+      "name": "企业客户",
+      "fields": [
+        {
+          "name": "企业全称",
+          "type": "text"
+        },
+        {
+          "name": "客户编号",
+          "type": "auto_number",
+          "style": {
+            "rules": [
+              {
+                "type": "text",
+                "text": "C-"
+              },
+              {
+                "type": "incremental_number",
+                "length": 6
+              }
+            ]
+          }
+        },
+        {
+          "name": "简称",
+          "type": "text"
+        },
+        {
+          "name": "统一社会信用代码",
+          "type": "text"
+        },
+        {
+          "name": "行业",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "化工"
+            },
+            {
+              "name": "制药"
+            },
+            {
+              "name": "高校及科研院所"
+            },
+            {
+              "name": "CDMO/CMO"
+            },
+            {
+              "name": "材料"
+            },
+            {
+              "name": "其他"
+            }
+          ]
+        },
+        {
+          "name": "地区",
+          "type": "text"
+        },
+        {
+          "name": "客户负责人",
+          "type": "user",
+          "multiple": false
+        },
+        {
+          "name": "协同人员",
+          "type": "user",
+          "multiple": true
+        },
+        {
+          "name": "网站",
+          "type": "text",
+          "style": {
+            "type": "url"
+          }
+        },
+        {
+          "name": "客户备注",
+          "type": "text"
+        },
+        {
+          "name": "管理记录",
+          "type": "text"
+        },
+        {
+          "name": "当前下一步行动",
+          "type": "text"
+        },
+        {
+          "name": "行动执行人",
+          "type": "user",
+          "multiple": false
+        },
+        {
+          "name": "下次跟进日期",
+          "type": "datetime",
+          "style": {
+            "format": "yyyy-MM-dd"
+          }
+        },
+        {
+          "name": "创建人",
+          "type": "created_by"
+        },
+        {
+          "name": "创建时间",
+          "type": "created_at",
+          "style": {
+            "format": "yyyy-MM-dd HH:mm"
+          }
+        },
+        {
+          "name": "修改人",
+          "type": "updated_by"
+        },
+        {
+          "name": "修改时间",
+          "type": "updated_at",
+          "style": {
+            "format": "yyyy-MM-dd HH:mm"
+          }
+        }
+      ]
+    },
+    "contact": {
+      "name": "联系人档案",
+      "fields": [
+        {
+          "name": "姓名",
+          "type": "text"
+        },
+        {
+          "name": "联系人编号",
+          "type": "auto_number",
+          "style": {
+            "rules": [
+              {
+                "type": "text",
+                "text": "CT-"
+              },
+              {
+                "type": "incremental_number",
+                "length": 6
+              }
+            ]
+          }
+        },
+        {
+          "name": "职务",
+          "type": "text"
+        },
+        {
+          "name": "部门",
+          "type": "text"
+        },
+        {
+          "name": "电话",
+          "type": "text"
+        },
+        {
+          "name": "邮箱",
+          "type": "text"
+        },
+        {
+          "name": "客户侧业务角色",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "业务对接"
+            },
+            {
+              "name": "技术对接"
+            },
+            {
+              "name": "项目协调"
+            },
+            {
+              "name": "采购"
+            },
+            {
+              "name": "决策者"
+            },
+            {
+              "name": "使用者"
+            },
+            {
+              "name": "其他"
+            }
+          ]
+        },
+        {
+          "name": "技术领域",
+          "type": "text"
+        },
+        {
+          "name": "备注",
+          "type": "text"
+        },
+        {
+          "name": "维护人",
+          "type": "user",
+          "multiple": false
+        },
+        {
+          "name": "联系人状态",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "有效"
+            },
+            {
+              "name": "停用"
+            }
+          ]
+        },
+        {
+          "name": "停用时间",
+          "type": "datetime",
+          "style": {
+            "format": "yyyy-MM-dd HH:mm"
+          }
+        },
+        {
+          "name": "停用原因",
+          "type": "text"
+        },
+        {
+          "name": "联系人管理记录",
+          "type": "text"
+        },
+        {
+          "name": "创建人",
+          "type": "created_by"
+        },
+        {
+          "name": "创建时间",
+          "type": "created_at",
+          "style": {
+            "format": "yyyy-MM-dd HH:mm"
+          }
+        },
+        {
+          "name": "修改人",
+          "type": "updated_by"
+        },
+        {
+          "name": "修改时间",
+          "type": "updated_at",
+          "style": {
+            "format": "yyyy-MM-dd HH:mm"
+          }
+        }
+      ]
+    },
+    "project": {
+      "name": "客户项目",
+      "fields": [
+        {
+          "name": "项目名称",
+          "type": "text"
+        },
+        {
+          "name": "项目编号",
+          "type": "auto_number",
+          "style": {
+            "rules": [
+              {
+                "type": "text",
+                "text": "P-"
+              },
+              {
+                "type": "incremental_number",
+                "length": 6
+              }
+            ]
+          }
+        },
+        {
+          "name": "项目类型",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "MRT"
+            },
+            {
+              "name": "PAT"
+            },
+            {
+              "name": "automation"
+            }
+          ]
+        },
+        {
+          "name": "目标 / 需求摘要",
+          "type": "text"
+        },
+        {
+          "name": "项目负责人",
+          "type": "user",
+          "multiple": false
+        },
+        {
+          "name": "协同人员",
+          "type": "user",
+          "multiple": true
+        },
+        {
+          "name": "当前进展",
+          "type": "text"
+        },
+        {
+          "name": "目标完成日期",
+          "type": "datetime",
+          "style": {
+            "format": "yyyy-MM-dd"
+          }
+        },
+        {
+          "name": "工作状态",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "待启动"
+            },
+            {
+              "name": "进行中"
+            },
+            {
+              "name": "暂停"
+            },
+            {
+              "name": "已签合同"
+            }
+          ]
+        },
+        {
+          "name": "签约日期",
+          "type": "datetime",
+          "style": {
+            "format": "yyyy-MM-dd"
+          }
+        },
+        {
+          "name": "暂停原因",
+          "type": "text"
+        },
+        {
+          "name": "结束建议",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "申请完成"
+            },
+            {
+              "name": "申请取消"
+            }
+          ]
+        },
+        {
+          "name": "建议说明",
+          "type": "text"
+        },
+        {
+          "name": "终局确认",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "未确认"
+            },
+            {
+              "name": "已取消"
+            }
+          ]
+        },
+        {
+          "name": "结束日期",
+          "type": "datetime",
+          "style": {
+            "format": "yyyy-MM-dd"
+          }
+        },
+        {
+          "name": "结果说明",
+          "type": "text"
+        },
+        {
+          "name": "取消原因",
+          "type": "text"
+        },
+        {
+          "name": "最近重开原因",
+          "type": "text"
+        },
+        {
+          "name": "管理记录",
+          "type": "text"
+        },
+        {
+          "name": "商机阶段",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "线索确认"
+            },
+            {
+              "name": "需求沟通"
+            },
+            {
+              "name": "方案验证"
+            },
+            {
+              "name": "报价商务"
+            }
+          ]
+        },
+        {
+          "name": "成交结果",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "未定"
+            },
+            {
+              "name": "赢单"
+            },
+            {
+              "name": "输单"
+            }
+          ]
+        },
+        {
+          "name": "预计金额",
+          "type": "number",
+          "style": {
+            "type": "plain",
+            "precision": 2
+          }
+        },
+        {
+          "name": "预计成交日期",
+          "type": "datetime",
+          "style": {
+            "format": "yyyy-MM-dd"
+          }
+        },
+        {
+          "name": "币种",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "CNY"
+            },
+            {
+              "name": "USD"
+            },
+            {
+              "name": "EUR"
+            },
+            {
+              "name": "其他"
+            }
+          ]
+        },
+        {
+          "name": "金额含税口径",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "含税"
+            },
+            {
+              "name": "未税"
+            },
+            {
+              "name": "待确认"
+            }
+          ]
+        },
+        {
+          "name": "当前下一步行动",
+          "type": "text"
+        },
+        {
+          "name": "行动执行人",
+          "type": "user",
+          "multiple": false
+        },
+        {
+          "name": "下次跟进日期",
+          "type": "datetime",
+          "style": {
+            "format": "yyyy-MM-dd"
+          }
+        },
+        {
+          "name": "创建人",
+          "type": "created_by"
+        },
+        {
+          "name": "创建时间",
+          "type": "created_at",
+          "style": {
+            "format": "yyyy-MM-dd HH:mm"
+          }
+        },
+        {
+          "name": "修改人",
+          "type": "updated_by"
+        },
+        {
+          "name": "修改时间",
+          "type": "updated_at",
+          "style": {
+            "format": "yyyy-MM-dd HH:mm"
+          }
+        }
+      ]
+    },
+    "followup": {
+      "name": "跟进记录",
+      "fields": [
+        {
+          "name": "跟进主题",
+          "type": "text"
+        },
+        {
+          "name": "跟进编号",
+          "type": "auto_number",
+          "style": {
+            "rules": [
+              {
+                "type": "text",
+                "text": "F-"
+              },
+              {
+                "type": "incremental_number",
+                "length": 6
+              }
+            ]
+          }
+        },
+        {
+          "name": "跟进归属",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "客户直接跟进"
+            },
+            {
+              "name": "项目跟进"
+            }
+          ]
+        },
+        {
+          "name": "记录类型",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "外部沟通"
+            },
+            {
+              "name": "内部推进"
+            }
+          ]
+        },
+        {
+          "name": "沟通 / 推进方式",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "电话"
+            },
+            {
+              "name": "线上会议"
+            },
+            {
+              "name": "现场"
+            },
+            {
+              "name": "即时消息"
+            },
+            {
+              "name": "邮件"
+            },
+            {
+              "name": "其他"
+            },
+            {
+              "name": "内部讨论"
+            },
+            {
+              "name": "资料处理"
+            }
+          ]
+        },
+        {
+          "name": "实际发生时间",
+          "type": "datetime",
+          "style": {
+            "format": "yyyy-MM-dd HH:mm"
+          }
+        },
+        {
+          "name": "实际跟进人",
+          "type": "user",
+          "multiple": true
+        },
+        {
+          "name": "内容 / 推进结论",
+          "type": "text"
+        },
+        {
+          "name": "后续处理",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "待跟进"
+            },
+            {
+              "name": "已结束"
+            }
+          ]
+        },
+        {
+          "name": "结束跟进说明",
+          "type": "text"
+        },
+        {
+          "name": "后续安排",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "有下一步行动"
+            },
+            {
+              "name": "无后续动作"
+            }
+          ]
+        },
+        {
+          "name": "建议下一步行动",
+          "type": "text"
+        },
+        {
+          "name": "无后续动作结论",
+          "type": "text"
+        },
+        {
+          "name": "建议处理人",
+          "type": "user",
+          "multiple": false
+        },
+        {
+          "name": "建议日期",
+          "type": "datetime",
+          "style": {
+            "format": "yyyy-MM-dd"
+          }
+        },
+        {
+          "name": "附件",
+          "type": "attachment"
+        },
+        {
+          "name": "记录状态",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "正常"
+            },
+            {
+              "name": "已作废"
+            }
+          ]
+        },
+        {
+          "name": "作废原因",
+          "type": "text"
+        },
+        {
+          "name": "管理记录",
+          "type": "text"
+        },
+        {
+          "name": "创建人",
+          "type": "created_by"
+        },
+        {
+          "name": "创建时间",
+          "type": "created_at",
+          "style": {
+            "format": "yyyy-MM-dd HH:mm"
+          }
+        },
+        {
+          "name": "修改人",
+          "type": "updated_by"
+        },
+        {
+          "name": "修改时间",
+          "type": "updated_at",
+          "style": {
+            "format": "yyyy-MM-dd HH:mm"
+          }
+        }
+      ]
+    },
+    "access": {
+      "name": "权限配置",
+      "fields": [
+        {
+          "name": "姓名",
+          "type": "text",
+          "description": "管理员可维护显示名称；目录同步不覆盖已有显示名称。"
+        },
+        {
+          "name": "飞书成员",
+          "type": "user",
+          "multiple": false
+        },
+        {
+          "name": "成员标识",
+          "type": "text",
+          "description": "当前飞书应用下的 Open ID，是人员同步去重键；不要手工修改。"
+        },
+        {
+          "name": "通讯录姓名",
+          "type": "text"
+        },
+        {
+          "name": "部门",
+          "type": "text"
+        },
+        {
+          "name": "数据来源",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "创建者登记"
+            },
+            {
+              "name": "人员搜索"
+            },
+            {
+              "name": "管理员录入"
+            }
+          ]
+        },
+        {
+          "name": "最后目录同步",
+          "type": "datetime",
+          "style": {
+            "format": "yyyy-MM-dd HH:mm"
+          }
+        },
+        {
+          "name": "待配置角色",
+          "type": "select",
+          "multiple": false,
+          "options": [
+            {
+              "name": "员工"
+            },
+            {
+              "name": "管理员"
+            }
+          ],
+          "description": "仅登记员工或管理员的角色意向，不直接授予权限；实际访问由妙搭平台角色与应用可见范围控制。"
+        },
+        {
+          "name": "备注",
+          "type": "text"
+        },
+        {
+          "name": "修改人",
+          "type": "updated_by"
+        },
+        {
+          "name": "修改时间",
+          "type": "updated_at",
+          "style": {
+            "format": "yyyy-MM-dd HH:mm"
+          }
+        }
+      ]
+    }
+  },
+  "links": [
+    [
+      "followup",
+      "上次跟进",
+      "followup",
+      null
+    ],
+    [
+      "contact",
+      "所属企业",
+      "customer",
+      "联系人"
+    ],
+    [
+      "project",
+      "所属企业",
+      "customer",
+      "项目"
+    ],
+    [
+      "project",
+      "相关业务项目",
+      "project",
+      null
+    ],
+    [
+      "followup",
+      "直接客户",
+      "customer",
+      "客户直接跟进"
+    ],
+    [
+      "followup",
+      "关联项目",
+      "project",
+      "项目跟进"
+    ],
+    [
+      "followup",
+      "客户联系人",
+      "contact",
+      "关联跟进"
+    ]
+  ],
+  "formulas": [
+    {
+      "table": "project",
+      "name": "通用状态",
+      "type": "formula",
+      "expression": "IFS([终局确认]=\"已完成\",\"已签合同\",[终局确认]=\"已取消\",\"已取消\",AND([终局确认]=\"未确认\",OR([工作状态]=\"待启动\",[工作状态]=\"进行中\",[工作状态]=\"暂停\",[工作状态]=\"已签合同\")),[工作状态],TRUE(),\"\")"
+    },
+    {
+      "table": "project",
+      "name": "当前需推进",
+      "type": "formula",
+      "expression": "AND(TRUE(),OR([通用状态]=\"待启动\",[通用状态]=\"进行中\",[通用状态]=\"已签合同\"))"
+    },
+    {
+      "table": "customer",
+      "name": "存在当前计划",
+      "type": "formula",
+      "expression": "OR(NOT(ISBLANK([当前下一步行动])),NOT(ISBLANK([行动执行人])),NOT(ISBLANK([下次跟进日期])))"
+    },
+    {
+      "table": "contact",
+      "name": "所属客户标识",
+      "type": "formula",
+      "expression": "IF(COUNTA([所属企业])=1,FIRST([所属企业].[客户编号]),\"\")"
+    },
+    {
+      "table": "contact",
+      "name": "身份检查",
+      "type": "formula",
+      "expression": "IF(ISBLANK([姓名]),\"缺少姓名；\",\"\")&IF(ISBLANK([职务]),\"缺少职务；\",\"\")&IF(COUNTA([所属企业])!=1,\"所属企业必须唯一；\",\"\")&IF(AND(ISBLANK([电话]),ISBLANK([邮箱])),\"电话或邮箱至少一项；\",\"\")&IF(NOT(OR([联系人状态]=\"有效\",[联系人状态]=\"停用\")),\"联系人状态异常；\",\"\")&IF(AND([联系人状态]=\"停用\",OR(ISBLANK([停用时间]),ISBLANK([停用原因]))),\"停用信息不完整；\",\"\")&IF(AND([联系人状态]=\"有效\",OR(NOT(ISBLANK([停用时间])),NOT(ISBLANK([停用原因])))),\"有效身份残留停用信息；\",\"\")"
+    },
+    {
+      "table": "contact",
+      "name": "数据检查",
+      "type": "formula",
+      "expression": "[身份检查]"
+    },
+    {
+      "table": "contact",
+      "name": "质量正常",
+      "type": "formula",
+      "expression": "ISBLANK([数据检查])"
+    },
+    {
+      "table": "followup",
+      "name": "归属正确",
+      "type": "formula",
+      "expression": "OR(AND([跟进归属]=\"客户直接跟进\",COUNTA([直接客户])=1,COUNTA([关联项目])=0),AND([跟进归属]=\"项目跟进\",COUNTA([关联项目])=1,COUNTA([直接客户])=0,COUNTA([关联项目].[所属企业])=1))"
+    },
+    {
+      "table": "followup",
+      "name": "有效客户标识",
+      "type": "formula",
+      "expression": "IFS(AND([跟进归属]=\"客户直接跟进\",COUNTA([直接客户])=1,COUNTA([关联项目])=0),FIRST([直接客户].[客户编号]),AND([跟进归属]=\"项目跟进\",COUNTA([关联项目])=1,COUNTA([直接客户])=0,COUNTA([关联项目].[所属企业])=1),FIRST([关联项目].[所属企业].[客户编号]),TRUE(),\"\")"
+    },
+    {
+      "table": "followup",
+      "name": "有效客户名称",
+      "type": "formula",
+      "expression": "IFS(AND([跟进归属]=\"客户直接跟进\",COUNTA([直接客户])=1,COUNTA([关联项目])=0),FIRST([直接客户].[企业全称]),AND([跟进归属]=\"项目跟进\",COUNTA([关联项目])=1,COUNTA([直接客户])=0,COUNTA([关联项目].[所属企业])=1),FIRST([关联项目].[所属企业].[企业全称]),TRUE(),\"\")"
+    },
+    {
+      "table": "followup",
+      "name": "联系人异常数",
+      "type": "formula",
+      "expression": "[客户联系人].FILTER(OR(ISBLANK(CurrentValue.[所属客户标识]),CurrentValue.[所属客户标识]!=[有效客户标识],NOT(OR(CurrentValue.[联系人状态]=\"有效\",CurrentValue.[联系人状态]=\"停用\")),AND(CurrentValue.[联系人状态]=\"停用\",OR(ISBLANK(CurrentValue.[停用时间]),[实际发生时间]>=CurrentValue.[停用时间])))).[联系人编号].COUNTA()"
+    },
+    {
+      "table": "followup",
+      "name": "数据检查",
+      "type": "formula",
+      "expression": "IF(ISBLANK([跟进主题]),\"缺少跟进主题；\",\"\")&IF(ISBLANK([实际发生时间]),\"缺少实际发生时间；\",\"\")&IF(ISBLANK([内容 / 推进结论]),\"缺少内容 / 推进结论；\",\"\")&IF(NOT([归属正确]),\"客户或项目必须二选一且唯一；\",\"\")&IF(NOT(OR([记录类型]=\"外部沟通\",[记录类型]=\"内部推进\")),\"记录类型异常；\",\"\")&IF([实际发生时间]>NOW(),\"实际发生时间晚于现在；\",\"\")&IF([联系人异常数]>0,\"联系人企业或历史身份不合法；\",\"\")&IF(AND([记录类型]=\"外部沟通\",NOT(ISBLANK([沟通 / 推进方式])),NOT(OR([沟通 / 推进方式]=\"电话\",[沟通 / 推进方式]=\"线上会议\",[沟通 / 推进方式]=\"现场\",[沟通 / 推进方式]=\"即时消息\",[沟通 / 推进方式]=\"邮件\",[沟通 / 推进方式]=\"其他\"))),\"外部沟通方式不合法；\",\"\")&IF(AND([记录类型]=\"内部推进\",NOT(ISBLANK([沟通 / 推进方式])),NOT(OR([沟通 / 推进方式]=\"内部讨论\",[沟通 / 推进方式]=\"资料处理\",[沟通 / 推进方式]=\"其他\"))),\"内部推进方式不合法；\",\"\")&IF(NOT(OR(AND([后续安排]=\"有下一步行动\",NOT(ISBLANK([建议下一步行动])),ISBLANK([无后续动作结论])),AND([后续安排]=\"无后续动作\",NOT(ISBLANK([无后续动作结论])),ISBLANK([建议下一步行动]),ISBLANK([建议处理人]),ISBLANK([建议日期])))),\"后续安排不完整或互斥项未清空；\",\"\")&IF(NOT(OR([记录状态]=\"正常\",[记录状态]=\"已作废\")),\"记录状态异常；\",\"\")&IF(AND([记录状态]=\"已作废\",ISBLANK([作废原因])),\"缺少作废原因；\",\"\")"
+    },
+    {
+      "table": "followup",
+      "name": "质量正常",
+      "type": "formula",
+      "expression": "ISBLANK([数据检查])"
+    },
+    {
+      "table": "followup",
+      "name": "有效",
+      "type": "formula",
+      "expression": "AND([质量正常],[记录状态]=\"正常\")"
+    },
+    {
+      "table": "followup",
+      "name": "有效时间",
+      "type": "formula",
+      "expression": "IF([有效],[实际发生时间],\"\")"
+    },
+    {
+      "table": "followup",
+      "name": "有效计数",
+      "type": "formula",
+      "expression": "IF([有效],1,0)"
+    },
+    {
+      "table": "project",
+      "name": "有效次数",
+      "type": "formula",
+      "expression": "SUM([项目跟进].[有效计数])"
+    },
+    {
+      "table": "project",
+      "name": "最近有效跟进",
+      "type": "formula",
+      "expression": "IF([有效次数]>0,MAX([项目跟进].[有效时间]),\"\")"
+    },
+    {
+      "table": "project",
+      "name": "已沟通联系人",
+      "type": "formula",
+      "expression": "[项目跟进].FILTER(CurrentValue.[有效]).[客户联系人].LISTCOMBINE().UNIQUE()"
+    },
+    {
+      "table": "customer",
+      "name": "直接有效次数",
+      "type": "formula",
+      "expression": "SUM([客户直接跟进].[有效计数])"
+    },
+    {
+      "table": "customer",
+      "name": "最近直接跟进",
+      "type": "formula",
+      "expression": "IF([直接有效次数]>0,MAX([客户直接跟进].[有效时间]),\"\")"
+    },
+    {
+      "table": "customer",
+      "name": "整体有效次数",
+      "type": "formula",
+      "expression": "SUM([客户直接跟进].[有效计数])+SUM([项目].[有效次数])"
+    },
+    {
+      "table": "customer",
+      "name": "最近整体互动",
+      "type": "formula",
+      "expression": "IF([整体有效次数]>0,MAX(LISTCOMBINE([客户直接跟进].[有效时间],[项目].[最近有效跟进])),\"\")"
+    },
+    {
+      "table": "customer",
+      "name": "跟进状态",
+      "type": "formula",
+      "expression": "IFS(NOT(TRUE()),\"无需跟进\",ISBLANK([下次跟进日期]),\"未安排\",TEXT([下次跟进日期],\"YYYY-MM-DD\")<TEXT(TODAY(),\"YYYY-MM-DD\"),\"已逾期 \"&INT(DAYS(TODAY(),TODATE(TEXT([下次跟进日期],\"YYYY-MM-DD\"))))&\" 天\",TEXT([下次跟进日期],\"YYYY-MM-DD\")=TEXT(TODAY(),\"YYYY-MM-DD\"),\"今日跟进\",TEXT([下次跟进日期],\"YYYY-MM-DD\")=TEXT(TODAY()+1,\"YYYY-MM-DD\"),\"明日跟进\",TRUE(),\"等待中\")"
+    },
+    {
+      "table": "customer",
+      "name": "跟进排序",
+      "type": "formula",
+      "expression": "IFS([跟进状态]=\"无需跟进\",5,[跟进状态]=\"未安排\",3,[跟进状态]=\"等待中\",4,[跟进状态]=\"明日跟进\",2,[跟进状态]=\"今日跟进\",1,TRUE(),0)"
+    },
+    {
+      "table": "customer",
+      "name": "有效执行人",
+      "type": "formula",
+      "expression": "IF(ISBLANK([行动执行人]),[客户负责人],[行动执行人])"
+    },
+    {
+      "table": "customer",
+      "name": "缺计划",
+      "type": "formula",
+      "expression": "AND(TRUE(),OR(NOT(ISBLANK([当前下一步行动])),NOT(ISBLANK([行动执行人])),NOT(ISBLANK([下次跟进日期]))),OR(ISBLANK([当前下一步行动]),ISBLANK([下次跟进日期])))"
+    },
+    {
+      "table": "customer",
+      "name": "今日到期",
+      "type": "formula",
+      "expression": "AND(TRUE(),NOT(ISBLANK([下次跟进日期])),TEXT([下次跟进日期],\"YYYY-MM-DD\")=TEXT(TODAY(),\"YYYY-MM-DD\"))"
+    },
+    {
+      "table": "customer",
+      "name": "逾期",
+      "type": "formula",
+      "expression": "AND(TRUE(),NOT(ISBLANK([下次跟进日期])),[下次跟进日期]<TODAY())"
+    },
+    {
+      "table": "customer",
+      "name": "逾期天数",
+      "type": "formula",
+      "expression": "IF([逾期],INT(DAYS(TODAY(),[下次跟进日期])),0)"
+    },
+    {
+      "table": "customer",
+      "name": "未跟进天数",
+      "type": "formula",
+      "expression": "MAX(0,INT(DAYS(TODAY(),TODATE(TEXT(IFBLANK([最近直接跟进],[创建时间]),\"YYYY-MM-DD\")))))"
+    },
+    {
+      "table": "customer",
+      "name": "长期未跟进",
+      "type": "formula",
+      "expression": "AND(TRUE(),OR(NOT(ISBLANK([当前下一步行动])),NOT(ISBLANK([下次跟进日期]))),[未跟进天数]>=14)"
+    },
+    {
+      "table": "project",
+      "name": "跟进状态",
+      "type": "formula",
+      "expression": "IFS(NOT(AND(TRUE(),NOT(OR([终局确认]=\"已完成\",[终局确认]=\"已取消\")))),\"无需跟进\",ISBLANK([下次跟进日期]),\"未安排\",TEXT([下次跟进日期],\"YYYY-MM-DD\")<TEXT(TODAY(),\"YYYY-MM-DD\"),\"已逾期 \"&INT(DAYS(TODAY(),TODATE(TEXT([下次跟进日期],\"YYYY-MM-DD\"))))&\" 天\",TEXT([下次跟进日期],\"YYYY-MM-DD\")=TEXT(TODAY(),\"YYYY-MM-DD\"),\"今日跟进\",TEXT([下次跟进日期],\"YYYY-MM-DD\")=TEXT(TODAY()+1,\"YYYY-MM-DD\"),\"明日跟进\",TRUE(),\"等待中\")"
+    },
+    {
+      "table": "project",
+      "name": "跟进排序",
+      "type": "formula",
+      "expression": "IFS([跟进状态]=\"无需跟进\",5,[跟进状态]=\"未安排\",3,[跟进状态]=\"等待中\",4,[跟进状态]=\"明日跟进\",2,[跟进状态]=\"今日跟进\",1,TRUE(),0)"
+    },
+    {
+      "table": "project",
+      "name": "有效执行人",
+      "type": "formula",
+      "expression": "IF(ISBLANK([行动执行人]),[项目负责人],[行动执行人])"
+    },
+    {
+      "table": "project",
+      "name": "缺计划",
+      "type": "formula",
+      "expression": "AND([当前需推进],TRUE(),OR(ISBLANK([当前下一步行动]),ISBLANK([下次跟进日期])))"
+    },
+    {
+      "table": "project",
+      "name": "今日到期",
+      "type": "formula",
+      "expression": "AND(AND(TRUE(),NOT(OR([终局确认]=\"已完成\",[终局确认]=\"已取消\"))),NOT(ISBLANK([下次跟进日期])),TEXT([下次跟进日期],\"YYYY-MM-DD\")=TEXT(TODAY(),\"YYYY-MM-DD\"))"
+    },
+    {
+      "table": "project",
+      "name": "逾期",
+      "type": "formula",
+      "expression": "AND(AND(TRUE(),NOT(OR([终局确认]=\"已完成\",[终局确认]=\"已取消\"))),NOT(ISBLANK([下次跟进日期])),[下次跟进日期]<TODAY())"
+    },
+    {
+      "table": "project",
+      "name": "逾期天数",
+      "type": "formula",
+      "expression": "IF([逾期],INT(DAYS(TODAY(),[下次跟进日期])),0)"
+    },
+    {
+      "table": "project",
+      "name": "未跟进天数",
+      "type": "formula",
+      "expression": "MAX(0,INT(DAYS(TODAY(),TODATE(TEXT(IFBLANK([最近有效跟进],[创建时间]),\"YYYY-MM-DD\")))))"
+    },
+    {
+      "table": "project",
+      "name": "长期未跟进",
+      "type": "formula",
+      "expression": "AND([当前需推进],TRUE(),[未跟进天数]>=14)"
+    },
+    {
+      "table": "project",
+      "name": "数据检查",
+      "type": "formula",
+      "expression": "IF(ISBLANK([项目名称]),\"缺少项目名称；\",\"\")&IF(ISBLANK([项目类型]),\"缺少项目类型；\",\"\")&IF(ISBLANK([目标 / 需求摘要]),\"缺少目标 / 需求摘要；\",\"\")&IF(COUNTA([所属企业])!=1,\"所属企业必须唯一；\",\"\")&IF(NOT(OR([项目类型]=\"MRT\",[项目类型]=\"PAT\",[项目类型]=\"automation\")),\"项目类型异常；\",\"\")&IF(ISBLANK([通用状态]),\"工作状态或终局确认异常；\",\"\")&IF(AND([通用状态]=\"暂停\",ISBLANK([暂停原因])),\"缺少暂停原因；\",\"\")&IF(AND([通用状态]=\"已签合同\",OR(ISBLANK([签约日期]),[签约日期]>TODAY())),\"签约日期缺失或晚于今天；\",\"\")&IF(AND([通用状态]=\"已取消\",OR(ISBLANK([结束日期]),ISBLANK([结果说明]),[结束日期]>TODAY())),\"终局信息缺失或日期晚于今天；\",\"\")&IF(AND([通用状态]=\"已取消\",ISBLANK([取消原因])),\"缺少取消原因；\",\"\")&IF(AND(NOT(ISBLANK([预计金额])),[预计金额]<0),\"预计金额不能为负；\",\"\")&IF(AND(NOT(ISBLANK([结束建议])),OR(NOT(OR([结束建议]=\"申请完成\",[结束建议]=\"申请取消\")),ISBLANK([建议说明]))),\"结束建议不完整；\",\"\")&IF(AND(ISBLANK([结束建议]),NOT(ISBLANK([建议说明]))),\"无建议时应清空说明；\",\"\")&IF([相关业务项目].[项目编号].CONTAIN([项目编号]),\"相关项目不能指向自身；\",\"\")&IF([相关业务项目].FILTER(OR(COUNTA(CurrentValue.[所属企业])!=1,FIRST(CurrentValue.[所属企业].[客户编号])!=FIRST([所属企业].[客户编号]))).[项目编号].COUNTA()>0,\"相关项目必须属于同一企业；\",\"\")"
+    },
+    {
+      "table": "project",
+      "name": "质量正常",
+      "type": "formula",
+      "expression": "ISBLANK([数据检查])"
+    },
+    {
+      "table": "project",
+      "name": "本月签约计数",
+      "type": "formula",
+      "expression": "IF(AND([质量正常],[通用状态]=\"已签合同\",NOT(ISBLANK([签约日期])),YEAR([签约日期])=YEAR(TODAY()),MONTH([签约日期])=MONTH(TODAY())),1,0)"
+    },
+    {
+      "table": "project",
+      "name": "本月取消计数",
+      "type": "formula",
+      "expression": "IF(AND([质量正常],[通用状态]=\"已取消\",NOT(ISBLANK([结束日期])),YEAR([结束日期])=YEAR(TODAY()),MONTH([结束日期])=MONTH(TODAY())),1,0)"
+    },
+    {
+      "table": "customer",
+      "name": "非终局项目数",
+      "type": "formula",
+      "expression": "[项目].FILTER(AND(TRUE(),OR(CurrentValue.[通用状态]=\"待启动\",CurrentValue.[通用状态]=\"进行中\",CurrentValue.[通用状态]=\"暂停\",CurrentValue.[通用状态]=\"已签合同\"))).[项目编号].COUNTA()"
+    },
+    {
+      "table": "customer",
+      "name": "数据检查",
+      "type": "formula",
+      "expression": "IF(ISBLANK([企业全称]),\"缺少企业全称；\",\"\")&IF(ISBLANK([行业]),\"缺少行业；\",\"\")&IF([缺计划],\"客户行动计划不完整；\",\"\")"
+    },
+    {
+      "table": "customer",
+      "name": "质量正常",
+      "type": "formula",
+      "expression": "ISBLANK([数据检查])"
+    }
+  ],
+  "views": [
+    {
+      "table": "customer",
+      "name": "客户总览",
+      "conditions": [],
+      "sorts": [
+        {
+          "field": "跟进排序",
+          "desc": false
+        },
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "customer",
+      "name": "部署管理员负责的客户",
+      "conditions": [
+        [
+          "客户负责人",
+          "intersects",
+          [
+            {
+              "id": "$DEPLOYER_OPEN_ID"
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "table": "contact",
+      "name": "有效联系人",
+      "conditions": [
+        [
+          "联系人状态",
+          "intersects",
+          [
+            "有效"
+          ]
+        ]
+      ]
+    },
+    {
+      "table": "contact",
+      "name": "部署管理员维护的联系人",
+      "conditions": [
+        [
+          "维护人",
+          "intersects",
+          [
+            {
+              "id": "$DEPLOYER_OPEN_ID"
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "table": "project",
+      "name": "项目总览",
+      "conditions": [],
+      "sorts": [
+        {
+          "field": "跟进排序",
+          "desc": false
+        },
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "project",
+      "name": "部署管理员负责的项目",
+      "conditions": [
+        [
+          "项目负责人",
+          "intersects",
+          [
+            {
+              "id": "$DEPLOYER_OPEN_ID"
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "table": "project",
+      "name": "部署管理员协同的项目",
+      "conditions": [
+        [
+          "协同人员",
+          "intersects",
+          [
+            {
+              "id": "$DEPLOYER_OPEN_ID"
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "table": "project",
+      "name": "项目类型看板",
+      "conditions": [],
+      "type": "kanban",
+      "group": "项目类型"
+    },
+    {
+      "table": "project",
+      "name": "项目状态-待启动",
+      "conditions": [
+        [
+          "通用状态",
+          "==",
+          "待启动"
+        ]
+      ]
+    },
+    {
+      "table": "project",
+      "name": "项目状态-进行中",
+      "conditions": [
+        [
+          "通用状态",
+          "==",
+          "进行中"
+        ]
+      ]
+    },
+    {
+      "table": "project",
+      "name": "项目状态-暂停",
+      "conditions": [
+        [
+          "通用状态",
+          "==",
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "table": "project",
+      "name": "项目状态-已签合同",
+      "conditions": [
+        [
+          "通用状态",
+          "==",
+          "已签合同"
+        ]
+      ]
+    },
+    {
+      "table": "project",
+      "name": "项目状态-已取消",
+      "conditions": [
+        [
+          "通用状态",
+          "==",
+          "已取消"
+        ]
+      ]
+    },
+    {
+      "table": "project",
+      "name": "待处理结束建议",
+      "conditions": [
+        [
+          "终局确认",
+          "intersects",
+          [
+            "未确认"
+          ]
+        ],
+        [
+          "结束建议",
+          "non_empty"
+        ]
+      ]
+    },
+    {
+      "table": "followup",
+      "name": "有效跟进",
+      "conditions": [
+        [
+          "有效",
+          "==",
+          "true"
+        ]
+      ],
+      "sort": "实际发生时间",
+      "desc": true
+    },
+    {
+      "table": "followup",
+      "name": "部署管理员实际跟进",
+      "conditions": [
+        [
+          "实际跟进人",
+          "intersects",
+          [
+            {
+              "id": "$DEPLOYER_OPEN_ID"
+            }
+          ]
+        ]
+      ],
+      "sort": "实际发生时间",
+      "desc": true
+    },
+    {
+      "table": "followup",
+      "name": "部署管理员创建的记录",
+      "conditions": [
+        [
+          "创建人",
+          "intersects",
+          [
+            {
+              "id": "$DEPLOYER_OPEN_ID"
+            }
+          ]
+        ]
+      ],
+      "sort": "实际发生时间",
+      "desc": true
+    },
+    {
+      "table": "customer",
+      "name": "今日跟进",
+      "conditions": [
+        [
+          "跟进状态",
+          "==",
+          "今日跟进"
+        ]
+      ],
+      "sort": "下次跟进日期",
+      "desc": false,
+      "columns": [
+        "企业全称",
+        "有效执行人",
+        "当前下一步行动",
+        "下次跟进日期",
+        "跟进状态",
+        "逾期天数",
+        "未跟进天数",
+        "客户负责人",
+        "最近直接跟进",
+        "数据检查"
+      ],
+      "sorts": [
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "customer",
+      "name": "逾期",
+      "conditions": [
+        [
+          "逾期",
+          "==",
+          "true"
+        ]
+      ],
+      "sort": "下次跟进日期",
+      "desc": false,
+      "columns": [
+        "企业全称",
+        "有效执行人",
+        "当前下一步行动",
+        "下次跟进日期",
+        "跟进状态",
+        "逾期天数",
+        "未跟进天数",
+        "客户负责人",
+        "最近直接跟进",
+        "数据检查"
+      ],
+      "sorts": [
+        {
+          "field": "逾期天数",
+          "desc": true
+        },
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "customer",
+      "name": "缺计划",
+      "conditions": [
+        [
+          "缺计划",
+          "==",
+          "true"
+        ]
+      ],
+      "sort": "下次跟进日期",
+      "desc": false,
+      "columns": [
+        "企业全称",
+        "有效执行人",
+        "当前下一步行动",
+        "下次跟进日期",
+        "跟进状态",
+        "逾期天数",
+        "未跟进天数",
+        "客户负责人",
+        "最近直接跟进",
+        "数据检查"
+      ],
+      "sorts": [
+        {
+          "field": "创建时间",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "customer",
+      "name": "长期未跟进",
+      "conditions": [
+        [
+          "长期未跟进",
+          "==",
+          "true"
+        ]
+      ],
+      "sort": "未跟进天数",
+      "desc": true,
+      "columns": [
+        "企业全称",
+        "有效执行人",
+        "当前下一步行动",
+        "下次跟进日期",
+        "跟进状态",
+        "逾期天数",
+        "未跟进天数",
+        "客户负责人",
+        "最近直接跟进",
+        "数据检查"
+      ],
+      "sorts": [
+        {
+          "field": "未跟进天数",
+          "desc": true
+        }
+      ]
+    },
+    {
+      "table": "customer",
+      "name": "部署管理员执行-显式分配",
+      "conditions": [
+        [
+          "行动执行人",
+          "intersects",
+          [
+            {
+              "id": "$DEPLOYER_OPEN_ID"
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "table": "customer",
+      "name": "部署管理员执行-负责人回落",
+      "conditions": [
+        [
+          "行动执行人",
+          "empty"
+        ],
+        [
+          "客户负责人",
+          "intersects",
+          [
+            {
+              "id": "$DEPLOYER_OPEN_ID"
+            }
+          ]
+        ],
+        [
+          "存在当前计划",
+          "==",
+          "true"
+        ]
+      ]
+    },
+    {
+      "table": "project",
+      "name": "今日跟进",
+      "conditions": [
+        [
+          "跟进状态",
+          "==",
+          "今日跟进"
+        ]
+      ],
+      "sort": "下次跟进日期",
+      "desc": false,
+      "columns": [
+        "项目名称",
+        "所属企业",
+        "有效执行人",
+        "当前下一步行动",
+        "下次跟进日期",
+        "跟进状态",
+        "逾期天数",
+        "未跟进天数",
+        "通用状态",
+        "项目负责人",
+        "当前进展",
+        "数据检查"
+      ],
+      "sorts": [
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "project",
+      "name": "逾期",
+      "conditions": [
+        [
+          "逾期",
+          "==",
+          "true"
+        ]
+      ],
+      "sort": "下次跟进日期",
+      "desc": false,
+      "columns": [
+        "项目名称",
+        "所属企业",
+        "有效执行人",
+        "当前下一步行动",
+        "下次跟进日期",
+        "跟进状态",
+        "逾期天数",
+        "未跟进天数",
+        "通用状态",
+        "项目负责人",
+        "当前进展",
+        "数据检查"
+      ],
+      "sorts": [
+        {
+          "field": "逾期天数",
+          "desc": true
+        },
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "project",
+      "name": "缺计划",
+      "conditions": [
+        [
+          "缺计划",
+          "==",
+          "true"
+        ]
+      ],
+      "sort": "下次跟进日期",
+      "desc": false,
+      "columns": [
+        "项目名称",
+        "所属企业",
+        "有效执行人",
+        "当前下一步行动",
+        "下次跟进日期",
+        "跟进状态",
+        "逾期天数",
+        "未跟进天数",
+        "通用状态",
+        "项目负责人",
+        "当前进展",
+        "数据检查"
+      ],
+      "sorts": [
+        {
+          "field": "创建时间",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "project",
+      "name": "长期未跟进",
+      "conditions": [
+        [
+          "长期未跟进",
+          "==",
+          "true"
+        ]
+      ],
+      "sort": "未跟进天数",
+      "desc": true,
+      "columns": [
+        "项目名称",
+        "所属企业",
+        "有效执行人",
+        "当前下一步行动",
+        "下次跟进日期",
+        "跟进状态",
+        "逾期天数",
+        "未跟进天数",
+        "通用状态",
+        "项目负责人",
+        "当前进展",
+        "数据检查"
+      ],
+      "sorts": [
+        {
+          "field": "未跟进天数",
+          "desc": true
+        }
+      ]
+    },
+    {
+      "table": "project",
+      "name": "部署管理员执行-显式分配",
+      "conditions": [
+        [
+          "当前需推进",
+          "==",
+          "true"
+        ],
+        [
+          "行动执行人",
+          "intersects",
+          [
+            {
+              "id": "$DEPLOYER_OPEN_ID"
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "table": "project",
+      "name": "部署管理员执行-负责人回落",
+      "conditions": [
+        [
+          "当前需推进",
+          "==",
+          "true"
+        ],
+        [
+          "行动执行人",
+          "empty"
+        ],
+        [
+          "项目负责人",
+          "intersects",
+          [
+            {
+              "id": "$DEPLOYER_OPEN_ID"
+            }
+          ]
+        ]
+      ]
+    },
+    {
+      "table": "contact",
+      "name": "已停用",
+      "conditions": [
+        [
+          "联系人状态",
+          "intersects",
+          [
+            "停用"
+          ]
+        ]
+      ]
+    },
+    {
+      "table": "followup",
+      "name": "已作废",
+      "conditions": [
+        [
+          "记录状态",
+          "intersects",
+          [
+            "已作废"
+          ]
+        ]
+      ]
+    },
+    {
+      "table": "customer",
+      "name": "数据问题",
+      "conditions": [
+        [
+          "质量正常",
+          "!=",
+          "true"
+        ]
+      ]
+    },
+    {
+      "table": "contact",
+      "name": "数据问题",
+      "conditions": [
+        [
+          "质量正常",
+          "!=",
+          "true"
+        ]
+      ]
+    },
+    {
+      "table": "project",
+      "name": "数据问题",
+      "conditions": [
+        [
+          "质量正常",
+          "!=",
+          "true"
+        ]
+      ]
+    },
+    {
+      "table": "followup",
+      "name": "数据问题",
+      "conditions": [
+        [
+          "质量正常",
+          "!=",
+          "true"
+        ]
+      ]
+    },
+    {
+      "name": "成员授权清单",
+      "conditions": [],
+      "table": "access"
+    },
+    {
+      "name": "管理员名单",
+      "conditions": [
+        [
+          "待配置角色",
+          "intersects",
+          [
+            "管理员"
+          ]
+        ]
+      ],
+      "table": "access"
+    },
+    {
+      "table": "customer",
+      "name": "等待中",
+      "conditions": [
+        [
+          "跟进状态",
+          "==",
+          "等待中"
+        ]
+      ],
+      "sorts": [
+        {
+          "field": "跟进排序",
+          "desc": false
+        },
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "customer",
+      "name": "明日跟进",
+      "conditions": [
+        [
+          "跟进状态",
+          "==",
+          "明日跟进"
+        ]
+      ],
+      "sorts": [
+        {
+          "field": "跟进排序",
+          "desc": false
+        },
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "customer",
+      "name": "未安排",
+      "conditions": [
+        [
+          "跟进状态",
+          "==",
+          "未安排"
+        ]
+      ],
+      "sorts": [
+        {
+          "field": "跟进排序",
+          "desc": false
+        },
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "customer",
+      "name": "无需跟进",
+      "conditions": [
+        [
+          "跟进状态",
+          "==",
+          "无需跟进"
+        ]
+      ],
+      "sorts": [
+        {
+          "field": "跟进排序",
+          "desc": false
+        },
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "project",
+      "name": "等待中",
+      "conditions": [
+        [
+          "跟进状态",
+          "==",
+          "等待中"
+        ]
+      ],
+      "sorts": [
+        {
+          "field": "跟进排序",
+          "desc": false
+        },
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "project",
+      "name": "明日跟进",
+      "conditions": [
+        [
+          "跟进状态",
+          "==",
+          "明日跟进"
+        ]
+      ],
+      "sorts": [
+        {
+          "field": "跟进排序",
+          "desc": false
+        },
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "project",
+      "name": "未安排",
+      "conditions": [
+        [
+          "跟进状态",
+          "==",
+          "未安排"
+        ]
+      ],
+      "sorts": [
+        {
+          "field": "跟进排序",
+          "desc": false
+        },
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    },
+    {
+      "table": "project",
+      "name": "无需跟进",
+      "conditions": [
+        [
+          "跟进状态",
+          "==",
+          "无需跟进"
+        ]
+      ],
+      "sorts": [
+        {
+          "field": "跟进排序",
+          "desc": false
+        },
+        {
+          "field": "下次跟进日期",
+          "desc": false
+        }
+      ]
+    }
+  ],
+  "columns": {
+    "customer": [
+      "企业全称",
+      "客户编号",
+      "客户负责人",
+      "地区",
+      "当前下一步行动",
+      "行动执行人",
+      "下次跟进日期",
+      "跟进状态",
+      "最近直接跟进",
+      "最近整体互动",
+      "整体有效次数",
+      "缺计划",
+      "数据检查"
+    ],
+    "contact": [
+      "姓名",
+      "联系人编号",
+      "所属企业",
+      "职务",
+      "电话",
+      "邮箱",
+      "维护人",
+      "联系人状态",
+      "停用时间",
+      "数据检查"
+    ],
+    "project": [
+      "项目名称",
+      "项目编号",
+      "所属企业",
+      "项目类型",
+      "项目负责人",
+      "协同人员",
+      "通用状态",
+      "当前进展",
+      "当前下一步行动",
+      "行动执行人",
+      "下次跟进日期",
+      "跟进状态",
+      "有效次数",
+      "最近有效跟进",
+      "缺计划",
+      "数据检查"
+    ],
+    "followup": [
+      "跟进主题",
+      "跟进编号",
+      "有效客户名称",
+      "跟进归属",
+      "直接客户",
+      "关联项目",
+      "记录类型",
+      "实际发生时间",
+      "实际跟进人",
+      "客户联系人",
+      "内容 / 推进结论",
+      "后续安排",
+      "建议下一步行动",
+      "有效",
+      "数据检查",
+      "创建人"
+    ],
+    "access": [
+      "姓名",
+      "飞书成员",
+      "通讯录姓名",
+      "部门",
+      "待配置角色",
+      "最后目录同步",
+      "备注",
+      "修改人",
+      "修改时间"
+    ]
+  },
+  "dashboard": [
+    {
+      "key": "customer-overdue",
+      "name": "逾期客户行动",
+      "type": "statistics",
+      "config": {
+        "table_name": "企业客户",
+        "count_all": true,
+        "filter": {
+          "conjunction": "and",
+          "conditions": [
+            {
+              "field_name": "质量正常",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            },
+            {
+              "field_name": "逾期",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            }
+          ]
+        },
+        "number_format": {
+          "formatName": "digital",
+          "precision": 0
+        }
+      }
+    },
+    {
+      "key": "project-overdue",
+      "name": "逾期项目行动",
+      "type": "statistics",
+      "config": {
+        "table_name": "客户项目",
+        "count_all": true,
+        "filter": {
+          "conjunction": "and",
+          "conditions": [
+            {
+              "field_name": "质量正常",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            },
+            {
+              "field_name": "逾期",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            }
+          ]
+        },
+        "number_format": {
+          "formatName": "digital",
+          "precision": 0
+        }
+      }
+    },
+    {
+      "key": "customer-today",
+      "name": "今日客户行动",
+      "type": "statistics",
+      "config": {
+        "table_name": "企业客户",
+        "count_all": true,
+        "filter": {
+          "conjunction": "and",
+          "conditions": [
+            {
+              "field_name": "质量正常",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            },
+            {
+              "field_name": "今日到期",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            }
+          ]
+        },
+        "number_format": {
+          "formatName": "digital",
+          "precision": 0
+        }
+      }
+    },
+    {
+      "key": "project-today",
+      "name": "今日项目行动",
+      "type": "statistics",
+      "config": {
+        "table_name": "客户项目",
+        "count_all": true,
+        "filter": {
+          "conjunction": "and",
+          "conditions": [
+            {
+              "field_name": "质量正常",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            },
+            {
+              "field_name": "今日到期",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            }
+          ]
+        },
+        "number_format": {
+          "formatName": "digital",
+          "precision": 0
+        }
+      }
+    },
+    {
+      "key": "project-no-plan",
+      "name": "需补计划的项目",
+      "type": "statistics",
+      "config": {
+        "table_name": "客户项目",
+        "count_all": true,
+        "filter": {
+          "conjunction": "and",
+          "conditions": [
+            {
+              "field_name": "缺计划",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            }
+          ]
+        },
+        "number_format": {
+          "formatName": "digital",
+          "precision": 0
+        }
+      }
+    },
+    {
+      "key": "project-stale",
+      "name": "14天未跟进项目",
+      "type": "statistics",
+      "config": {
+        "table_name": "客户项目",
+        "count_all": true,
+        "filter": {
+          "conjunction": "and",
+          "conditions": [
+            {
+              "field_name": "长期未跟进",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            }
+          ]
+        },
+        "number_format": {
+          "formatName": "digital",
+          "precision": 0
+        }
+      }
+    },
+    {
+      "key": "followup-quality",
+      "name": "跟进资料异常",
+      "type": "statistics",
+      "config": {
+        "table_name": "跟进记录",
+        "count_all": true,
+        "filter": {
+          "conjunction": "and",
+          "conditions": [
+            {
+              "field_name": "质量正常",
+              "operator": "isNot",
+              "value": [
+                "true"
+              ]
+            }
+          ]
+        },
+        "number_format": {
+          "formatName": "digital",
+          "precision": 0
+        }
+      }
+    },
+    {
+      "key": "open-projects",
+      "name": "在办项目（含暂停）",
+      "type": "statistics",
+      "config": {
+        "table_name": "客户项目",
+        "count_all": true,
+        "filter": {
+          "conjunction": "and",
+          "conditions": [
+            {
+              "field_name": "质量正常",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            },
+            {
+              "field_name": "终局确认",
+              "operator": "is",
+              "value": "未确认"
+            }
+          ]
+        },
+        "number_format": {
+          "formatName": "digital",
+          "precision": 0
+        }
+      }
+    },
+    {
+      "key": "owner-workload",
+      "name": "在办项目·负责人分布",
+      "type": "bar",
+      "config": {
+        "table_name": "客户项目",
+        "count_all": true,
+        "filter": {
+          "conjunction": "and",
+          "conditions": [
+            {
+              "field_name": "质量正常",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            },
+            {
+              "field_name": "终局确认",
+              "operator": "is",
+              "value": "未确认"
+            }
+          ]
+        },
+        "group_by": [
+          {
+            "field_name": "项目负责人",
+            "mode": "enumerated",
+            "sort": {
+              "type": "value",
+              "order": "desc"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "key": "project-distribution",
+      "name": "在办项目·状态与类型",
+      "type": "column",
+      "config": {
+        "table_name": "客户项目",
+        "count_all": true,
+        "filter": {
+          "conjunction": "and",
+          "conditions": [
+            {
+              "field_name": "质量正常",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            },
+            {
+              "field_name": "终局确认",
+              "operator": "is",
+              "value": "未确认"
+            }
+          ]
+        },
+        "group_by": [
+          {
+            "field_name": "通用状态",
+            "mode": "integrated",
+            "sort": {
+              "type": "group",
+              "order": "asc"
+            }
+          },
+          {
+            "field_name": "项目类型",
+            "mode": "integrated",
+            "sort": {
+              "type": "group",
+              "order": "asc"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "key": "customers",
+      "name": "总客户数",
+      "type": "statistics",
+      "config": {
+        "table_name": "企业客户",
+        "count_all": true,
+        "filter": {
+          "conjunction": "and",
+          "conditions": [
+            {
+              "field_name": "质量正常",
+              "operator": "is",
+              "value": [
+                "true"
+              ]
+            }
+          ]
+        },
+        "number_format": {
+          "formatName": "digital",
+          "precision": 0
+        }
+      }
+    },
+    {
+      "key": "followups",
+      "name": "累计有效跟进",
+      "type": "statistics",
+      "config": {
+        "table_name": "跟进记录",
+        "series": [
+          {
+            "field_name": "有效计数",
+            "rollup": "SUM"
+          }
+        ],
+        "number_format": {
+          "formatName": "digital",
+          "precision": 0
+        }
+      }
+    },
+    {
+      "key": "completed",
+      "name": "本月签约项目",
+      "type": "statistics",
+      "config": {
+        "table_name": "客户项目",
+        "series": [
+          {
+            "field_name": "本月签约计数",
+            "rollup": "SUM"
+          }
+        ],
+        "number_format": {
+          "formatName": "digital",
+          "precision": 0
+        }
+      }
+    },
+    {
+      "key": "canceled",
+      "name": "本月取消项目",
+      "type": "statistics",
+      "config": {
+        "table_name": "客户项目",
+        "series": [
+          {
+            "field_name": "本月取消计数",
+            "rollup": "SUM"
+          }
+        ],
+        "number_format": {
+          "formatName": "digital",
+          "precision": 0
+        }
+      }
+    }
+  ]
+}

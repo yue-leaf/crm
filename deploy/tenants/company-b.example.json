@@ -1,0 +1,15 @@
+{
+  "deploymentKey": "company-b-crm",
+  "profile": "company-b",
+  "expectedEnterpriseDisplayId": "REPLACE_ENTERPRISE_DISPLAY_ID",
+  "expectedTenantKey": "REPLACE_TENANT_KEY",
+  "expectedCliAppId": "cli_REPLACE_ME",
+  "expectedUserOpenId": "ou_REPLACE_ME",
+  "appName": "客户与项目协作管理",
+  "timeZone": "Asia/Shanghai",
+  "accessMode": "tenant",
+  "employeeOpenIds": [],
+  "sourceCommit": "7804a20d88eb8f0515188ff8473c719668c615c1",
+  "releaseReason": "在目标企业部署独立CRM，本企业已登录成员可直接使用业务，权限配置仅管理员。",
+  "memberQueries": []
+}

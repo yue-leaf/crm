@@ -1,6 +1,6 @@
 // Rebuild before running the entire offline suite; never test stale dist files.
 const {spawnSync}=require('node:child_process');
-const {readdirSync}=require('node:fs');
+const {readdirSync,existsSync}=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 function run(args){
@@ -12,3 +12,6 @@ run(['node_modules/@nestjs/cli/bin/nest.js','build']);
 const files=readdirSync(path.join(__dirname,'tests')).filter(name=>name.endsWith('.test.cjs')).sort();
 if(!files.length)throw Error('No regression tests found');
 run(['--test',...files.map(name=>path.join(__dirname,'tests',name))]);
+
+const deploymentTests=path.join(root,'deploy/tests');
+if(existsSync(deploymentTests))run(['--test',...readdirSync(deploymentTests).filter(name=>name.endsWith('.test.mjs')).sort().map(name=>path.join(deploymentTests,name))]);

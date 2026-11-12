@@ -72,3 +72,11 @@ pnpm-lock.yaml
 
 # Agent files
 .agent/
+
+# Isolated deployments (target identity, credentials, generated source)
+/deploy/.state/
+/deploy/.packages/
+/deploy/tenants/*.json
+!/deploy/tenants/*.example.json
+/deploy/source.tar
+/deploy/source-manifest.json

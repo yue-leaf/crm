@@ -1,0 +1,43 @@
+{
+  "id": "crm-daily-notice",
+  "pluginKey": "@official-plugins/send-feishu-message",
+  "pluginVersion": "1.0.33",
+  "name": "CRM待办通知",
+  "description": "发送每日个人跟进简报，包含逾期、今日、明日及其他待跟进事项，仅由服务端调用",
+  "paramsSchema": {
+    "type": "object",
+    "properties": {
+      "recipients": {
+        "type": "array",
+        "description": "接收人的妙搭用户ID",
+        "items": {
+          "type": "string"
+        }
+      },
+      "title": {
+        "type": "string",
+        "description": "通知标题"
+      },
+      "content": {
+        "type": "string",
+        "description": "待办摘要"
+      }
+    },
+    "required": [
+      "recipients",
+      "title",
+      "content"
+    ]
+  },
+  "formValue": {
+    "sender": "bot",
+    "receiverUserList": "{{input.recipients}}",
+    "receiverGroupList": [],
+    "title": {
+      "title": "{{input.title}}",
+      "titleColor": "blue"
+    },
+    "content": "{{input.content}}",
+    "buttons": []
+  }
+}
