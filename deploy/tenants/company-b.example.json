@@ -9,7 +9,7 @@
   "timeZone": "Asia/Shanghai",
   "accessMode": "tenant",
   "employeeOpenIds": [],
-  "sourceCommit": "7804a20d88eb8f0515188ff8473c719668c615c1",
+  "sourceCommit": "794a712bb149ad4e1d5c9554f912ae2bfe5a59dd",
   "releaseReason": "在目标企业部署独立CRM，本企业已登录成员可直接使用业务，权限配置仅管理员。",
   "memberQueries": []
 }
