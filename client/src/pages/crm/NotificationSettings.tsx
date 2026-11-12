@@ -1,20 +1,17 @@
 import { loadEmployeeOptions } from './employeeOptions';
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, RefreshCw } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Switch } from '../../components/ui/switch';
 import { UserSelect } from '../../components/business-ui/user-select';
-import { UserDisplay } from '../../components/business-ui/user-display';
 import { ActionButton as Button } from './ActionButton';
 import { api } from '../../api/crm';
 import type { NotificationPreview, NotificationSettings as Settings, NotificationState } from '@shared/api.interface';
 import { notificationTimes } from '@shared/crm-notifications';
 import './notifications.css';
 
-const statusLabels: Record<string, string> = { reading: '读取待办', read_failed: '读取失败', dispatching: '发送处理中',
-  sending: '结果待确认', accepted: '飞书已受理', uncertain: '结果待确认', empty: '无待办', complete: '已处理', stopped: '已停止', missed: '错过发送时间' };
 const dateText = (value: string) => new Date(value).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
 
 export const NotificationSettings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -71,16 +68,10 @@ export const NotificationSettings: React.FC<{ onClose: () => void }> = ({ onClos
               const value = await api.notificationTest(testId.current); setState(value);
               const sent = value.logs.find(log => log.mode === 'test');
               if (sent?.status === 'accepted') { toast.success('测试消息已提交飞书，仅发送给当前账号'); testId.current = null; }
-              else setError(sent?.detail || '请核对下方发送记录，避免重复发送');
+              else setError(sent?.detail || '发送结果暂未确认，请先检查飞书消息，避免重复发送');
             })}>发送测试给我</Button></div>
           {preview && <section className="notice-preview"><h3>{preview.title}</h3><p>当前账号的待跟进事项</p>
             <p className="notice-preview-text">{preview.content.replace(/<person ids="[0-9,]+">/g, '已指定员工').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')}</p></section>}
-          <div className="notice-log-heading"><h3>最近发送记录</h3><Button variant="ghost" size="sm" disabled={!!busy || dirty} onClick={() => void refresh()}><RefreshCw size={14} />刷新</Button></div>
-          {!state?.logs.length ? <p className="notice-empty">暂无发送记录</p> : <div className="notice-logs">{state.logs.map(log => <article key={log.id}>
-            <div><strong>{statusLabels[log.status] || '待核对'}</strong><span>{log.mode === 'test' ? '测试' : '每日提醒'}</span><time>{dateText(log.updatedAt)}</time></div>
-            {log.recipientId && <UserDisplay userId={log.recipientId} />}<p>{log.detail}</p>
-            {log.overdueCount !== null && log.otherCount !== null && <p>逾期 {log.overdueCount} · 今日 {log.todayCount} · 明日 {log.tomorrowCount} · 其他 {log.otherCount}</p>}
-          </article>)}</div>}
         </>}
       </div>
       <div className="form-actions"><Button variant="outline" disabled={!!busy} onClick={onClose}>关闭</Button></div>

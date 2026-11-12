@@ -1,7 +1,7 @@
 import type { WorkspaceTask } from '@shared/crm-workspace';
 import { BadRequestException, ConflictException, Inject, Injectable, Logger } from '@nestjs/common';
 import { AuthNPaasService, CapabilityService, DRIZZLE_DATABASE, type PostgresJsDatabase } from '@lark-apaas/fullstack-nestjs-core';
-import { and, desc, eq, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, lt, or, sql } from 'drizzle-orm';
 import { crmNotificationDelivery as deliveries, crmNotificationSetting as settings } from '../../database/schema';
 import type { NotificationPreview, NotificationSettings, NotificationState } from '@shared/api.interface';
 import { buildNotification, nextNotificationAt, notificationDay, validateNotificationSettings } from '@shared/crm-notifications';
@@ -9,6 +9,7 @@ import { CrmService } from './crm.service';
 
 type Setting = typeof settings.$inferSelect;
 type Delivery = typeof deliveries.$inferSelect;
+const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 // Deployment-specific URL, overridable when deploying to another enterprise.
 const APP_URL = process.env.CRM_PUBLIC_URL || 'https://example.feishu.link/app/app_example000001';
 
@@ -35,7 +36,9 @@ export class CrmNotificationsService {
 
   async state(): Promise<NotificationState> {
     const row = await this.setting();
-    const logs = await this.db.select().from(deliveries).orderBy(desc(deliveries.updatedAt)).limit(30);
+    const logs = await this.db.select().from(deliveries)
+      .where(gte(deliveries.createdAt, new Date(Date.now() - RETENTION_MS)))
+      .orderBy(desc(deliveries.updatedAt)).limit(30);
     return { settings: this.view(row), logs: logs.map(item => ({ id: item.id, day: item.businessDay,
       recipientId: item.recipient, mode: item.mode, status: item.status, detail: item.detail,
       overdueCount: item.overdueCount, todayCount: item.todayCount, tomorrowCount: item.tomorrowCount, otherCount: item.otherCount, updatedAt: item.updatedAt.toISOString() })) };
@@ -110,6 +113,13 @@ export class CrmNotificationsService {
   }
 
   async run(now = Date.now()): Promise<void> {
+    // Run even when reminders are disabled. Today's delivery keys remain intact.
+    // A cleanup failure must not prevent the scheduled reminder from being sent.
+    try {
+      await this.db.delete(deliveries).where(lt(deliveries.createdAt, new Date(now - RETENTION_MS)));
+    } catch {
+      this.logger.warn('Notification retention cleanup failed; will retry on next trigger');
+    }
     const config = await this.setting();
     if (!config.enabled || !config.recipientIds.length || now < config.nextAt.getTime()) return;
     const day = notificationDay(config.nextAt.getTime());

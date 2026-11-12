@@ -24,7 +24,9 @@ function harness(results = [], messageResult = { success: true }) {
     return q;
   }
   function pop() { assert.ok(results.length, 'unexpected database operation'); const next = results.shift(); if (next instanceof Error) throw next; return next; }
-  const db = { select: () => query('select'), insert: () => query('insert'), update: () => query('update') };
+  const cleanups = [];
+  const db = { select: () => query('select'), insert: () => query('insert'), update: () => query('update'),
+    delete: table => ({ where: async condition => { cleanups.push({ table, condition }); } }) };
   const capability = { load(id) { assert.equal(id, 'crm-daily-notice'); return { async call(action, data) {
     calls.push({ action, data }); if (messageResult instanceof Error) throw messageResult; return messageResult;
   } }; } };
@@ -34,8 +36,32 @@ function harness(results = [], messageResult = { success: true }) {
   service.advance = async (...args) => advances.push(args);
   service.setting = async () => config();
   service.preview = async () => preview();
-  return { service, results, writes, calls, finishes, advances };
+  return { service, results, writes, calls, finishes, advances, cleanups };
 }
+
+test('retention deletes only notifications older than seven days even while reminders are disabled', async () => {
+  const { PgDialect } = require('drizzle-orm/pg-core');
+  const { crmNotificationDelivery } = require('../../dist/server/database/schema');
+  const h = harness();
+  h.service.setting = async () => ({ ...config(), enabled: false });
+  await h.service.run(now);
+  assert.equal(h.cleanups.length, 1);
+  assert.equal(h.cleanups[0].table, crmNotificationDelivery);
+  const query = new PgDialect().sqlToQuery(h.cleanups[0].condition);
+  assert.match(query.sql, /"crm_notification_delivery"\."_created_at" < \$1/);
+  assert.equal(new Date(query.params[0]).getTime(), now - 7 * 86400000);
+  assert.equal(h.calls.length, 0);
+  assert.equal(h.writes.length, 0);
+});
+
+test('cleanup failure does not block reminders or discard current delivery claims', async () => {
+  const h = harness([[{ id: 'run', attempts: 1 }], [{ id: 'run' }], []]);
+  h.service.db.delete = () => ({ where: async () => { throw Error('cleanup unavailable'); } });
+  await h.service.run(now);
+  assert.equal(h.calls.length, 0); // Existing recipient claim still prevents another send.
+  assert.equal(h.advances.length, 1);
+  assert.equal(h.results.length, 0);
+});
 
 test('time selection has Shanghai boundaries, midnight rollover and no immediate backfill', () => {
   assert.equal(notificationDay(Date.parse('2026-10-28T16:00:00Z')), '2026-10-29');
